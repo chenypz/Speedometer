@@ -81,11 +81,10 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     
     private func setupGForce() {
         if motionManager.isDeviceMotionAvailable {
-            motionManager.deviceMotionUpdateInterval = 0.03 // 高速感應 (約 33Hz)
+            motionManager.deviceMotionUpdateInterval = 0.03
             motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
                 guard let self = self, let userAccel = motion?.userAcceleration else { return }
                 
-                // 平滑化處理 X (橫向過彎) 與 Y (縱向加減速) G 值
                 self.gForceX = userAccel.x
                 self.gForceY = userAccel.y
                 
@@ -120,16 +119,14 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
             avgSpeed = speedRecords.reduce(0, +) / Double(speedRecords.count)
         }
         
-        // 0-100 km/h 測速邏輯
+        // 0-100 km/h 與 0-400m 測速邏輯
         if speed == 0 {
             isTimingZeroToHundred = false
             zeroToHundredStartTime = nil
             
-            // 重置 0-400m
             isTimingQuarterMile = false
             quarterMileStartTime = nil
         } else if speed > 2.0 && zeroToHundredStartTime == nil {
-            // 起步，觸發雙計時器
             isTimingZeroToHundred = true
             zeroToHundredStartTime = Date()
             
@@ -137,7 +134,6 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
             quarterMileStartTime = Date()
             quarterMileStartDistance = totalDistanceMeters
         } else {
-            // 結算 0-100
             if speed >= 100.0 && isTimingZeroToHundred {
                 if let start = zeroToHundredStartTime {
                     zeroToHundredTime = Date().timeIntervalSince(start)
@@ -145,7 +141,6 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
                 }
             }
             
-            // 結算 0-400m (Quarter Mile)
             if isTimingQuarterMile {
                 let currentTraveled = totalDistanceMeters - quarterMileStartDistance
                 if currentTraveled >= 400.0 {
@@ -210,7 +205,6 @@ struct GForceView: View {
                 .stroke(Color.white.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [2]))
                 .scaleEffect(0.5)
             
-            // 十字準心
             Path { path in
                 path.move(to: CGPoint(x: 35, y: 0))
                 path.addLine(to: CGPoint(x: 35, y: 70))
@@ -219,7 +213,6 @@ struct GForceView: View {
             }
             .stroke(Color.white.opacity(0.15), lineWidth: 1)
             
-            // 動態 G 值游標 (限制在邊界內)
             let posX = CGFloat(min(max(gx, -1.0), 1.0)) * 30
             let posY = CGFloat(min(max(-gy, -1.0), 1.0)) * 30
             
@@ -229,7 +222,6 @@ struct GForceView: View {
                 .shadow(color: themeColor, radius: 4)
                 .offset(x: posX, y: posY)
             
-            // 標示 Max G
             VStack {
                 Spacer()
                 Text(String(format: "MAX %.2fG", maxG))
@@ -273,7 +265,6 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var currentTime = Date()
     
-    // 設定選項
     @State private var speedLimit: Double = 110.0
     @State private var selectedTheme: DashboardTheme = .porsche
     @State private var flashWarning = false
@@ -282,6 +273,9 @@ struct ContentView: View {
     
     var isOverspeed: Bool { speedManager.speedKMH > speedLimit }
     var activePrimaryColor: Color { isOverspeed ? .red : selectedTheme.primaryColor }
+    
+    // 相容舊版 iOS 的青色定義
+    let customCyan = Color(red: 0.0, green: 0.8, blue: 1.0)
     
     var body: some View {
         GeometryReader { geometry in
@@ -292,7 +286,6 @@ struct ContentView: View {
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
                 
-                // 地圖 (HUD 模式下隱藏地圖避免雜光)
                 if showMap && !isHUDMode, let location = speedManager.userLocation {
                     MapTrackingView(userLocation: location)
                         .edgesIgnoringSafeArea(.all)
@@ -305,7 +298,7 @@ struct ContentView: View {
                 
                 VStack(spacing: 0) {
                     
-                    // 頂部控制欄 (HUD 模式簡化)
+                    // 頂部導覽列
                     HStack(alignment: .center, spacing: 8) {
                         Text(currentTime, style: .time)
                             .font(.system(size: isLandscape ? screenHeight * 0.045 : screenWidth * 0.038, weight: .bold, design: .monospaced))
@@ -328,7 +321,6 @@ struct ContentView: View {
                             Spacer()
                         }
                         
-                        // 功能按鈕
                         if !isHUDMode {
                             Button(action: { withAnimation { showMap.toggle() } }) {
                                 Image(systemName: "map.fill")
@@ -363,13 +355,11 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    // 中央區域 (儀表板 + G-Force 雷達圖)
+                    // 中央區域
                     let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.72 : screenWidth * 0.78
                     let progress = min(speedManager.speedKMH / 160.0, 1.0)
                     
                     HStack(spacing: 20) {
-                        
-                        // 🏎️ 動態儀表板
                         ZStack {
                             Circle()
                                 .trim(from: 0.125, to: 0.875)
@@ -411,7 +401,6 @@ struct ContentView: View {
                             }
                         }
                         
-                        // G-Force 雷達圖 (HUD 模式下隱藏)
                         if !isHUDMode {
                             GForceView(gx: speedManager.gForceX, gy: speedManager.gForceY, maxG: speedManager.maxGForce, themeColor: activePrimaryColor)
                         }
@@ -420,7 +409,7 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    // 📊 底部賽車行車電腦 (0-100m, 0-400m, TRIP, MAX)
+                    // 📊 底部行車電腦
                     if !isHUDMode {
                         HStack(spacing: 8) {
                             // 0-100 km/h
@@ -435,11 +424,11 @@ struct ContentView: View {
                             
                             Divider().background(Color.gray.opacity(0.5)).frame(height: 25)
                             
-                            // 0-400m (Quarter Mile)
+                            // 0-400m (已修正青色相容性)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("0-400M").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
                                 if let t = speedManager.quarterMileTime {
-                                    Text(String(format: "%.1fs@%.0f", t, speedManager.quarterMileTrapSpeed)).font(.system(size: 11, weight: .black, design: .monospaced)).foregroundColor(.cyan)
+                                    Text(String(format: "%.1fs@%.0f", t, speedManager.quarterMileTrapSpeed)).font(.system(size: 11, weight: .black, design: .monospaced)).foregroundColor(customCyan)
                                 } else {
                                     Text(speedManager.isTimingQuarterMile ? "TIMING" : "READY").font(.system(size: 11, weight: .bold)).foregroundColor(.yellow)
                                 }
