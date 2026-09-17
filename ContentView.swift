@@ -24,11 +24,9 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         
-        // 標記已成功接收到 GPS 訊號
         self.isGpsReady = true
         self.userLocation = location.coordinate
         
-        // 計算速度 (m/s 轉 km/h)
         let speed = location.speed
         if speed > 0 {
             self.speedKMH = speed * 3.6
@@ -46,22 +44,21 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 }
 
-// MARK: - 2. 隨位置自動跟隨的 MKMapView 包裝器
+// MARK: - 2. 自動跟隨地圖包裝器
 struct MapTrackingView: UIViewRepresentable {
     var userLocation: CLLocationCoordinate2D?
     
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.showsUserLocation = true
-        mapView.userTrackingMode = .follow // 自動跟隨使用者移動 (類似導航)
-        mapView.overrideUserInterfaceStyle = .dark // 強制暗黑模式
-        mapView.isUserInteractionEnabled = false // 避免滑動干擾自動追蹤
+        mapView.userTrackingMode = .follow
+        mapView.overrideUserInterfaceStyle = .dark
+        mapView.isUserInteractionEnabled = false
         return mapView
     }
     
     func updateUIView(_ uiView: MKMapView, context: Context) {
         if let location = userLocation {
-            // 當位置更新時，保持視角跟隨並調整地圖縮放範圍 (0.003 約為近距離導航視角)
             let region = MKCoordinateRegion(
                 center: location,
                 span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
@@ -75,10 +72,12 @@ struct MapTrackingView: UIViewRepresentable {
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
     @State private var isHUDMode = false
+    @State private var showMap = false // 控制地圖開關
     @State private var currentTime = Date()
     
-    // 青色 (相容所有 iOS 版本)
+    // 自訂顏色 (相容舊版 iOS)
     private let cyanColor = Color(red: 0.0, green: 0.8, blue: 1.0)
+    private let maxSpeedThreshold: Double = 120.0 // 加速條的最大參考車速 (120 km/h)
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -89,76 +88,139 @@ struct ContentView: View {
             let isLandscape = screenWidth > screenHeight
             
             ZStack {
-                // 背景：自動跟隨的暗黑地圖
-                if speedManager.userLocation != nil {
-                    MapTrackingView(userLocation: speedManager.userLocation)
+                // 純黑底色
+                Color.black.edgesIgnoringSafeArea(.all)
+                
+                // 背景地圖（只有在按下按鈕時才顯示）
+                if showMap, let location = speedManager.userLocation {
+                    MapTrackingView(userLocation: location)
                         .edgesIgnoringSafeArea(.all)
-                        .overlay(Color.black.opacity(0.4)) // 黑色半透明遮罩，突出數字
-                } else {
-                    Color.black.edgesIgnoringSafeArea(.all)
+                        .overlay(Color.black.opacity(0.45))
+                        .transition(.opacity)
                 }
                 
-                // 畫面內容配置
+                // 主要儀表板內容
                 VStack(spacing: 0) {
                     
-                    // 頂部狀態列：時間、GPS定位狀態、HUD切換按鈕
-                    HStack(alignment: .center) {
+                    // 頂部列：時間、GPS狀態、地圖按鈕、HUD按鈕
+                    HStack(alignment: .center, spacing: 8) {
                         // 時間
                         Text(currentTime, style: .time)
-                            .font(.system(size: isLandscape ? screenHeight * 0.05 : screenWidth * 0.045, weight: .bold, design: .monospaced))
+                            .font(.system(size: isLandscape ? screenHeight * 0.05 : screenWidth * 0.04, weight: .bold, design: .monospaced))
                             .foregroundColor(cyanColor)
                         
                         Spacer()
                         
-                        // 定位與衛星偵測狀態提示
-                        HStack(spacing: 6) {
+                        // 定位狀態
+                        HStack(spacing: 4) {
                             Circle()
                                 .fill(speedManager.isGpsReady ? Color.green : Color.orange)
-                                .frame(width: 8, height: 8)
+                                .frame(width: 7, height: 7)
                             
-                            Text(speedManager.isGpsReady ? "📍 定位完成" : "📡 偵測衛星中...")
-                                .font(.system(size: isLandscape ? screenHeight * 0.04 : screenWidth * 0.035, weight: .medium))
+                            Text(speedManager.isGpsReady ? "📍 定位" : "📡 搜尋中")
+                                .font(.system(size: isLandscape ? screenHeight * 0.035 : screenWidth * 0.03, weight: .medium))
                                 .foregroundColor(speedManager.isGpsReady ? .green : .orange)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                         .background(Color.black.opacity(0.6))
-                        .cornerRadius(12)
+                        .cornerRadius(10)
                         
-                        Spacer()
+                        // 地圖開關按鈕
+                        Button(action: {
+                            withAnimation {
+                                showMap.toggle()
+                            }
+                        }) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "map.fill")
+                                Text(showMap ? "關閉" : "地圖")
+                            }
+                            .font(.system(size: isLandscape ? screenHeight * 0.035 : screenWidth * 0.03, weight: .bold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(showMap ? cyanColor : Color.gray.opacity(0.3))
+                            .foregroundColor(showMap ? .black : .white)
+                            .cornerRadius(12)
+                        }
                         
                         // HUD 切換按鈕
                         Button(action: {
                             isHUDMode.toggle()
                         }) {
-                            Text(isHUDMode ? "HUD: 開" : "HUD 鏡像")
-                                .font(.system(size: isLandscape ? screenHeight * 0.04 : screenWidth * 0.035, weight: .bold))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(isHUDMode ? cyanColor : Color.gray.opacity(0.4))
+                            Text(isHUDMode ? "HUD:開" : "HUD")
+                                .font(.system(size: isLandscape ? screenHeight * 0.035 : screenWidth * 0.03, weight: .bold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(isHUDMode ? Color.yellow : Color.gray.opacity(0.3))
                                 .foregroundColor(isHUDMode ? .black : .white)
-                                .cornerRadius(15)
+                                .cornerRadius(12)
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 16)
                     .padding(.top, geometry.safeAreaInsets.top + 5)
                     
-                    // 正中央：超大時速表
                     Spacer()
                     
-                    VStack(spacing: isLandscape ? -10 : -5) {
-                        // 時速數字（自動適應螢幕最大化居中）
+                    // 中間核心區域：時速 + 油車風加速條
+                    VStack(spacing: isLandscape ? 5 : 12) {
+                        
+                        // 超大時速數字
                         Text("\(Int(round(speedManager.speedKMH)))")
-                            .font(.system(size: isLandscape ? screenHeight * 0.65 : screenWidth * 0.48, weight: .black, design: .rounded))
+                            .font(.system(size: isLandscape ? screenHeight * 0.55 : screenWidth * 0.45, weight: .black, design: .rounded))
                             .minimumScaleFactor(0.3)
                             .foregroundColor(speedColor(speed: speedManager.speedKMH))
                             .shadow(color: speedColor(speed: speedManager.speedKMH).opacity(0.85), radius: 20, x: 0, y: 0)
                         
                         // 單位 KM/H
-                        Text("KM/H")
-                            .font(.system(size: isLandscape ? screenHeight * 0.09 : screenWidth * 0.075, weight: .heavy, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.85))
-                            .tracking(6)
+                        Text("KM / H")
+                            .font(.system(size: isLandscape ? screenHeight * 0.07 : screenWidth * 0.06, weight: .heavy, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.8))
+                            .tracking(4)
+                        
+                        // 🔥 油車 / 跑車風格 加速進度條 (Power Bar)
+                        VStack(spacing: 4) {
+                            GeometryReader { barGeo in
+                                let barWidth = barGeo.size.width
+                                let currentSpeed = min(speedManager.speedKMH, maxSpeedThreshold)
+                                let fillProgress = CGFloat(currentSpeed / maxSpeedThreshold)
+                                
+                                ZStack(alignment: .leading) {
+                                    // 背景軌道
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.gray.opacity(0.25))
+                                        .frame(height: isLandscape ? 12 : 16)
+                                    
+                                    // 動態充能進度條
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [cyanColor, speedColor(speed: speedManager.speedKMH)]),
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .frame(width: max(0, barWidth * fillProgress), height: isLandscape ? 12 : 16)
+                                        .shadow(color: speedColor(speed: speedManager.speedKMH).opacity(0.7), radius: 8, x: 0, y: 0)
+                                        .animation(.easeOut(duration: 0.2), value: speedManager.speedKMH)
+                                }
+                            }
+                            .frame(height: isLandscape ? 12 : 16)
+                            
+                            // 進度條底部的刻度數字 (0 ~ 120)
+                            HStack {
+                                Text("0").font(.caption2).foregroundColor(.gray)
+                                Spacer()
+                                Text("40").font(.caption2).foregroundColor(.gray)
+                                Spacer()
+                                Text("80").font(.caption2).foregroundColor(.gray)
+                                Spacer()
+                                Text("120+").font(.caption2).foregroundColor(.gray)
+                            }
+                            .padding(.horizontal, 2)
+                        }
+                        .frame(width: isLandscape ? screenWidth * 0.6 : screenWidth * 0.8)
+                        .padding(.top, isLandscape ? 5 : 10)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     
@@ -172,14 +234,13 @@ struct ContentView: View {
                             .padding(.bottom, 10)
                     }
                 }
-                .scaleEffect(x: isHUDMode ? -1 : 1, y: 1) // HUD 擋風玻璃鏡像翻轉
+                .scaleEffect(x: isHUDMode ? -1 : 1, y: 1) // HUD 鏡像
             }
         }
         .onReceive(timer) { _ in
             self.currentTime = Date()
         }
         .onAppear {
-            // 保持螢幕常亮不休眠
             UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
@@ -187,17 +248,17 @@ struct ContentView: View {
         }
     }
     
-    // 根據車速動態切換霓虹顏色
+    // 根據車速動態切換顏色
     private func speedColor(speed: Double) -> Color {
         switch speed {
         case 0..<40:
-            return Color(red: 0.0, green: 1.0, blue: 0.8) // 霓虹青綠
+            return Color(red: 0.0, green: 1.0, blue: 0.8) // 青綠
         case 40..<80:
             return Color(red: 0.2, green: 0.9, blue: 0.3) // 螢光綠
         case 80..<110:
             return Color(red: 1.0, green: 0.7, blue: 0.0) // 警告黃
         default:
-            return Color(red: 1.0, green: 0.2, blue: 0.3) // 超速亮紅
+            return Color(red: 1.0, green: 0.2, blue: 0.3) // 爆紅
         }
     }
 }
