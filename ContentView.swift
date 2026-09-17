@@ -1,9 +1,9 @@
-=import SwiftUI
+import SwiftUI
 import CoreLocation
 
 class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
-    @Published var currentSpeed: Double = 0.0 // km/h
+    @Published var currentSpeed: Double = 0.0
     @Published var maxSpeed: Double = 0.0
     @Published var gpsStatus: String = "SEARCHING"
     
@@ -18,8 +18,6 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        
-        // m/s 轉 km/h
         let speedKmH = max(0, location.speed * 3.6)
         DispatchQueue.main.async {
             self.currentSpeed = speedKmH
@@ -33,25 +31,22 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
 
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
-    
-    // 設定儀表板最大顯示速度 (例如微型電動車設為 60)
     let maxGaugeSpeed: Double = 60.0
     
     var body: some View {
         ZStack {
-            // 1. 純黑背景 (節能且高對比)
             Color.black.ignoresSafeArea()
             
-            // 背景微弱網格紋理感
-            VStack {
+            // 背景科技藍光
+            HStack {
                 Spacer()
                 Circle()
-                    .fill(Color.cyan.opacity(0.12))
-                    .blur(radius: 90)
+                    .fill(Color.cyan.opacity(0.15))
+                    .blur(radius: 80)
             }
             
-            VStack(spacing: 30) {
-                // 顶部 科技感狀態列
+            VStack(spacing: 0) {
+                // 頂部狀態列
                 HStack {
                     HStack(spacing: 6) {
                         Circle()
@@ -59,108 +54,117 @@ struct ContentView: View {
                             .frame(width: 8, height: 8)
                             .shadow(color: speedManager.gpsStatus == "LOCK" ? .green : .red, radius: 4)
                         Text("GPS: \(speedManager.gpsStatus)")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundColor(.gray)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
                     .background(Color.white.opacity(0.05))
-                    .cornerRadius(20)
+                    .cornerRadius(15)
                     
                     Spacer()
                     
-                    Text("CYBER-HUD v1.0")
-                        .font(.system(size: 12, weight: .black, design: .monospaced))
+                    Text("CYBER-HUD LANDSCAPE")
+                        .font(.system(size: 11, weight: .black, design: .monospaced))
                         .foregroundColor(Color.cyan.opacity(0.6))
                 }
-                .padding(.horizontal, 25)
+                .padding(.horizontal, 20)
                 .padding(.top, 10)
                 
-                Spacer()
-                
-                // 2. 中央霓虹速限色環儀表
-                ZStack {
-                    // 底環
-                    Circle()
-                        .stroke(Color.white.opacity(0.1), lineWidth: 15)
-                        .frame(width: 250, height: 250)
-                    
-                    // 動態進度環
-                    Circle()
-                        .trim(from: 0.0, to: CGFloat(min(speedManager.currentSpeed / maxGaugeSpeed, 1.0)))
-                        .stroke(
-                            AngularGradient(
-                                gradient: Gradient(colors: [.cyan, .blue, .purple, .pink]),
-                                center: .center
-                            ),
-                            style: StrokeStyle(lineWidth: 15, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: 250, height: 250)
-                        .shadow(color: .cyan, radius: 10) // 霓虹發光效果
-                        .animation(.linear(duration: 0.2), value: speedManager.currentSpeed)
-                    
-                    // 速度數字與單位
-                    VStack(spacing: -5) {
+                // 橫向左右分欄
+                HStack(spacing: 30) {
+                    // 左側：極大字體車速
+                    VStack(alignment: .leading, spacing: -10) {
                         Text(String(format: "%.0f", speedManager.currentSpeed))
-                            .font(.system(size: 85, weight: .heavy, design: .rounded))
+                            .font(.system(size: 110, weight: .heavy, design: .rounded))
                             .italic()
                             .foregroundColor(.white)
-                            .shadow(color: .cyan, radius: 15) // 文字霓虹 Glow
+                            .shadow(color: .cyan, radius: 20)
                         
                         Text("KM/H")
-                            .font(.system(size: 16, weight: .black, design: .monospaced))
+                            .font(.system(size: 22, weight: .black, design: .monospaced))
                             .foregroundColor(.cyan)
-                            .tracking(4)
+                            .tracking(6)
                     }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    
+                    // 右側：動態圓環 + 數據盒
+                    VStack(spacing: 15) {
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white.opacity(0.1), lineWidth: 12)
+                                .frame(width: 140, height: 140)
+                            
+                            Circle()
+                                .trim(from: 0.0, to: CGFloat(min(speedManager.currentSpeed / maxGaugeSpeed, 1.0)))
+                                .stroke(
+                                    AngularGradient(
+                                        gradient: Gradient(colors: [.cyan, .blue, .purple]),
+                                        center: .center
+                                    ),
+                                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                                )
+                                .rotationEffect(.degrees(-90))
+                                .frame(width: 140, height: 140)
+                                .shadow(color: .cyan, radius: 8)
+                                .animation(.linear(duration: 0.2), value: speedManager.currentSpeed)
+                            
+                            VStack(spacing: 2) {
+                                Text("LIMIT")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.gray)
+                                Text("25")
+                                    .font(.system(size: 20, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        
+                        HStack(spacing: 10) {
+                            MetricBox(title: "MAX", value: String(format: "%.1f", speedManager.maxSpeed), unit: "KM/H", color: .purple)
+                        }
+                        .frame(width: 160)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
                 }
+                .padding(.horizontal, 20)
                 
                 Spacer()
-                
-                // 3. 底部駕駛數據方塊
-                HStack(spacing: 20) {
-                    MetricBox(title: "MAX SPEED", value: String(format: "%.1f", speedManager.maxSpeed), unit: "KM/H", color: .purple)
-                    MetricBox(title: "LIMIT", value: "25.0", unit: "KM/H", color: .orange)
-                }
-                .padding(.horizontal, 25)
-                .padding(.bottom, 20)
             }
         }
         .onAppear {
-            UIApplication.shared.isIdleTimerDisabled = true // 保持螢幕常亮
+            UIApplication.shared.isIdleTimerDisabled = true
         }
     }
 }
 
-// 數據方塊模組
 struct MetricBox: View {
     var title: String
     var value: String
     var unit: String
     var color: Color
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+    var body: View {
+        VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(.gray)
             
             HStack(alignment: .bottom, spacing: 4) {
                 Text(value)
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 Text(unit)
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
                     .foregroundColor(color)
-                    .padding(.bottom, 3)
+                    .padding(.bottom, 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(15)
+        .padding(10)
         .background(Color.white.opacity(0.04))
-        .cornerRadius(12)
+        .cornerRadius(10)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .stroke(color.opacity(0.3), lineWidth: 1)
         )
     }
