@@ -13,43 +13,24 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Initialize Swift Package
+    - name: Build App with swiftc
       run: |
-        mkdir -p Sources/Speedometer
-        mv SpeedometerApp.swift Sources/Speedometer/
-        mv ContentView.swift Sources/Speedometer/
-        
-        cat << 'EOF' > Package.swift
-        // swift-tools-version:5.5
-        import PackageDescription
-
-        let package = Package(
-            name: "Speedometer",
-            platforms: [.iOS(.v14)],
-            products: [
-                .executable(name: "Speedometer", targets: ["Speedometer"])
-            ],
-            targets: [
-                .executableTarget(
-                    name: "Speedometer",
-                    path: "Sources/Speedometer"
-                )
-            ]
-        )
-        EOF
-
-    - name: Build Executable
-      run: |
-        swift build -c release --triple arm64-apple-ios14.0-simulator
-
-    - name: Package IPA Structure
-      run: |
+        # 1. 建立 iOS App 標準目錄結構
         mkdir -p Payload/Speedometer.app
-        cp .build/arm64-apple-ios14.0-simulator/release/Speedometer Payload/Speedometer.app/Speedometer
+        
+        # 2. 編譯 Swift 程式碼
+        swiftc -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
+               -target arm64-apple-ios14.0 \
+               -emit-executable \
+               -o Payload/Speedometer.app/Speedometer \
+               SpeedometerApp.swift ContentView.swift
+        
+        # 3. 複製設定檔與補全 iOS App 核心封裝檔案
         cp Info.plist Payload/Speedometer.app/Info.plist
-        
-        echo "APPL????" > Payload/Speedometer.app/PkgInfo
-        
+        echo -n "APPL????" > Payload/Speedometer.app/PkgInfo
+
+    - name: Create IPA Package
+      run: |
         zip -r Speedometer.ipa Payload
 
     - name: Upload IPA Artifact
