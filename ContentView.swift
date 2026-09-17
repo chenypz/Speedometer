@@ -265,7 +265,7 @@ struct MetricBox: View {
     var unit: String
     var color: Color
     
-    var body: View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.system(size: 8, weight: .bold, design: .monospaced))
