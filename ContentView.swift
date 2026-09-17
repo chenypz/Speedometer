@@ -1,298 +1,200 @@
 import SwiftUI
-import CoreLocation
 import MapKit
-import UIKit
+import CoreLocation
+import Combine
 
-// 相容 iOS 14+ 顏色定義
-extension Color {
-    static let cyberCyan = Color(red: 0.0, green: 0.9, blue: 1.0)
+// MARK: - 1. GPS 定位與時速管理器
+class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    private let locationManager = CLLocationManager()
+    
+    @Published var speedKMH: Double = 0.0
+    @Published var userLocation: CLLocationCoordinate2D?
+    @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
+    @Published var isGpsReady: Bool = false
+    
+    override init() {
+        super.init()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        locationManager.distanceFilter = kCLDistanceFilterNone
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        
+        // 標記已成功接收到 GPS 訊號
+        self.isGpsReady = true
+        self.userLocation = location.coordinate
+        
+        // 計算速度 (m/s 轉 km/h)
+        let speed = location.speed
+        if speed > 0 {
+            self.speedKMH = speed * 3.6
+        } else {
+            self.speedKMH = 0.0
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        self.isGpsReady = false
+    }
+    
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        self.authorizationStatus = manager.authorizationStatus
+    }
 }
 
-// UIKit MapView 封裝（實現暗黑模式地圖與跟隨位置）
-struct MiniMapView: UIViewRepresentable {
-    @ObservedObject var speedManager: SpeedometerManager
+// MARK: - 2. 隨位置自動跟隨的 MKMapView 包裝器
+struct MapTrackingView: UIViewRepresentable {
+    var userLocation: CLLocationCoordinate2D?
     
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
-        mapView.overrideUserInterfaceStyle = .dark // 強制暗黑模式地圖
         mapView.showsUserLocation = true
-        mapView.userTrackingMode = .followWithHeading // 跟隨位置與方向
-        mapView.isRotateEnabled = true
-        mapView.isPitchEnabled = false
-        mapView.showsCompass = false
-        mapView.showsScale = false
+        mapView.userTrackingMode = .follow // 自動跟隨使用者移動 (類似導航)
+        mapView.overrideUserInterfaceStyle = .dark // 強制暗黑模式
+        mapView.isUserInteractionEnabled = false // 避免滑動干擾自動追蹤
         return mapView
     }
     
     func updateUIView(_ uiView: MKMapView, context: Context) {
-        if let location = speedManager.lastCLLocation {
+        if let location = userLocation {
+            // 當位置更新時，保持視角跟隨並調整地圖縮放範圍 (0.003 約為近距離導航視角)
             let region = MKCoordinateRegion(
-                center: location.coordinate,
-                latitudinalMeters: 500, // 地圖縮放範圍 (500m)
-                longitudinalMeters: 500
+                center: location,
+                span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
             )
             uiView.setRegion(region, animated: true)
         }
     }
 }
 
-class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    private let locationManager = CLLocationManager()
-    
-    @Published var currentSpeed: Double = 0.0
-    @Published var maxSpeed: Double = 0.0
-    @Published var totalDistance: Double = 0.0 // 公里
-    @Published var gpsStatus: String = "SEARCHING"
-    @Published var lastCLLocation: CLLocation?
-    
-    private var startTime: Date?
-    @Published var elapsedTime: TimeInterval = 0
-    private var timer: Timer?
-
-    override init() {
-        super.init()
-        locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-        locationManager.activityType = .automotiveNavigation
-        locationManager.requestWhenInUseAuthorization()
-        locationManager.startUpdatingLocation()
-        locationManager.startUpdatingHeading()
-        
-        startTime = Date()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            if let start = self.startTime {
-                self.elapsedTime = Date().timeIntervalSince(start)
-            }
-        }
-    }
-    
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
-        
-        if location.horizontalAccuracy < 0 || location.horizontalAccuracy > 20 { return }
-        
-        let speedKmH = max(0, location.speed * 3.6)
-        
-        DispatchQueue.main.async {
-            self.currentSpeed = speedKmH
-            if speedKmH > self.maxSpeed {
-                self.maxSpeed = speedKmH
-            }
-            
-            if let last = self.lastCLLocation {
-                let delta = location.distance(from: last)
-                if delta > 1.0 && speedKmH > 1.0 {
-                    self.totalDistance += (delta / 1000.0)
-                }
-            }
-            self.lastCLLocation = location
-            self.gpsStatus = "LOCK"
-        }
-    }
-    
-    var formattedTime: String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute, .second]
-        formatter.zeroFormattingBehavior = .pad
-        return formatter.string(from: elapsedTime) ?? "00:00:00"
-    }
-}
-
+// MARK: - 3. 主儀表板畫面
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
-    @State private var isHudMirrored = false
-    @State private var speedLimit: Double = 25.0
-    @State private var batteryLevel: Float = 1.0
-    @State private var currentTimeString: String = ""
+    @State private var isHUDMode = false
+    @State private var currentTime = Date()
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
-    var isOverspeed: Bool {
-        return speedManager.currentSpeed > speedLimit
-    }
-    
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        GeometryReader { geometry in
+            let screenWidth = geometry.size.width
+            let screenHeight = geometry.size.height
+            let isLandscape = screenWidth > screenHeight
             
-            // 背景動態光暈（超速變紅）
-            HStack {
-                Spacer()
-                Circle()
-                    .fill((isOverspeed ? Color.red : Color.cyberCyan).opacity(0.15))
-                    .blur(radius: 80)
-            }
-            
-            VStack(spacing: 0) {
-                // 頂部狀態列
-                HStack {
-                    // GPS 狀態
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(speedManager.gpsStatus == "LOCK" ? Color.green : Color.red)
-                            .frame(width: 8, height: 8)
-                            .shadow(color: speedManager.gpsStatus == "LOCK" ? .green : .red, radius: 4)
-                        Text("GPS: \(speedManager.gpsStatus)")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.05))
-                    .cornerRadius(15)
+            ZStack {
+                // 背景：自動跟隨的暗黑地圖
+                if speedManager.userLocation != nil {
+                    MapTrackingView(userLocation: speedManager.userLocation)
+                        .edgesIgnoringSafeArea(.all)
+                        .overlay(Color.black.opacity(0.4)) // 黑色半透明遮罩，突出數字
+                } else {
+                    Color.black.edgesIgnoringSafeArea(.all)
+                }
+                
+                // 畫面內容配置
+                VStack(spacing: 0) {
                     
-                    // 電量 & 時間
-                    HStack(spacing: 12) {
-                        Text("⚡️ \(Int(batteryLevel * 100))%")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.gray)
-                        Text(currentTimeString)
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
+                    // 頂部狀態列：時間、GPS定位狀態、HUD切換按鈕
+                    HStack(alignment: .center) {
+                        // 時間
+                        Text(currentTime, style: .time)
+                            .font(.system(size: isLandscape ? screenHeight * 0.05 : screenWidth * 0.045, weight: .bold, design: .monospaced))
+                            .foregroundColor(.cyan)
+                        
+                        Spacer()
+                        
+                        // 定位與衛星偵測狀態提示
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(speedManager.isGpsReady ? Color.green : Color.orange)
+                                .frame(width: 8, height: 8)
+                            
+                            Text(speedManager.isGpsReady ? "📍 定位完成" : "📡 偵測衛星中...")
+                                .font(.system(size: isLandscape ? screenHeight * 0.04 : screenWidth * 0.035, weight: .medium))
+                                .foregroundColor(speedManager.isGpsReady ? .green : .orange)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(12)
+                        
+                        Spacer()
+                        
+                        // HUD 切換按鈕
+                        Button(action: {
+                            isHUDMode.toggle()
+                        }) {
+                            Text(isHUDMode ? "HUD: 開" : "HUD 鏡像")
+                                .font(.system(size: isLandscape ? screenHeight * 0.04 : screenWidth * 0.035, weight: .bold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(isHUDMode ? Color.cyan : Color.gray.opacity(0.4))
+                                .foregroundColor(isHUDMode ? .black : .white)
+                                .cornerRadius(15)
+                        }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.05))
-                    .cornerRadius(15)
+                    .padding(.horizontal, 20)
+                    .padding(.top, geometry.safeAreaInsets.top + 5)
+                    
+                    // 正中央：超大時速表
+                    Spacer()
+                    
+                    VStack(spacing: isLandscape ? -10 : -5) {
+                        // 時速數字（自動適應螢幕最大化居中）
+                        Text("\(Int(round(speedManager.speedKMH)))")
+                            .font(.system(size: isLandscape ? screenHeight * 0.65 : screenWidth * 0.48, weight: .black, design: .rounded))
+                            .minimumScaleFactor(0.3)
+                            .foregroundColor(speedColor(speed: speedManager.speedKMH))
+                            .shadow(color: speedColor(speed: speedManager.speedKMH).opacity(0.85), radius: 20, x: 0, y: 0)
+                        
+                        // 單位 KM/H
+                        Text("KM/H")
+                            .font(.system(size: isLandscape ? screenHeight * 0.09 : screenWidth * 0.075, weight: .heavy, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.85))
+                            .tracking(6)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     
                     Spacer()
                     
-                    // HUD 鏡像切換按鈕
-                    Button(action: {
-                        isHudMirrored.toggle()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "rectangle.2.swap")
-                            Text(isHudMirrored ? "MIRROR ON" : "HUD MODE")
-                        }
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundColor(isHudMirrored ? .black : .cyberCyan)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(isHudMirrored ? Color.cyberCyan : Color.cyberCyan.opacity(0.15))
-                        .cornerRadius(12)
+                    // 底部：GPS 權限提醒
+                    if speedManager.authorizationStatus == .denied {
+                        Text("⚠️ 請至 iPhone 設定中開啟定位權限")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.bottom, 10)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                
-                Spacer()
-                
-                // 主要區域：左側時速與數據，右側即時小地圖
-                HStack(spacing: 15) {
-                    // 左側：極大車速 + 簡化騎乘數據
-                    VStack(alignment: .leading, spacing: 10) {
-                        VStack(alignment: .leading, spacing: -15) {
-                            Text(String(format: "%.0f", speedManager.currentSpeed))
-                                .font(.system(size: 105, weight: .heavy, design: .rounded))
-                                .italic()
-                                .foregroundColor(isOverspeed ? .red : .white)
-                                .shadow(color: isOverspeed ? .red : .cyberCyan, radius: 25)
-                            
-                            HStack {
-                                Text("KM/H")
-                                    .font(.system(size: 20, weight: .black, design: .monospaced))
-                                    .foregroundColor(isOverspeed ? .red : .cyberCyan)
-                                    .tracking(4)
-                                
-                                if isOverspeed {
-                                    Text("⚠️ OVER SPEED")
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .foregroundColor(.red)
-                                }
-                            }
-                        }
-                        
-                        // 底部數據列
-                        HStack(spacing: 8) {
-                            MetricBox(title: "TRIP", value: String(format: "%.2f", speedManager.totalDistance), unit: "KM", color: .cyberCyan)
-                            MetricBox(title: "MAX", value: String(format: "%.1f", speedManager.maxSpeed), unit: "KM/H", color: .purple)
-                            MetricBox(title: "TIME", value: speedManager.formattedTime, unit: "", color: .orange)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    
-                    // 右側：暗黑模式即時地圖視窗
-                    ZStack(alignment: .topTrailing) {
-                        MiniMapView(speedManager: speedManager)
-                            .cornerRadius(16)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.cyberCyan.opacity(0.4), lineWidth: 1.5)
-                            )
-                            .shadow(color: .black.opacity(0.5), radius: 10)
-                        
-                        // 地圖上的科技感標籤
-                        Text("LIVE MAP")
-                            .font(.system(size: 9, weight: .black, design: .monospaced))
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.cyberCyan)
-                            .cornerRadius(8)
-                            .padding(8)
-                    }
-                    .frame(width: 240, height: 210)
-                }
-                .padding(.horizontal, 20)
-                
-                Spacer()
+                .scaleEffect(x: isHUDMode ? -1 : 1, y: 1) // HUD 擋風玻璃鏡像翻轉
             }
-        }
-        .scaleEffect(x: isHudMirrored ? -1 : 1, y: 1)
-        .onAppear {
-            UIApplication.shared.isIdleTimerDisabled = true
-            UIDevice.current.isBatteryMonitoringEnabled = true
-            batteryLevel = UIDevice.current.batteryLevel
-            updateTime()
         }
         .onReceive(timer) { _ in
-            updateTime()
-            batteryLevel = UIDevice.current.batteryLevel
+            self.currentTime = Date()
+        }
+        .onAppear {
+            // 保持螢幕常亮不休眠
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
         }
     }
     
-    private func updateTime() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        currentTimeString = formatter.string(from: Date())
-    }
-}
-
-struct MetricBox: View {
-    var title: String
-    var value: String
-    var unit: String
-    var color: Color
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .foregroundColor(.gray)
-            
-            HStack(alignment: .bottom, spacing: 2) {
-                Text(value)
-                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-                
-                if !unit.isEmpty {
-                    Text(unit)
-                        .font(.system(size: 7, weight: .bold, design: .monospaced))
-                        .foregroundColor(color)
-                        .padding(.bottom, 1)
-                }
-            }
+    // 根據車速動態切換霓虹顏色
+    private func speedColor(speed: Double) -> Color {
+        switch speed {
+        case 0..<40:
+            return Color(red: 0.0, green: 1.0, blue: 0.8) // 霓虹青綠
+        case 40..<80:
+            return Color(red: 0.2, green: 0.9, blue: 0.3) // 螢光綠
+        case 80..<110:
+            return Color(red: 1.0, green: 0.7, blue: 0.0) // 警告黃
+        default:
+            return Color(red: 1.0, green: 0.2, blue: 0.3) // 超速亮紅
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(color.opacity(0.3), lineWidth: 1)
-        )
     }
 }
