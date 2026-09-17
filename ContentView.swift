@@ -77,6 +77,9 @@ struct ContentView: View {
     @State private var isHUDMode = false
     @State private var currentTime = Date()
     
+    // 青色 (相容所有 iOS 版本)
+    private let cyanColor = Color(red: 0.0, green: 0.8, blue: 1.0)
+    
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var body: some View {
@@ -103,7 +106,7 @@ struct ContentView: View {
                         // 時間
                         Text(currentTime, style: .time)
                             .font(.system(size: isLandscape ? screenHeight * 0.05 : screenWidth * 0.045, weight: .bold, design: .monospaced))
-                            .foregroundColor(.cyan)
+                            .foregroundColor(cyanColor)
                         
                         Spacer()
                         
@@ -132,7 +135,7 @@ struct ContentView: View {
                                 .font(.system(size: isLandscape ? screenHeight * 0.04 : screenWidth * 0.035, weight: .bold))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(isHUDMode ? Color.cyan : Color.gray.opacity(0.4))
+                                .background(isHUDMode ? cyanColor : Color.gray.opacity(0.4))
                                 .foregroundColor(isHUDMode ? .black : .white)
                                 .cornerRadius(15)
                         }
