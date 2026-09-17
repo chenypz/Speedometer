@@ -1,4 +1,4 @@
-import SwiftUI
+=import SwiftUI
 import CoreLocation
 import UIKit
 
@@ -62,7 +62,7 @@ struct ContentView: View {
 
                 Text("\(Int(round(speedManager.speedKmH)))")
                     .font(.system(size: 150, weight: .heavy, design: .rounded))
-                    .foregroundColor(speedManager.speedKmH > 25 ? .orange : .cyan)
+                    .foregroundColor(speedManager.speedKmH > 25 ? Color.orange : Color(red: 0.0, green: 0.8, blue: 1.0))
 
                 Text("KM/H")
                     .font(.system(size: 30, weight: .bold))
