@@ -13,24 +13,95 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Build App with swiftc
+    - name: Set up Xcode Project Structure
       run: |
-        # 1. 建立 iOS App 標準目錄結構
-        mkdir -p Payload/Speedometer.app
-        
-        # 2. 編譯 Swift 程式碼
-        swiftc -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
-               -target arm64-apple-ios14.0 \
-               -emit-executable \
-               -o Payload/Speedometer.app/Speedometer \
-               SpeedometerApp.swift ContentView.swift
-        
-        # 3. 複製設定檔與補全 iOS App 核心封裝檔案
-        cp Info.plist Payload/Speedometer.app/Info.plist
-        echo -n "APPL????" > Payload/Speedometer.app/PkgInfo
+        mkdir -p Speedometer.xcodeproj
+        cat << 'EOF' > Speedometer.xcodeproj/project.pbxproj
+        // !$*UTF8*$!
+        {
+          archiveVersion = 1;
+          classes = {};
+          objectVersion = 54;
+          objects = {
+            1D6058900D05DD1D006C749F /* Speedometer */ = {
+              isa = PBXNativeTarget;
+              buildConfigurationList = 1D6058960D05DD1E006C749F /* Build configuration list */;
+              buildPhases = (
+                1D60588D0D05DD1D006C749F /* Sources */,
+              );
+              buildRules = ();
+              dependencies = ();
+              name = Speedometer;
+              productName = Speedometer;
+              productReference = 1D6058910D05DD1D006C749F /* Speedometer.app */;
+              productType = "com.apple.product-type.application";
+            };
+            1D60588D0D05DD1D006C749F /* Sources */ = {
+              isa = PBXSourcesBuildPhase;
+              buildActionMask = 2147483647;
+              files = (
+                1D60588E0D05DD1D006C749F /* SpeedometerApp.swift in Sources */,
+                1D60588F0D05DD1D006C749F /* ContentView.swift in Sources */,
+              );
+              runOnlyForDeploymentPostprocessing = 0;
+            };
+            1D60588E0D05DD1D006C749F /* SpeedometerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D6058920D05DD1D006C749F /* SpeedometerApp.swift */;};
+            1D60588F0D05DD1D006C749F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D6058930D05DD1D006C749F /* ContentView.swift */;};
+            1D6058920D05DD1D006C749F /* SpeedometerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedometerApp.swift; sourceTree = "<group>";};
+            1D6058930D05DD1D006C749F /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>";};
+            1D6058910D05DD1D006C749F /* Speedometer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Speedometer.app; sourceTree = BUILT_PRODUCTS_DIR;};
+            29B97313FDCFA39411CA2CEA /* MainGroup */ = {
+              isa = PBXGroup;
+              children = (
+                1D6058920D05DD1D006C749F /* SpeedometerApp.swift */,
+                1D6058930D05DD1D006C749F /* ContentView.swift */,
+                1D6058910D05DD1D006C749F /* Speedometer.app */,
+              );
+              sourceTree = "<group>";
+            };
+            1D6058960D05DD1E006C749F /* Build configuration list */ = {
+              isa = XCConfigurationList;
+              buildConfigurations = (
+                1D6058970D05DD1E006C749F /* Release */,
+              );
+              defaultConfigurationIsVisible = 0;
+              defaultConfigurationName = Release;
+            };
+            1D6058970D05DD1E006C749F /* Release */ = {
+              isa = XCBuildConfiguration;
+              buildSettings = {
+                ALWAYS_SEARCH_USER_PATHS = NO;
+                CLANG_ENABLE_MODULES = YES;
+                INFOPLIST_FILE = Info.plist;
+                IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.chenypz.speedometer;
+                PRODUCT_NAME = Speedometer;
+                SDKROOT = iphoneos;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                CODE_SIGNING_ALLOWED = NO;
+                CODE_SIGN_IDENTITY = "";
+              };
+              name = Release;
+            };
+          };
+          rootObject = 1D6058900D05DD1D006C749F;
+        }
+        EOF
 
-    - name: Create IPA Package
+    - name: Build App with Xcodebuild
       run: |
+        xcodebuild -project Speedometer.xcodeproj \
+                   -scheme Speedometer \
+                   -sdk iphoneos \
+                   -configuration Release \
+                   CODE_SIGNING_ALLOWED=NO \
+                   BUILD_DIR=build
+
+    - name: Package IPA
+      run: |
+        mkdir -p Payload
+        cp -R build/Release-iphoneos/Speedometer.app Payload/
         zip -r Speedometer.ipa Payload
 
     - name: Upload IPA Artifact
