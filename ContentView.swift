@@ -1,6 +1,11 @@
 import SwiftUI
 import CoreLocation
 
+// 定義 iOS 14 相容的賽博青色 (Cyan)
+extension Color {
+    static let cyberCyan = Color(red: 0.0, green: 0.9, blue: 1.0)
+}
+
 class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     @Published var currentSpeed: Double = 0.0
@@ -41,7 +46,7 @@ struct ContentView: View {
             HStack {
                 Spacer()
                 Circle()
-                    .fill(Color.cyan.opacity(0.15))
+                    .fill(Color.cyberCyan.opacity(0.15))
                     .blur(radius: 80)
             }
             
@@ -66,7 +71,7 @@ struct ContentView: View {
                     
                     Text("CYBER-HUD LANDSCAPE")
                         .font(.system(size: 11, weight: .black, design: .monospaced))
-                        .foregroundColor(Color.cyan.opacity(0.6))
+                        .foregroundColor(Color.cyberCyan.opacity(0.6))
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
@@ -79,11 +84,11 @@ struct ContentView: View {
                             .font(.system(size: 110, weight: .heavy, design: .rounded))
                             .italic()
                             .foregroundColor(.white)
-                            .shadow(color: .cyan, radius: 20)
+                            .shadow(color: .cyberCyan, radius: 20)
                         
                         Text("KM/H")
                             .font(.system(size: 22, weight: .black, design: .monospaced))
-                            .foregroundColor(.cyan)
+                            .foregroundColor(.cyberCyan)
                             .tracking(6)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -99,15 +104,15 @@ struct ContentView: View {
                                 .trim(from: 0.0, to: CGFloat(min(speedManager.currentSpeed / maxGaugeSpeed, 1.0)))
                                 .stroke(
                                     AngularGradient(
-                                        gradient: Gradient(colors: [.cyan, .blue, .purple]),
+                                        gradient: Gradient(colors: [.cyberCyan, .blue, .purple]),
                                         center: .center
                                     ),
                                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
                                 )
                                 .rotationEffect(.degrees(-90))
                                 .frame(width: 140, height: 140)
-                                .shadow(color: .cyan, radius: 8)
-                                .animation(.linear(duration: 0.2), value: speedManager.currentSpeed)
+                                .shadow(color: .cyberCyan, radius: 8)
+                                .animation(.linear(duration: 0.2))
                             
                             VStack(spacing: 2) {
                                 Text("LIMIT")
