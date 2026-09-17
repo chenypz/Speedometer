@@ -30,7 +30,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - 2. GPS + G-Force + 0-400m 行車數據核心
+// MARK: - 2. GPS + G-Force + 行車數據核心
 class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -43,17 +43,14 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     @Published var userLocation: CLLocationCoordinate2D?
     @Published var isGpsReady: Bool = false
     
-    // G-Force 重力感應
     @Published var gForceX: Double = 0.0
     @Published var gForceY: Double = 0.0
     @Published var maxGForce: Double = 0.0
     
-    // 0-100 km/h 測速
     @Published var zeroToHundredTime: Double? = nil
     @Published var isTimingZeroToHundred: Bool = false
     private var zeroToHundredStartTime: Date?
     
-    // 0-400m 直線加速測速
     @Published var quarterMileTime: Double? = nil
     @Published var quarterMileTrapSpeed: Double = 0.0
     @Published var isTimingQuarterMile: Bool = false
@@ -84,28 +81,22 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
             motionManager.deviceMotionUpdateInterval = 0.03
             motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
                 guard let self = self, let userAccel = motion?.userAcceleration else { return }
-                
                 self.gForceX = userAccel.x
                 self.gForceY = userAccel.y
-                
                 let currentG = sqrt(pow(userAccel.x, 2) + pow(userAccel.y, 2))
-                if currentG > self.maxGForce {
-                    self.maxGForce = currentG
-                }
+                if currentG > self.maxGForce { self.maxGForce = currentG }
             }
         }
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        
         self.isGpsReady = true
         self.userLocation = location.coordinate
         self.altitudeMeters = max(0, location.altitude)
         
         let speed = max(0, location.speed * 3.6)
         self.speedKMH = speed
-        
         if speed > maxSpeed { maxSpeed = speed }
         
         if let last = lastLocation {
@@ -119,17 +110,14 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
             avgSpeed = speedRecords.reduce(0, +) / Double(speedRecords.count)
         }
         
-        // 0-100 km/h 與 0-400m 測速邏輯
         if speed == 0 {
             isTimingZeroToHundred = false
             zeroToHundredStartTime = nil
-            
             isTimingQuarterMile = false
             quarterMileStartTime = nil
         } else if speed > 2.0 && zeroToHundredStartTime == nil {
             isTimingZeroToHundred = true
             zeroToHundredStartTime = Date()
-            
             isTimingQuarterMile = true
             quarterMileStartTime = Date()
             quarterMileStartDistance = totalDistanceMeters
@@ -140,7 +128,6 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
                     isTimingZeroToHundred = false
                 }
             }
-            
             if isTimingQuarterMile {
                 let currentTraveled = totalDistanceMeters - quarterMileStartDistance
                 if currentTraveled >= 400.0 {
@@ -161,18 +148,10 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
     
     func resetData() {
-        maxSpeed = 0.0
-        avgSpeed = 0.0
-        totalDistanceMeters = 0.0
-        maxGForce = 0.0
-        speedRecords.removeAll()
-        zeroToHundredTime = nil
-        quarterMileTime = nil
-        quarterMileTrapSpeed = 0.0
-        isTimingZeroToHundred = false
-        isTimingQuarterMile = false
-        zeroToHundredStartTime = nil
-        quarterMileStartTime = nil
+        maxSpeed = 0.0; avgSpeed = 0.0; totalDistanceMeters = 0.0; maxGForce = 0.0
+        speedRecords.removeAll(); zeroToHundredTime = nil; quarterMileTime = nil
+        quarterMileTrapSpeed = 0.0; isTimingZeroToHundred = false; isTimingQuarterMile = false
+        zeroToHundredStartTime = nil; quarterMileStartTime = nil
     }
     
     var headingDirectionText: String {
@@ -190,7 +169,33 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 }
 
-// MARK: - 3. G-Force 動態雷達圖
+// MARK: - 3. F1 風格超轉燈列 (Shift Lights)
+struct ShiftLightsView: View {
+    var speed: Double
+    var maxSpeed: Double = 160.0
+    
+    var body: some View {
+        let ratio = min(speed / maxSpeed, 1.0)
+        let totalLights = 10
+        let activeCount = Int(ratio * Double(totalLights))
+        
+        HStack(spacing: 4) {
+            ForEach(0..<totalLights, id: \.self) { index in
+                let isActive = index < activeCount
+                let isRedZone = index >= 8
+                
+                Rectangle()
+                    .fill(isActive ? (isRedZone ? Color.red : (index >= 6 ? Color.yellow : Color.green)) : Color.white.opacity(0.1))
+                    .frame(height: 5)
+                    .cornerRadius(2)
+                    .shadow(color: isActive ? (isRedZone ? Color.red : Color.green) : Color.clear, radius: 4)
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - 4. G-Force 雷達圖
 struct GForceView: View {
     var gx: Double
     var gy: Double
@@ -199,28 +204,17 @@ struct GForceView: View {
     
     var body: some View {
         ZStack {
-            Circle()
-                .stroke(Color.white.opacity(0.15), lineWidth: 1)
-            Circle()
-                .stroke(Color.white.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [2]))
-                .scaleEffect(0.5)
-            
+            Circle().stroke(Color.white.opacity(0.15), lineWidth: 1)
+            Circle().stroke(Color.white.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [2])).scaleEffect(0.5)
             Path { path in
-                path.move(to: CGPoint(x: 35, y: 0))
-                path.addLine(to: CGPoint(x: 35, y: 70))
-                path.move(to: CGPoint(x: 0, y: 35))
-                path.addLine(to: CGPoint(x: 70, y: 35))
-            }
-            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                path.move(to: CGPoint(x: 35, y: 0)); path.addLine(to: CGPoint(x: 35, y: 70))
+                path.move(to: CGPoint(x: 0, y: 35)); path.addLine(to: CGPoint(x: 70, y: 35))
+            }.stroke(Color.white.opacity(0.15), lineWidth: 1)
             
             let posX = CGFloat(min(max(gx, -1.0), 1.0)) * 30
             let posY = CGFloat(min(max(-gy, -1.0), 1.0)) * 30
             
-            Circle()
-                .fill(themeColor)
-                .frame(width: 8, height: 8)
-                .shadow(color: themeColor, radius: 4)
-                .offset(x: posX, y: posY)
+            Circle().fill(themeColor).frame(width: 8, height: 8).shadow(color: themeColor, radius: 4).offset(x: posX, y: posY)
             
             VStack {
                 Spacer()
@@ -230,16 +224,15 @@ struct GForceView: View {
             }
         }
         .frame(width: 70, height: 70)
-        .background(Color.black.opacity(0.4))
+        .background(Color.black.opacity(0.5))
         .cornerRadius(35)
-        .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+        .overlay(Circle().stroke(themeColor.opacity(0.4), lineWidth: 1.5))
     }
 }
 
-// MARK: - 4. 地圖包裝器
+// MARK: - 5. 地圖包裝器
 struct MapTrackingView: UIViewRepresentable {
     var userLocation: CLLocationCoordinate2D?
-    
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.showsUserLocation = true
@@ -248,7 +241,6 @@ struct MapTrackingView: UIViewRepresentable {
         mapView.isUserInteractionEnabled = false
         return mapView
     }
-    
     func updateUIView(_ uiView: MKMapView, context: Context) {
         if let location = userLocation {
             let region = MKCoordinateRegion(center: location, span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003))
@@ -257,7 +249,7 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 5. 主畫面 (全功能整合 + 夜間 HUD 模式)
+// MARK: - 6. 主畫面
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
     @State private var isHUDMode = false
@@ -273,8 +265,6 @@ struct ContentView: View {
     
     var isOverspeed: Bool { speedManager.speedKMH > speedLimit }
     var activePrimaryColor: Color { isOverspeed ? .red : selectedTheme.primaryColor }
-    
-    // 相容舊版 iOS 的青色定義
     let customCyan = Color(red: 0.0, green: 0.8, blue: 1.0)
     
     var body: some View {
@@ -284,16 +274,17 @@ struct ContentView: View {
             let isLandscape = screenWidth > screenHeight
             
             ZStack {
-                Color.black.edgesIgnoringSafeArea(.all)
+                // 暴力美學深色碳纖黑背景
+                Color(red: 0.03, green: 0.03, blue: 0.05).edgesIgnoringSafeArea(.all)
                 
                 if showMap && !isHUDMode, let location = speedManager.userLocation {
                     MapTrackingView(userLocation: location)
                         .edgesIgnoringSafeArea(.all)
-                        .overlay(Color.black.opacity(0.55))
+                        .overlay(Color.black.opacity(0.6))
                 }
                 
                 if isOverspeed && flashWarning {
-                    Color.red.opacity(0.25).edgesIgnoringSafeArea(.all)
+                    Color.red.opacity(0.3).edgesIgnoringSafeArea(.all)
                 }
                 
                 VStack(spacing: 0) {
@@ -301,7 +292,7 @@ struct ContentView: View {
                     // 頂部導覽列
                     HStack(alignment: .center, spacing: 8) {
                         Text(currentTime, style: .time)
-                            .font(.system(size: isLandscape ? screenHeight * 0.045 : screenWidth * 0.038, weight: .bold, design: .monospaced))
+                            .font(.system(size: isLandscape ? screenHeight * 0.045 : screenWidth * 0.038, weight: .black, design: .monospaced))
                             .foregroundColor(activePrimaryColor)
                         
                         Spacer()
@@ -353,50 +344,59 @@ struct ContentView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, geometry.safeAreaInsets.top + 5)
                     
+                    // F1 超轉燈陣列
+                    if !isHUDMode {
+                        ShiftLightsView(speed: speedManager.speedKMH)
+                            .padding(.top, 8)
+                    }
+                    
                     Spacer()
                     
-                    // 中央區域
-                    let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.72 : screenWidth * 0.78
+                    // 中央速度儀表 + G-Force
+                    let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.70 : screenWidth * 0.76
                     let progress = min(speedManager.speedKMH / 160.0, 1.0)
                     
                     HStack(spacing: 20) {
                         ZStack {
+                            // 外環刻度背景
                             Circle()
                                 .trim(from: 0.125, to: 0.875)
-                                .stroke(Color.gray.opacity(isHUDMode ? 0.05 : 0.2), style: StrokeStyle(lineWidth: 16, lineCap: .round))
+                                .stroke(Color.white.opacity(isHUDMode ? 0.05 : 0.12), style: StrokeStyle(lineWidth: 18, lineCap: .butt))
                                 .rotationEffect(.degrees(90))
                                 .frame(width: gaugeSize, height: gaugeSize)
                             
+                            // 速度光軌
                             Circle()
                                 .trim(from: 0.125, to: 0.125 + (0.75 * CGFloat(progress)))
                                 .stroke(
                                     LinearGradient(
                                         gradient: Gradient(colors: [selectedTheme.secondaryColor, activePrimaryColor]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
+                                        startPoint: .leading,
+                                        endPoint: .trailing
                                     ),
-                                    style: StrokeStyle(lineWidth: 16, lineCap: .round)
+                                    style: StrokeStyle(lineWidth: 18, lineCap: .round)
                                 )
                                 .rotationEffect(.degrees(90))
                                 .frame(width: gaugeSize, height: gaugeSize)
-                                .shadow(color: activePrimaryColor.opacity(0.85), radius: 12)
+                                .shadow(color: activePrimaryColor.opacity(0.9), radius: 16)
                             
                             VStack(spacing: 0) {
                                 Text("\(Int(round(speedManager.speedKMH)))")
                                     .font(.system(size: gaugeSize * 0.38, weight: .black, design: .rounded))
                                     .foregroundColor(activePrimaryColor)
-                                    .shadow(color: activePrimaryColor.opacity(0.8), radius: 12)
+                                    .shadow(color: activePrimaryColor.opacity(0.8), radius: 10)
                                 
                                 Text("KM/H")
                                     .font(.system(size: gaugeSize * 0.08, weight: .heavy, design: .monospaced))
-                                    .foregroundColor(.white)
-                                    .tracking(4)
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .tracking(6)
                                 
                                 if isOverspeed {
                                     Text("⚠️ OVER SPEED")
-                                        .font(.system(size: gaugeSize * 0.06, weight: .bold))
+                                        .font(.system(size: gaugeSize * 0.055, weight: .black))
                                         .foregroundColor(.red)
                                         .padding(.top, 4)
+                                        .shadow(color: .red, radius: 8)
                                 }
                             }
                         }
@@ -409,10 +409,9 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    // 📊 底部行車電腦
+                    // 📊 底部賽車級行車電腦
                     if !isHUDMode {
                         HStack(spacing: 8) {
-                            // 0-100 km/h
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("0-100 KM/H").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
                                 if let t = speedManager.zeroToHundredTime {
@@ -422,9 +421,8 @@ struct ContentView: View {
                                 }
                             }.frame(maxWidth: .infinity)
                             
-                            Divider().background(Color.gray.opacity(0.5)).frame(height: 25)
+                            Divider().background(Color.white.opacity(0.2)).frame(height: 25)
                             
-                            // 0-400m (已修正青色相容性)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("0-400M").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
                                 if let t = speedManager.quarterMileTime {
@@ -434,17 +432,15 @@ struct ContentView: View {
                                 }
                             }.frame(maxWidth: .infinity)
                             
-                            Divider().background(Color.gray.opacity(0.5)).frame(height: 25)
+                            Divider().background(Color.white.opacity(0.2)).frame(height: 25)
                             
-                            // TRIP
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("TRIP").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
                                 Text(String(format: "%.2fkm", speedManager.totalDistanceMeters / 1000.0)).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(.white)
                             }.frame(maxWidth: .infinity)
                             
-                            Divider().background(Color.gray.opacity(0.5)).frame(height: 25)
+                            Divider().background(Color.white.opacity(0.2)).frame(height: 25)
                             
-                            // MAX SPEED
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("MAX SPEED").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
                                 Text(String(format: "%.0fkm/h", speedManager.maxSpeed)).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(.orange)
@@ -452,7 +448,8 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.white.opacity(0.08))
+                        .background(Color.black.opacity(0.7))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(activePrimaryColor.opacity(0.3), lineWidth: 1))
                         .cornerRadius(12)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 10)
