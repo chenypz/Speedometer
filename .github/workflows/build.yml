@@ -13,35 +13,43 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up Xcode project
+    - name: Initialize Swift Package
       run: |
-        mkdir -p Speedometer.xcodeproj
-        cat << 'EOF' > Speedometer.xcodeproj/project.pbxproj
-        // !$*UTF8*$!
-        {
-          archiveVersion = 1;
-          classes = {};
-          objectVersion = 54;
-          objects = {
-            1D6058900D05DD1D006C749F /* Speedometer */ = {isa = PBXAggregateTarget; name = Speedometer; productName = Speedometer;};
-          };
-          rootObject = 1D6058900D05DD1D006C749F;
-        }
+        mkdir -p Sources/Speedometer
+        mv SpeedometerApp.swift Sources/Speedometer/
+        mv ContentView.swift Sources/Speedometer/
+        
+        cat << 'EOF' > Package.swift
+        // swift-tools-version:5.5
+        import PackageDescription
+
+        let package = Package(
+            name: "Speedometer",
+            platforms: [.iOS(.v14)],
+            products: [
+                .executable(name: "Speedometer", targets: ["Speedometer"])
+            ],
+            targets: [
+                .executableTarget(
+                    name: "Speedometer",
+                    path: "Sources/Speedometer"
+                )
+            ]
+        )
         EOF
 
-    - name: Build App with swiftc
+    - name: Build Executable
+      run: |
+        swift build -c release --triple arm64-apple-ios14.0-simulator
+
+    - name: Package IPA Structure
       run: |
         mkdir -p Payload/Speedometer.app
-        swiftc -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
-               -target arm64-apple-ios14.0 \
-               -emit-executable \
-               -o Payload/Speedometer.app/Speedometer \
-               SpeedometerApp.swift ContentView.swift
-        
+        cp .build/arm64-apple-ios14.0-simulator/release/Speedometer Payload/Speedometer.app/Speedometer
         cp Info.plist Payload/Speedometer.app/Info.plist
-
-    - name: Create IPA Package
-      run: |
+        
+        echo "APPL????" > Payload/Speedometer.app/PkgInfo
+        
         zip -r Speedometer.ipa Payload
 
     - name: Upload IPA Artifact
