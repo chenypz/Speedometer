@@ -68,16 +68,16 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 3. 主儀表板畫面
+// MARK: - 3. 主儀表板畫面 (包含圓弧跑車轉速表)
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
     @State private var isHUDMode = false
-    @State private var showMap = false // 控制地圖開關
+    @State private var showMap = false
     @State private var currentTime = Date()
     
-    // 自訂顏色 (相容舊版 iOS)
+    // 自訂顏色
     private let cyanColor = Color(red: 0.0, green: 0.8, blue: 1.0)
-    private let maxSpeedThreshold: Double = 120.0 // 加速條的最大參考車速 (120 km/h)
+    private let maxSpeedThreshold: Double = 140.0 // 轉速表表底上限 (140 km/h)
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -91,27 +91,25 @@ struct ContentView: View {
                 // 純黑底色
                 Color.black.edgesIgnoringSafeArea(.all)
                 
-                // 背景地圖（只有在按下按鈕時才顯示）
+                // 背景地圖按鈕開啟時顯示
                 if showMap, let location = speedManager.userLocation {
                     MapTrackingView(userLocation: location)
                         .edgesIgnoringSafeArea(.all)
-                        .overlay(Color.black.opacity(0.45))
+                        .overlay(Color.black.opacity(0.5))
                         .transition(.opacity)
                 }
                 
-                // 主要儀表板內容
+                // 主要介面佈局
                 VStack(spacing: 0) {
                     
-                    // 頂部列：時間、GPS狀態、地圖按鈕、HUD按鈕
+                    // 頂部狀態列
                     HStack(alignment: .center, spacing: 8) {
-                        // 時間
                         Text(currentTime, style: .time)
                             .font(.system(size: isLandscape ? screenHeight * 0.05 : screenWidth * 0.04, weight: .bold, design: .monospaced))
                             .foregroundColor(cyanColor)
                         
                         Spacer()
                         
-                        // 定位狀態
                         HStack(spacing: 4) {
                             Circle()
                                 .fill(speedManager.isGpsReady ? Color.green : Color.orange)
@@ -126,7 +124,7 @@ struct ContentView: View {
                         .background(Color.black.opacity(0.6))
                         .cornerRadius(10)
                         
-                        // 地圖開關按鈕
+                        // 地圖按鈕
                         Button(action: {
                             withAnimation {
                                 showMap.toggle()
@@ -144,7 +142,7 @@ struct ContentView: View {
                             .cornerRadius(12)
                         }
                         
-                        // HUD 切換按鈕
+                        // HUD 按鈕
                         Button(action: {
                             isHUDMode.toggle()
                         }) {
@@ -162,65 +160,51 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    // 中間核心區域：時速 + 油車風加速條
-                    VStack(spacing: isLandscape ? 5 : 12) {
+                    // 🏎️ 中央核心：跑車風圓弧轉速儀表板
+                    let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.8 : screenWidth * 0.85
+                    let progress = min(speedManager.speedKMH / maxSpeedThreshold, 1.0)
+                    let activeColor = speedColor(speed: speedManager.speedKMH)
+                    
+                    ZStack {
+                        // 1. 底層灰色圓弧軌道 (角度 135° ~ 405°，即底部的 270 度環形)
+                        Circle()
+                            .trim(from: 0.125, to: 0.875)
+                            .stroke(
+                                Color.gray.opacity(0.2),
+                                style: StrokeStyle(lineWidth: isLandscape ? 16 : 20, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(90))
+                            .frame(width: gaugeSize, height: gaugeSize)
                         
-                        // 超大時速數字
-                        Text("\(Int(round(speedManager.speedKMH)))")
-                            .font(.system(size: isLandscape ? screenHeight * 0.55 : screenWidth * 0.45, weight: .black, design: .rounded))
-                            .minimumScaleFactor(0.3)
-                            .foregroundColor(speedColor(speed: speedManager.speedKMH))
-                            .shadow(color: speedColor(speed: speedManager.speedKMH).opacity(0.85), radius: 20, x: 0, y: 0)
+                        // 2. 彩色發光加速圓弧
+                        Circle()
+                            .trim(from: 0.125, to: 0.125 + (0.75 * CGFloat(progress)))
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [cyanColor, activeColor]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                style: StrokeStyle(lineWidth: isLandscape ? 16 : 20, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(90))
+                            .frame(width: gaugeSize, height: gaugeSize)
+                            .shadow(color: activeColor.opacity(0.8), radius: 12, x: 0, y: 0)
+                            .animation(.easeOut(duration: 0.25), value: speedManager.speedKMH)
                         
-                        // 單位 KM/H
-                        Text("KM / H")
-                            .font(.system(size: isLandscape ? screenHeight * 0.07 : screenWidth * 0.06, weight: .heavy, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.8))
-                            .tracking(4)
-                        
-                        // 🔥 油車 / 跑車風格 加速進度條 (Power Bar)
-                        VStack(spacing: 4) {
-                            GeometryReader { barGeo in
-                                let barWidth = barGeo.size.width
-                                let currentSpeed = min(speedManager.speedKMH, maxSpeedThreshold)
-                                let fillProgress = CGFloat(currentSpeed / maxSpeedThreshold)
-                                
-                                ZStack(alignment: .leading) {
-                                    // 背景軌道
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.gray.opacity(0.25))
-                                        .frame(height: isLandscape ? 12 : 16)
-                                    
-                                    // 動態充能進度條
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(
-                                            LinearGradient(
-                                                gradient: Gradient(colors: [cyanColor, speedColor(speed: speedManager.speedKMH)]),
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .frame(width: max(0, barWidth * fillProgress), height: isLandscape ? 12 : 16)
-                                        .shadow(color: speedColor(speed: speedManager.speedKMH).opacity(0.7), radius: 8, x: 0, y: 0)
-                                        .animation(.easeOut(duration: 0.2), value: speedManager.speedKMH)
-                                }
-                            }
-                            .frame(height: isLandscape ? 12 : 16)
+                        // 3. 中央數字與單位
+                        VStack(spacing: isLandscape ? -5 : 0) {
+                            Text("\(Int(round(speedManager.speedKMH)))")
+                                .font(.system(size: gaugeSize * 0.38, weight: .black, design: .rounded))
+                                .minimumScaleFactor(0.3)
+                                .foregroundColor(activeColor)
+                                .shadow(color: activeColor.opacity(0.8), radius: 15, x: 0, y: 0)
                             
-                            // 進度條底部的刻度數字 (0 ~ 120)
-                            HStack {
-                                Text("0").font(.caption2).foregroundColor(.gray)
-                                Spacer()
-                                Text("40").font(.caption2).foregroundColor(.gray)
-                                Spacer()
-                                Text("80").font(.caption2).foregroundColor(.gray)
-                                Spacer()
-                                Text("120+").font(.caption2).foregroundColor(.gray)
-                            }
-                            .padding(.horizontal, 2)
+                            Text("KM/H")
+                                .font(.system(size: gaugeSize * 0.08, weight: .heavy, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.8))
+                                .tracking(4)
                         }
-                        .frame(width: isLandscape ? screenWidth * 0.6 : screenWidth * 0.8)
-                        .padding(.top, isLandscape ? 5 : 10)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     
@@ -248,17 +232,17 @@ struct ContentView: View {
         }
     }
     
-    // 根據車速動態切換顏色
+    // 車速顏色切換
     private func speedColor(speed: Double) -> Color {
         switch speed {
         case 0..<40:
-            return Color(red: 0.0, green: 1.0, blue: 0.8) // 青綠
+            return Color(red: 0.0, green: 1.0, blue: 0.8) // 霓虹青色
         case 40..<80:
             return Color(red: 0.2, green: 0.9, blue: 0.3) // 螢光綠
         case 80..<110:
-            return Color(red: 1.0, green: 0.7, blue: 0.0) // 警告黃
+            return Color(red: 1.0, green: 0.7, blue: 0.0) // 跑車黃
         default:
-            return Color(red: 1.0, green: 0.2, blue: 0.3) // 爆紅
+            return Color(red: 1.0, green: 0.2, blue: 0.3) // 極速爆紅
         }
     }
 }
