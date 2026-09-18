@@ -1150,7 +1150,6 @@ struct SettingsView: View {
         .navigationTitle("儀表板設定")
     }
 }
-
 // MARK: - 16. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
@@ -1201,15 +1200,18 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
+                // 1. 滿版漸層背景，強制忽略所有安全區域邊緣
                 LinearGradient(
                     colors: selectedTheme.backgroundGradientColors,
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .ignoresSafeArea(.all, edges: .all) // 讓背景強制填滿整個 iPhone 11 螢幕
+                .ignoresSafeArea(.all, edges: .all)
                 
+                // 2. 櫻花動態背景（若啟用）
                 if selectedTheme == .sakura && enableSakuraBackground {
                     SakuraFallingView(density: sakuraDensity)
+                        .ignoresSafeArea(.all, edges: .all)
                         .zIndex(1)
                 }
                 
@@ -1225,18 +1227,20 @@ struct ContentView: View {
                     .zIndex(50)
                 } else {
                     ZStack {
+                        // 3. 霓虹外框，確保填滿全螢幕
                         BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
+                            .ignoresSafeArea(.all, edges: .all)
                             .zIndex(0)
                         
                         if flashWarning {
                             Color.red.opacity(0.35)
-                                .ignoresSafeArea()
+                                .ignoresSafeArea(.all, edges: .all)
                                 .zIndex(10)
                         }
                         
                         if let scoreRecord = latestTripScoreRecord {
                             Color.black.opacity(0.85)
-                                .ignoresSafeArea()
+                                .ignoresSafeArea(.all, edges: .all)
                                 .zIndex(100)
                             
                             TripScoreSummaryView(record: scoreRecord, primaryColor: currentPrimaryColor) {
@@ -1321,7 +1325,7 @@ struct ContentView: View {
                                             }
                                         }
                                     }
-                                    .padding(.top, 44)
+                                    .padding(.top, 24)
                                     .padding(.leading, 24)
                                 }
                             } else {
@@ -1497,7 +1501,7 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
-            .ignoresSafeArea(.all, edges: .all) // 強制主畫面忽略安全區域，填滿全螢幕
+            .ignoresSafeArea(.all, edges: .all) // 確保導航檢視填滿
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
@@ -1545,6 +1549,6 @@ struct ContentView: View {
             )
         }
         .navigationViewStyle(StackNavigationViewStyle())
-        .ignoresSafeArea(.all, edges: .all)
+        .ignoresSafeArea(.all, edges: .all) // 強制整體導航器滿版
     }
 }
