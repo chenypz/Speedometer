@@ -25,7 +25,7 @@ struct HistoryRecord: Identifiable, Codable {
     let id: UUID
     let date: Date
     let maxSpeed: Double
-    let zeroToHundredTime: Double
+    let zeroToOneHundredTime: Double
     let maxGForce: Double
     let tripDistance: Double
 }
@@ -112,7 +112,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             motionManager.accelerometerUpdateInterval = 0.1
             motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
                 guard let self = self, let acceleration = data?.acceleration else { return }
-                // 模擬 X/Y 軸 G 力
                 self.currentGForceX = acceleration.x
                 self.currentGForceY = acceleration.y
                 let currentG = sqrt(acceleration.x * acceleration.x + acceleration.y * acceleration.y)
@@ -144,7 +143,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         // 0-100 加速測試邏輯
         if speedKmh < 5 && !isTesting0_100 && !hasReached100 {
-            // 準備起步
             isTesting0_100 = true
             accelStartTime = Date()
             zeroToOneHundredTime = 0.0
@@ -156,7 +154,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 isTesting0_100 = false
                 hasReached100 = true
             } else if elapsed > 30.0 {
-                // 超過 30 秒判定失敗超時重置
                 isTesting0_100 = false
             }
         }
@@ -193,7 +190,6 @@ struct BootLoadingView: View {
             Color.black.edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 25) {
-                // 旋轉動態標誌
                 ZStack {
                     Circle()
                         .stroke(Color.white.opacity(0.1), lineWidth: 6)
@@ -213,7 +209,6 @@ struct BootLoadingView: View {
                     .tracking(4)
                     .foregroundColor(.white)
                 
-                // 進度條
                 VStack(alignment: .leading, spacing: 8) {
                     ZStack(alignment: .leading) {
                         Rectangle().fill(Color.white.opacity(0.1)).frame(width: 280, height: 8).cornerRadius(4)
@@ -229,7 +224,6 @@ struct BootLoadingView: View {
             withAnimation(.easeInOut(duration: 2.2)) {
                 progress = 1.0
             }
-            // 文字切換計時
             Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { timer in
                 if textStep < steps.count - 1 {
                     textStep += 1
@@ -246,7 +240,7 @@ struct BootLoadingView: View {
     }
 }
 
-// MARK: - 6. 地圖導航檢視 (支援車頭朝向追蹤)
+// MARK: - 6. 地圖導航檢視
 struct MapTrackingView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     let heading: Double
@@ -270,7 +264,7 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 7. 炫光流光線條背景 (賽博朋克感)
+// MARK: - 7. 炫光流光線條背景
 struct NeonArcFlowView: View {
     @State private var animate = false
     var color: Color
@@ -307,7 +301,7 @@ struct NeonArcFlowView: View {
     }
 }
 
-// MARK: - 8. 專業轉速提示燈 (Shift Lights)
+// MARK: - 8. 專業轉速提示燈
 struct ShiftLightsView: View {
     let speed: Double
     
@@ -324,7 +318,7 @@ struct ShiftLightsView: View {
     }
     
     private func isLit(_ index: Int) -> Bool {
-        let threshold = Double(index + 1) * 25.0 // 每 25km/h 亮一顆燈
+        let threshold = Double(index + 1) * 25.0
         return speed >= threshold
     }
     
@@ -336,7 +330,7 @@ struct ShiftLightsView: View {
     }
 }
 
-// MARK: - 9. G 力感應器圖表 (G-Force Meter)
+// MARK: - 9. G 力感應器圖表
 struct GForceView: View {
     let x: Double
     let y: Double
@@ -348,18 +342,15 @@ struct GForceView: View {
             Circle().stroke(Color.white.opacity(0.2), lineWidth: 1)
             Circle().stroke(Color.white.opacity(0.1), lineWidth: 1).frame(width: 80, height: 80)
             
-            // 十字軸線
             Rectangle().fill(Color.white.opacity(0.2)).frame(width: 1, height: 160)
             Rectangle().fill(Color.white.opacity(0.2)).frame(width: 160, height: 1)
             
-            // 即時 G 力點
             Circle()
                 .fill(primaryColor)
                 .frame(width: 12, height: 12)
                 .offset(x: CGFloat(x * 60), y: CGFloat(y * 60))
                 .shadow(color: primaryColor, radius: 6)
             
-            // 文字資訊
             VStack {
                 Text("G-FORCE")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -386,10 +377,10 @@ struct OverspeedLogsView: View {
             ForEach(logs) { log in
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(log.date, style: .date)
+                        Text(log.date, formatter: dateFormatter)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(.gray)
-                        Text(log.date, style: .time)
+                        Text(log.date, formatter: timeFormatter)
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                     }
@@ -416,6 +407,20 @@ struct OverspeedLogsView: View {
         .background(Color.black.edgesIgnoringSafeArea(.all))
         .scrollContentBackground(.hidden)
     }
+    
+    private var dateFormatter: DateFormatter {
+        let df = DateFormatter()
+        df.dateStyle = .medium
+        df.timeStyle = .none
+        return df
+    }
+    
+    private var timeFormatter: DateFormatter {
+        let df = DateFormatter()
+        df.dateStyle = .none
+        df.timeStyle = .medium
+        return df
+    }
 }
 
 // MARK: - 11. 行程歷史封存紀錄頁面
@@ -427,10 +432,10 @@ struct HistoryRecordsView: View {
             ForEach(records) { record in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(record.date, style: .date)
+                        Text(record.date, formatter: dateFormatter)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(.gray)
-                        Text(record.date, style: .time)
+                        Text(record.date, formatter: timeFormatter)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(.gray)
                         Spacer()
@@ -466,6 +471,20 @@ struct HistoryRecordsView: View {
         }.foregroundColor(.red))
         .background(Color.black.edgesIgnoringSafeArea(.all))
         .scrollContentBackground(.hidden)
+    }
+    
+    private var dateFormatter: DateFormatter {
+        let df = DateFormatter()
+        df.dateStyle = .medium
+        df.timeStyle = .none
+        return df
+    }
+    
+    private var timeFormatter: DateFormatter {
+        let df = DateFormatter()
+        df.dateStyle = .none
+        df.timeStyle = .medium
+        return df
     }
 }
 
@@ -519,14 +538,12 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 13. 主畫面 ContentView (整合所有功能與橫直向切換)
+// MARK: - 13. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     
-    // 開機動畫狀態
     @State private var isBootLoaded: Bool = false
     
-    // 使用者偏好設定
     @State private var selectedTheme: DashboardTheme = .cyberpunk
     @State private var speedLimit: Double = 120.0
     @State private var isHudMode: Bool = false
@@ -534,7 +551,6 @@ struct ContentView: View {
     @State private var useCustomColor: Bool = false
     @State private var customColor: Color = Color(red: 0.0, green: 0.8, blue: 1.0)
     
-    // 歷史紀錄資料陣列
     @State private var overspeedLogs: [OverspeedRecord] = []
     @State private var historyRecords: [HistoryRecord] = []
     
@@ -542,10 +558,7 @@ struct ContentView: View {
     @State private var showOverspeedLogs: Bool = false
     @State private var showHistoryRecords: Bool = false
     
-    // 超速閃爍警報觸發狀態
     @State private var flashWarning: Bool = false
-    
-    // 螢幕方向控制開關 (支援直向與橫向自由智慧切換)
     @State private var isLandscapeMode: Bool = false
     
     var currentPrimaryColor: Color {
@@ -560,10 +573,8 @@ struct ContentView: View {
                         .transition(.opacity)
                         .zIndex(20)
                 } else {
-                    // 背景
                     selectedTheme.backgroundColor.edgesIgnoringSafeArea(.all)
                     
-                    // 超速紅色半透明警報閃爍遮罩
                     if flashWarning {
                         Color.red.opacity(0.3)
                             .edgesIgnoringSafeArea(.all)
@@ -571,9 +582,7 @@ struct ContentView: View {
                             .zIndex(10)
                     }
                     
-                    // 根據直向或橫向動態調整排版
                     if isLandscapeMode {
-                        // 橫向佈局 (適合車架橫向儀表板模式)
                         HStack(spacing: 20) {
                             leftControlPanel
                             centerDashboardView
@@ -582,7 +591,6 @@ struct ContentView: View {
                         .padding()
                         .zIndex(1)
                     } else {
-                        // 直向佈局 (完美適配 iPhone 11 直向比例)
                         VStack(spacing: 12) {
                             topStatusBar
                             
@@ -599,7 +607,6 @@ struct ContentView: View {
                             }
                             .frame(maxHeight: .infinity)
                             
-                            // G力與轉速燈
                             HStack(spacing: 15) {
                                 GForceView(x: vehicleManager.currentGForceX, y: vehicleManager.currentGForceY, maxG: vehicleManager.maxGForce, primaryColor: currentPrimaryColor)
                                     .scaleEffect(0.65)
@@ -623,9 +630,8 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
-            .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0) // HUD 鏡像翻轉
+            .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onChange(of: vehicleManager.speed) { newSpeed in
-                // 超速警報與自動記錄邏輯
                 if newSpeed > speedLimit {
                     if !flashWarning {
                         flashWarning = true
@@ -637,7 +643,6 @@ struct ContentView: View {
                     flashWarning = false
                 }
             }
-            // 隱藏式導航跳轉目標
             .background(
                 Group {
                     NavigationLink(destination: SettingsView(selectedTheme: $selectedTheme, speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor), isActive: $showSettings) { EmptyView() }
@@ -649,10 +654,8 @@ struct ContentView: View {
         .navigationViewStyle(StackNavigationViewStyle())
     }
     
-    // MARK: - 子元件：頂部狀態列
     var topStatusBar: some View {
         HStack {
-            // 旋轉方向切換按鈕
             Button(action: {
                 withAnimation { isLandscapeMode.toggle() }
             }) {
@@ -670,7 +673,6 @@ struct ContentView: View {
             
             Spacer()
             
-            // 地圖開關按鈕
             Button(action: { showMap.toggle() }) {
                 Text(showMap ? "地圖: 關" : "地圖: 開")
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
@@ -681,7 +683,6 @@ struct ContentView: View {
                     .cornerRadius(12)
             }
             
-            // 設定按鈕
             Button(action: { showSettings = true }) {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 16))
@@ -693,12 +694,10 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - 子元件：中央核心儀表板 (指針與即時時速)
     var centerDashboardView: some View {
         ZStack {
             NeonArcFlowView(color: currentPrimaryColor)
             
-            // 外環刻度與數位車速
             VStack(spacing: 6) {
                 Text("GPS SPEED")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -714,7 +713,6 @@ struct ContentView: View {
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
                     .foregroundColor(currentPrimaryColor)
                 
-                // 0-100 加速計時顯示
                 if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
                     HStack(spacing: 4) {
                         Text(vehicleManager.isTesting0_100 ? "0-100 測速中..." : "0-100 紀錄:")
@@ -731,10 +729,8 @@ struct ContentView: View {
         .frame(width: 260, height: 260)
     }
     
-    // MARK: - 子元件：底部行車數據列（您特別強調的三大核心數據）
     var bottomStatsRow: some View {
         HStack(spacing: 12) {
-            // 1. 0-100 加速
             VStack(spacing: 4) {
                 Text("0-100 ACCEL")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -748,7 +744,6 @@ struct ContentView: View {
             .background(Color.white.opacity(0.05))
             .cornerRadius(12)
             
-            // 2. TRIP DIST (總里程)
             VStack(spacing: 4) {
                 Text("TRIP DIST")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -762,7 +757,6 @@ struct ContentView: View {
             .background(Color.white.opacity(0.05))
             .cornerRadius(12)
             
-            // 3. MAX SPEED (歷史極速)
             VStack(spacing: 4) {
                 Text("MAX SPEED")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -778,7 +772,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - 橫向佈局專用輔助面板
     var leftControlPanel: some View {
         VStack(spacing: 15) {
             Button(action: { withAnimation { isLandscapeMode.toggle() } }) {
@@ -798,7 +791,6 @@ struct ContentView: View {
                     .clipShape(Circle())
             }
             Spacer()
-            // 行程封存按鈕
             Button(action: {
                 let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
                 historyRecords.append(history)
