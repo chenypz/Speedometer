@@ -338,7 +338,7 @@ struct BootLoadingView: View {
     @State private var policeFlash: Bool = false
     @State private var bikeSpeed: Double = 30.0
     @State private var speedLineOffset: CGFloat = 0.0
-    @State private var copDistance: Int = 300 // 警車距離
+    @State private var copDistance: Int = 300
 
     let chaseSteps = [
         "🚨 [0.0s] 警告：前方 300 公尺發現國道紅斑馬攔截...",
@@ -350,7 +350,6 @@ struct BootLoadingView: View {
 
     var body: some View {
         ZStack {
-            // 紅藍警笛交替閃爍背景
             Group {
                 if policeFlash {
                     Color.red.opacity(0.4)
@@ -361,7 +360,6 @@ struct BootLoadingView: View {
             .ignoresSafeArea()
             .animation(Animation.easeInOut(duration: 0.18).repeatForever(autoreverses: true), value: policeFlash)
 
-            // 速度殘影線條
             VStack(spacing: 12) {
                 ForEach(0..<16, id: \.self) { i in
                     Rectangle()
@@ -373,7 +371,6 @@ struct BootLoadingView: View {
             }
             .ignoresSafeArea()
 
-            // 跳過按鈕
             VStack {
                 Spacer()
                 HStack {
@@ -392,7 +389,7 @@ struct BootLoadingView: View {
                             .cornerRadius(4)
                             .shadow(color: .red, radius: 8)
                     }
-                    .padding(.trailing, 24)
+                    .padding(.trailing, 34)
                     .padding(.bottom, 24)
                 }
             }
@@ -400,7 +397,6 @@ struct BootLoadingView: View {
 
             if !showWarningScreen {
                 VStack(spacing: 18) {
-                    // 警車追逐視覺儀表板
                     ZStack {
                         Circle()
                             .stroke(style: StrokeStyle(lineWidth: 6, dash: [12, 8]))
@@ -463,7 +459,6 @@ struct BootLoadingView: View {
                 }
                 .transition(.opacity)
             } else {
-                // 逃脫成功警告卡片
                 VStack(spacing: 0) {
                     HStack {
                         Text("🚨 ESCAPE SUCCESSFUL")
@@ -516,7 +511,6 @@ struct BootLoadingView: View {
                 bikeSpeed = 195.0
             }
 
-            // 模擬警車距離逐漸拉開
             Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { timer in
                 if copDistance > 30 {
                     copDistance -= Int.random(in: 40...80)
@@ -969,7 +963,7 @@ struct ContentView: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .ignoresSafeArea()
+                .ignoresSafeArea(.all, edges: .all)
                 
                 if !isBootLoaded {
                     BootLoadingView(isFinished: $isBootLoaded)
@@ -998,7 +992,7 @@ struct ContentView: View {
                                             isInteractive: true,
                                             onMapTap: { clickedCoord in vehicleManager.setDestination(clickedCoord) }
                                         )
-                                        .ignoresSafeArea()
+                                        .ignoresSafeArea(.all, edges: .all)
                                         
                                         HStack(alignment: .top, spacing: 12) {
                                             Button(action: { showMap.toggle() }) {
@@ -1070,8 +1064,8 @@ struct ContentView: View {
                                                 }
                                             }
                                         }
-                                        .padding(.top, 16)
-                                        .padding(.leading, 20)
+                                        .padding(.top, 24)
+                                        .padding(.leading, 34)
                                     }
                                 } else {
                                     HStack(spacing: 12) {
@@ -1195,7 +1189,7 @@ struct ContentView: View {
                                         }
                                         .frame(width: 130)
                                     }
-                                    .padding(.horizontal, 20)
+                                    .padding(.horizontal, 34)
                                     .padding(.vertical, 14)
                                 }
                                 
@@ -1212,7 +1206,7 @@ struct ContentView: View {
                                     .background(Color.red.opacity(0.9))
                                     .cornerRadius(16)
                                     .shadow(color: .red, radius: 8)
-                                    .padding(.top, 12)
+                                    .padding(.top, 16)
                                     .transition(.move(edge: .top).combined(with: .opacity))
                                     .zIndex(50)
                                 }
@@ -1222,7 +1216,7 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
-            .ignoresSafeArea()
+            .ignoresSafeArea(.all, edges: .all)
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
@@ -1246,6 +1240,6 @@ struct ContentView: View {
             )
         }
         .navigationViewStyle(StackNavigationViewStyle())
-        .ignoresSafeArea()
+        .ignoresSafeArea(.all, edges: .all)
     }
 }
