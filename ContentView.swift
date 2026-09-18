@@ -3,6 +3,7 @@ import CoreLocation
 import CoreMotion
 import MapKit
 import AVFoundation
+import MediaPlayer
 
 // MARK: - iOS 14 / 15 相容性色彩防護
 extension Color {
@@ -106,7 +107,68 @@ extension Color: @retroactive RawRepresentable {
     }
 }
 
-// MARK: - 3. GPS、感應器與測速照相管理器
+// MARK: - 3. 音樂控制管理器 (Music Player Manager)
+class MusicPlayerManager: ObservableObject {
+    private let player = MPMusicPlayerController.systemMusicPlayer
+    
+    @Published var songTitle: String = "未播放音樂"
+    @Published var artistName: String = "點擊控制播放"
+    @Published var isPlaying: Bool = false
+    @Published var artworkImage: UIImage? = nil
+    
+    init() {
+        player.beginGeneratingPlaybackNotifications()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updatePlayerState),
+            name: .MPMusicPlayerControllerPlaybackStateDidChange,
+            object: player
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updatePlayerState),
+            name: .MPMusicPlayerControllerNowPlayingItemDidChange,
+            object: player
+        )
+        updatePlayerState()
+    }
+    
+    @objc func updatePlayerState() {
+        DispatchQueue.main.async {
+            self.isPlaying = (self.player.playbackState == .playing)
+            if let currentItem = self.player.nowPlayingItem {
+                self.songTitle = currentItem.title ?? "未知曲目"
+                self.artistName = currentItem.artist ?? "未知演出者"
+                self.artworkImage = currentItem.artwork?.image(at: CGSize(width: 100, height: 100))
+            } else {
+                self.songTitle = "無播放中音樂"
+                self.artistName = "請從音樂App播放"
+                self.artworkImage = nil
+            }
+        }
+    }
+    
+    func togglePlayPause() {
+        if player.playbackState == .playing {
+            player.pause()
+        } else {
+            player.play()
+        }
+        updatePlayerState()
+    }
+    
+    func skipToNext() {
+        player.skipToNextItem()
+        updatePlayerState()
+    }
+    
+    func skipToPrevious() {
+        player.skipToPreviousItem()
+        updatePlayerState()
+    }
+}
+
+// MARK: - 4. GPS、感應器與測速照相管理器
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -317,12 +379,12 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 三種分類 5 秒開場動畫 + 日本電影警告語 (總計 5 秒)
+// MARK: - 5. 三種分類 5 秒開場動畫 + 日本電影警告語 (總計 5 秒)
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
     
-    @State private var step: Int = 0 // 0: 風格開場 (0~3秒), 1: 日本電影警告語 (3~5秒)
+    @State private var step: Int = 0
     @State private var animVal: CGFloat = 0.0
     
     var body: some View {
@@ -330,7 +392,6 @@ struct MultiThemeBootLoadingView: View {
             Color.black.ignoresSafeArea()
             
             if step == 0 {
-                // 第一階段：對應主題的 3 秒開場
                 Group {
                     if selectedTheme == .skull {
                         VStack(spacing: 16) {
@@ -372,7 +433,6 @@ struct MultiThemeBootLoadingView: View {
                 }
                 .transition(.opacity)
             } else {
-                // 第二階段：日本電影風格警告語 (2秒，總計剛好5秒)
                 VStack(spacing: 20) {
                     Rectangle()
                         .fill(Color.red)
@@ -398,7 +458,6 @@ struct MultiThemeBootLoadingView: View {
                 .transition(.opacity)
             }
             
-            // 跳過按鈕
             VStack {
                 HStack {
                     Spacer()
@@ -420,23 +479,17 @@ struct MultiThemeBootLoadingView: View {
             withAnimation(.spring(response: 0.8, dampingFraction: 0.5)) {
                 animVal = 1.0
             }
-            // 3秒後切換到日本電影警告語
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                withAnimation {
-                    step = 1
-                }
+                withAnimation { step = 1 }
             }
-            // 5秒後正式進入主畫面
             DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                withAnimation {
-                    isFinished = true
-                }
+                withAnimation { isFinished = true }
             }
         }
     }
 }
 
-// MARK: - 5. 櫻花飄落動態背景 (Particle System - iOS 15+ 防護)
+// MARK: - 6. 櫻花飄落動態背景 (iOS 15+ 防護)
 struct SakuraFallingView: View {
     var density: Double
     
@@ -477,7 +530,7 @@ private struct SakuraFallingContentView: View {
     }
 }
 
-// MARK: - 6. 強化版超跑流光霓虹框
+// MARK: - 7. 強化版超跑流光霓虹框
 struct BackgroundNeonFlowView: View {
     @State private var isAnimating = false
     var primaryColor: Color
@@ -506,7 +559,7 @@ struct BackgroundNeonFlowView: View {
     }
 }
 
-// MARK: - 7. 互動式導航地圖
+// MARK: - 8. 互動式導航地圖
 struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
@@ -580,7 +633,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
     }
 }
 
-// MARK: - 8. 動態速度環形儀表板
+// MARK: - 9. 動態速度環形儀表板
 struct NeonSpeedGaugeRing: View {
     var speed: Double
     var maxDisplaySpeed: Double = 220.0
@@ -618,7 +671,7 @@ struct NeonSpeedGaugeRing: View {
     }
 }
 
-// MARK: - 9. 專業轉速提示燈
+// MARK: - 10. 專業轉速提示燈
 struct ShiftLightsView: View {
     let speed: Double
     
@@ -643,7 +696,7 @@ struct ShiftLightsView: View {
     }
 }
 
-// MARK: - 10. 內嵌小地圖元件
+// MARK: - 11. 內嵌小地圖元件
 struct MiniMapView: View {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
@@ -678,7 +731,78 @@ struct MiniMapView: View {
     }
 }
 
-// MARK: - 11. 超速違規與歷史紀錄頁面
+// MARK: - 12. 多媒體音樂控制卡片元件 (Now Playing Widget)
+struct MusicControlWidgetView: View {
+    @ObservedObject var musicManager: MusicPlayerManager
+    var primaryColor: Color
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            // 專輯封面或預設圖示
+            Group {
+                if let uiImage = musicManager.artworkImage {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    ZStack {
+                        Color.black.opacity(0.6)
+                        Image(systemName: "music.note")
+                            .foregroundColor(primaryColor)
+                            .font(.system(size: 18))
+                    }
+                }
+            }
+            .frame(width: 44, height: 44)
+            .cornerRadius(8)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(primaryColor.opacity(0.5), lineWidth: 1))
+            
+            // 歌曲資訊
+            VStack(alignment: .leading, spacing: 2) {
+                Text(musicManager.songTitle)
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                Text(musicManager.artistName)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            // 控制按鈕 (上一首、播放/暫停、下一首)
+            HStack(spacing: 8) {
+                Button(action: { musicManager.skipToPrevious() }) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white)
+                }
+                
+                Button(action: { musicManager.togglePlayPause() }) {
+                    Image(systemName: musicManager.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(primaryColor)
+                        .frame(width: 26, height: 26)
+                        .background(Color.black.opacity(0.5))
+                        .clipShape(Circle())
+                }
+                
+                Button(action: { musicManager.skipToNext() }) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color.black.opacity(0.75))
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(primaryColor.opacity(0.4), lineWidth: 1))
+        .shadow(color: primaryColor.opacity(0.2), radius: 5)
+    }
+}
+
+// MARK: - 13. 超速違規與歷史紀錄頁面
 struct OverspeedLogsView: View {
     @Binding var logs: [OverspeedRecord]
     var body: some View {
@@ -743,7 +867,7 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 12. 設定選單 (包含櫻花背景與密度調整)
+// MARK: - 14. 設定選單
 struct SettingsView: View {
     @Binding var selectedTheme: DashboardTheme
     @Binding var speedLimit: Double
@@ -771,7 +895,6 @@ struct SettingsView: View {
                 }
             }
             
-            // 櫻花風專屬搭配設定
             if selectedTheme == .sakura {
                 Section(header: Text("日本櫻花風動態背景設定")) {
                     Toggle("啟用主畫面櫻花飄落背景", isOn: $enableSakuraBackground)
@@ -811,9 +934,10 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 13. 主畫面 ContentView
+// MARK: - 15. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
+    @StateObject private var musicManager = MusicPlayerManager()
     @State private var isBootLoaded: Bool = false
     
     @AppStorage("selectedTheme") private var storedThemeRaw: String = DashboardTheme.sakura.rawValue
@@ -869,7 +993,6 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea(.all, edges: .all)
                 
-                // 櫻花風專屬：主畫面櫻花飄落背景動態特效
                 if selectedTheme == .sakura && enableSakuraBackground {
                     SakuraFallingView(density: sakuraDensity)
                         .zIndex(1)
@@ -1104,7 +1227,7 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     
-                                    VStack(spacing: 12) {
+                                    VStack(spacing: 10) {
                                         MiniMapView(
                                             coordinate: vehicleManager.currentLocation,
                                             routePolyline: vehicleManager.routePolyline,
@@ -1112,17 +1235,21 @@ struct ContentView: View {
                                             primaryColor: currentPrimaryColor
                                         ) { showMap = true }
                                         
+                                        // 整合多媒體音樂控制面板
+                                        MusicControlWidgetView(musicManager: musicManager, primaryColor: currentPrimaryColor)
+                                            .frame(width: 135)
+                                        
                                         VStack(spacing: 4) {
                                             ShiftLightsView(speed: effectiveSpeed)
                                             Text("RPM SHIFT LIGHTS").font(.system(size: 7, weight: .bold, design: .monospaced)).foregroundColor(.gray)
                                         }
                                         
-                                        VStack(alignment: .leading, spacing: 6) {
+                                        VStack(alignment: .leading, spacing: 4) {
                                             HStack { Text("里程:").foregroundColor(.gray); Spacer(); Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green) }
                                             HStack { Text("極速:").foregroundColor(.gray); Spacer(); Text(String(format: "%.0f km/h", max(vehicleManager.maxSpeed, simulatedSpeed))).foregroundColor(currentPrimaryColor) }
                                         }
                                         .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .padding(10)
+                                        .padding(8)
                                         .background(Color.white.opacity(0.06))
                                         .cornerRadius(12)
                                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
