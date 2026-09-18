@@ -861,7 +861,7 @@ struct TripScoreSummaryView: View {
                 ScoreDetailRow(title: "行車總里程", value: String(format: "%.2f km", record.tripDistance))
                 ScoreDetailRow(title: "急加速次數", value: "\(record.harshAccelerationCount) 次", isWarning: record.harshAccelerationCount > 3)
                 ScoreDetailRow(title: "急煞車次數", value: "\(record.harshBrakingCount) 次", isWarning: record.harshBrakingCount > 3)
-                ScoreDetailRow(title: "超速持續時間", value: String(format: "%.1f 秒", record.overspeedDurationSeconds), isWarning: record.overspeedDurationSeconds > 10)
+                ScoreDetailRow(title: "超速持續時間", value: String(format: "%.1f 秒", record.overspeedSeconds), isWarning: record.overspeedSeconds > 10)
             }
             .padding(.horizontal, 10)
             
@@ -1323,7 +1323,7 @@ struct ContentView: View {
                                                 totalScore: finalScore,
                                                 harshAccelerationCount: vehicleManager.harshAccelerationCount,
                                                 harshBrakingCount: vehicleManager.harshBrakingCount,
-                                                overspeedDurationSeconds: vehicleManager.overspeedDurationSeconds,
+                                                overspeedSeconds: vehicleManager.overspeedDurationSeconds,
                                                 tripDistance: vehicleManager.tripDistance
                                             )
                                             
