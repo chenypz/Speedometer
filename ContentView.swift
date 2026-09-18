@@ -63,7 +63,7 @@ struct DrivingScoreRecord: Identifiable, Codable {
         switch totalScore {
         case 90...100: return "SSS 級 • 賽道神人"
         case 80..<90:  return "S 級 • 黃金右腳"
-        case 70..<80:  return "A 級 • 安全駕駛"
+        case 70..<80:  return "A 级 • 安全駕駛"
         case 60..<70:  return "B 級 • 普通駕駛"
         default:       return "C 級 • 狂暴飆風者"
         }
@@ -193,7 +193,7 @@ class SpeechManager: ObservableObject {
     }
 }
 
-// MARK: - 4. GPS、感應器與測速照相管理器 (含駕駛行為追蹤)
+// MARK: - 4. GPS、感應器與測速照相管理器 (含測速點手動加入/移除與 0-100/100m 測試)
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -207,10 +207,18 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentGForceY: Double = 0.0
     @Published var maxGForce: Double = 0.0
     
+    // 0-100 加速測試變數
     @Published var zeroToOneHundredTime: Double = 0.0
     @Published var isTesting0_100: Bool = false
     private var accelStartTime: Date? = nil
     private var hasReached100: Bool = false
+    
+    // 0-100公尺加速測試變數
+    @Published var zeroTo100mTime: Double = 0.0
+    @Published var isTesting0_100m: Bool = false
+    private var distanceStartTime: Date? = nil
+    private var startLocationFor100m: CLLocation? = nil
+    private var hasReached100m: Bool = false
     
     // 駕駛行為評分追蹤變數
     @Published var harshAccelerationCount: Int = 0
@@ -250,23 +258,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.startUpdatingHeading()
         
         startMotionUpdates()
-        fetchCamerasFromCloud()
-    }
-    
-    func fetchCamerasFromCloud() {
-        guard let url = URL(string: "https://your-server.com/api/cameras.json") else { return }
-        
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            guard let data = data, error == nil else { return }
-            do {
-                let decoded = try JSONDecoder().decode([SpeedCamera].self, from: data)
-                DispatchQueue.main.async {
-                    self?.speedCameras.append(contentsOf: decoded)
-                }
-            } catch {
-                print("雲端測速點解析失敗: \(error)")
-            }
-        }.resume()
     }
     
     func updateLocationAccuracy(isNetworkBoostEnabled: Bool) {
@@ -283,33 +274,66 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         tripDistance = 0.0
         maxSpeed = 0.0
         maxGForce = 0.0
+        
         zeroToOneHundredTime = 0.0
         isTesting0_100 = false
         hasReached100 = false
         accelStartTime = nil
+        
+        zeroTo100mTime = 0.0
+        isTesting0_100m = false
+        hasReached100m = false
+        distanceStartTime = nil
+        startLocationFor100m = nil
+        
         lastLocation = nil
         recordedPath.removeAll()
         lastSpokenCameraId = nil
         
-        // 重置駕駛行為指標
         harshAccelerationCount = 0
         harshBrakingCount = 0
         overspeedDurationSeconds = 0.0
         lastRecordedSpeed = 0.0
     }
     
-    func reportMobileSpeedTrap() {
-        let newTrap = SpeedCamera(
+    // 手動加入目前位置為測速點
+    func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
+        let newCam = SpeedCamera(
             latitude: currentLocation.latitude,
             longitude: currentLocation.longitude,
-            speedLimit: 50,
-            description: "⚠️ 用戶回報流動測速/三腳架",
+            speedLimit: speedLimit,
+            description: description.isEmpty ? "⚠️ 手動回報測速點" : description,
             isTemporary: true
         )
-        speedCameras.append(newTrap)
-        nearestCameraAlert = "已成功回報流動測速點！"
+        speedCameras.append(newCam)
+        nearestCameraAlert = "已成功加入目前測速點！"
         AudioServicesPlaySystemSound(1016)
-        speechManager.speak(speechManager.currentLanguage.starts(with: "zh") ? "已成功回報流動測速點" : "Mobile speed trap reported")
+        speechManager.speak("已成功加入目前測速點")
+    }
+    
+    // 移除最近的測速點
+    func removeNearestCamera() {
+        guard let currentLoc = lastLocation else {
+            speechManager.speak("目前沒有定位資訊")
+            return
+        }
+        
+        if let index = speedCameras.firstIndex(where: { camera in
+            let camLoc = CLLocation(latitude: camera.latitude, longitude: camera.longitude)
+            return currentLoc.distance(from: camLoc) <= 150.0
+        }) {
+            let removedCam = speedCameras.remove(at: index)
+            nearestCameraAlert = "已移除最近測速點：\(removedCam.description)"
+            AudioServicesPlaySystemSound(1016)
+            speechManager.speak("已移除最近測速點")
+        } else {
+            nearestCameraAlert = "附近 150 公尺內沒有測速點可移除"
+            speechManager.speak("附近沒有找到可移除的測速點")
+        }
+    }
+    
+    func reportMobileSpeedTrap() {
+        addCurrentLocationAsCamera(speedLimit: 50, description: "⚠️ 用戶回報流動測速/三腳架")
     }
     
     func searchAndNavigate(query: String) {
@@ -384,7 +408,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let speedKmh = max(0, newLocation.speed * 3.6)
         self.speed = speedKmh
         
-        // 駕駛行為檢測：計算急加速與急煞車
         let speedDelta = speedKmh - lastRecordedSpeed
         if speedDelta > 18.0 {
             harshAccelerationCount += 1
@@ -402,6 +425,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         lastLocation = newLocation
         
+        // 0-100 加速測試邏輯
         if speedKmh < 5 && !isTesting0_100 && !hasReached100 {
             isTesting0_100 = true
             accelStartTime = Date()
@@ -415,6 +439,25 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 hasReached100 = true
             } else if elapsed > 30.0 {
                 isTesting0_100 = false
+            }
+        }
+        
+        // 0-100公尺加速測試邏輯
+        if speedKmh < 3 && !isTesting0_100m && !hasReached100m {
+            isTesting0_100m = true
+            distanceStartTime = Date()
+            startLocationFor100m = newLocation
+            zeroTo100mTime = 0.0
+            hasReached100m = false
+        } else if isTesting0_100m, let startLoc = startLocationFor100m, let startTime = distanceStartTime {
+            let elapsed = Date().timeIntervalSince(startTime)
+            let distanceCovered = newLocation.distance(from: startLoc)
+            zeroTo100mTime = elapsed
+            if distanceCovered >= 100.0 {
+                isTesting0_100m = false
+                hasReached100m = true
+            } else if elapsed > 30.0 {
+                isTesting0_100m = false
             }
         }
     }
@@ -450,7 +493,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
         
-        if nearestCameraAlert?.contains("已成功回報") == false {
+        if nearestCameraAlert?.contains("已成功") == false && nearestCameraAlert?.contains("已移除") == false {
             nearestCameraAlert = nil
         }
     }
@@ -615,32 +658,31 @@ private struct SakuraFallingContentView: View {
     }
 }
 
-// MARK: - 7. 強化版超跑流光霓虹框
+// MARK: - 7. 強化版超跑流光霓虹框（對準修復）
 struct BackgroundNeonFlowView: View {
     @State private var isAnimating = false
     var primaryColor: Color
     
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 28)
-                .stroke(
-                    AngularGradient(
-                        gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, .white, primaryColor, primaryColor.opacity(0.2)]),
-                        center: .center,
-                        angle: .degrees(isAnimating ? 360 : 0)
-                    ),
-                    lineWidth: 12
-                )
-                .padding(4)
-                .shadow(color: primaryColor, radius: 30)
-                .shadow(color: primaryColor.opacity(0.6), radius: 10)
-        }
-        .ignoresSafeArea()
-        .onAppear {
-            withAnimation(Animation.linear(duration: 3.0).repeatForever(autoreverses: false)) {
-                isAnimating = true
+        RoundedRectangle(cornerRadius: 28)
+            .stroke(
+                AngularGradient(
+                    gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, .white, primaryColor, primaryColor.opacity(0.2)]),
+                    center: .center,
+                    angle: .degrees(isAnimating ? 360 : 0)
+                ),
+                lineWidth: 10
+            )
+            .padding(10)
+            .shadow(color: primaryColor, radius: 20)
+            .shadow(color: primaryColor.opacity(0.6), radius: 8)
+            .allowsHitTesting(false)
+            .ignoresSafeArea()
+            .onAppear {
+                withAnimation(Animation.linear(duration: 3.0).repeatForever(autoreverses: false)) {
+                    isAnimating = true
+                }
             }
-        }
     }
 }
 
@@ -816,7 +858,83 @@ struct MiniMapView: View {
     }
 }
 
-// MARK: - 12. 駕駛行為結算報告彈窗元件 (Eco/Sport Score Summary)
+// MARK: - 12. 效能測試分頁檢視 (新增 0-100 與 0-100公尺分頁)
+struct PerformanceTestDashboardView: View {
+    @ObservedObject var vehicleManager: VehicleManager
+    var primaryColor: Color
+    
+    var body: some View {
+        TabView {
+            // 0-100 加速測試分頁
+            ZStack {
+                Color.black.ignoresSafeArea()
+                VStack(spacing: 24) {
+                    Text("0 - 100 KM/H 加速測試")
+                        .font(.system(size: 20, weight: .black, design: .monospaced))
+                        .foregroundColor(.white)
+                    
+                    ZStack {
+                        Circle()
+                            .stroke(primaryColor.opacity(0.3), lineWidth: 12)
+                            .frame(width: 200, height: 200)
+                        
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.2f", vehicleManager.zeroToOneHundredTime))
+                                .font(.system(size: 48, weight: .black, design: .monospaced))
+                                .foregroundColor(.white)
+                            Text("秒 (SEC)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(primaryColor)
+                        }
+                    }
+                    
+                    Text(vehicleManager.isTesting0_100 ? "測試中...請全油門加速！" : "車速低於 5 km/h 靜止後自動重置測試")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.gray)
+                }
+            }
+            .tabItem {
+                Label("0-100加速", systemImage: "timer")
+            }
+            
+            // 0-100 公尺短距加速分頁
+            ZStack {
+                Color.black.ignoresSafeArea()
+                VStack(spacing: 24) {
+                    Text("0 - 100 公尺短距加速")
+                        .font(.system(size: 20, weight: .black, design: .monospaced))
+                        .foregroundColor(.white)
+                    
+                    ZStack {
+                        Circle()
+                            .stroke(Color.orange.opacity(0.3), lineWidth: 12)
+                            .frame(width: 200, height: 200)
+                        
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.2f", vehicleManager.zeroTo100mTime))
+                                .font(.system(size: 48, weight: .black, design: .monospaced))
+                                .foregroundColor(.orange)
+                            Text("秒 / 100M")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.orange)
+                        }
+                    }
+                    
+                    Text(vehicleManager.isTesting0_100m ? "0-100公尺計測中..." : "車輛靜止後起步自動開始計測")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.gray)
+                }
+            }
+            .tabItem {
+                Label("100公尺測試", systemImage: "flag.checkered")
+            }
+        }
+        .accentColor(primaryColor)
+        .navigationTitle("車輛效能測試")
+    }
+}
+
+// MARK: - 13. 駕駛行為結算報告彈窗元件
 struct TripScoreSummaryView: View {
     let record: DrivingScoreRecord
     var primaryColor: Color
@@ -903,32 +1021,7 @@ struct ScoreDetailRow: View {
     }
 }
 
-// MARK: - 13. 超速違規與歷史紀錄頁面
-struct OverspeedLogsView: View {
-    @Binding var logs: [OverspeedRecord]
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            List {
-                ForEach(logs) { log in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(log.date, formatter: dateFormatter).font(.system(size: 12)).foregroundColor(.gray)
-                            Text(String(format: "%.0f km/h", log.speed)).font(.system(size: 16, weight: .black)).foregroundColor(.red)
-                        }
-                        Spacer()
-                        Text("速限: \(Int(log.speedLimit))").foregroundColor(.gray)
-                    }
-                    .listRowBackground(Color.black)
-                }
-                .onDelete { logs.remove(atOffsets: $0) }
-            }
-        }
-        .navigationTitle("超速違規紀錄")
-    }
-    private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df }
-}
-
+// MARK: - 14. 歷史紀錄頁面
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     var body: some View {
@@ -968,9 +1061,9 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 14. 設定選單
+// MARK: - 15. 設定選單 (包含新增/移除測速點功能)
 struct SettingsView: View {
-    @ObservedObject var speechManager: SpeechManager
+    @ObservedObject var vehicleManager: VehicleManager
     @Binding var selectedTheme: DashboardTheme
     @Binding var speedLimit: Double
     @Binding var isHudMode: Bool
@@ -984,19 +1077,29 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section(header: Text("語音播報與多國語系 (i18n)")) {
-                Picker("語音語言 (Voice Language)", selection: $speechManager.currentLanguage) {
-                    Text("繁體中文 (Traditional Chinese)").tag("zh-TW")
-                    Text("English (英文)").tag("en-US")
-                    Text("日本語 (日文)").tag("ja-JP")
+                Picker("語音語言", selection: $vehicleManager.speechManager.currentLanguage) {
+                    Text("繁體中文").tag("zh-TW")
+                    Text("English").tag("en-US")
+                    Text("日本語").tag("ja-JP")
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 
                 Button(action: {
-                    speechManager.announceWarning(speedLimit: 60, isOverspeed: true)
+                    vehicleManager.speechManager.announceWarning(speedLimit: 60, isOverspeed: true)
                 }) {
                     Text("測試語音播報效果")
                         .foregroundColor(.blue)
                 }
+            }
+            
+            Section(header: Text("測速點位管理")) {
+                Button("新增目前位置為測速點") {
+                    vehicleManager.addCurrentLocationAsCamera(speedLimit: speedLimit, description: "手動回報測速點")
+                }
+                Button("移除最近測速點 (150m內)") {
+                    vehicleManager.removeNearestCamera()
+                }
+                .foregroundColor(.red)
             }
             
             Section(header: Text("視覺主題與風格")) {
@@ -1051,7 +1154,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 15. 主畫面 ContentView
+// MARK: - 16. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     @State private var isBootLoaded: Bool = false
@@ -1071,8 +1174,8 @@ struct ContentView: View {
     @State private var historyRecords: [HistoryRecord] = []
     
     @State private var showSettings: Bool = false
-    @State private var showOverspeedLogs: Bool = false
     @State private var showHistoryRecords: Bool = false
+    @State private var showPerformanceView: Bool = false
     @State private var flashWarning: Bool = false
     
     @State private var simulatedSpeed: Double = 0.0
@@ -1083,7 +1186,6 @@ struct ContentView: View {
     @State private var searchText: String = ""
     @State private var isSearchExpanded: Bool = false
     
-    // 駕駛行為結算彈窗狀態
     @State private var latestTripScoreRecord: DrivingScoreRecord? = nil
     
     var effectiveSpeed: Double {
@@ -1135,7 +1237,6 @@ struct ContentView: View {
                                 .zIndex(10)
                         }
                         
-                        // 駕駛行為結算彈窗
                         if let scoreRecord = latestTripScoreRecord {
                             Color.black.opacity(0.85)
                                 .ignoresSafeArea()
@@ -1187,6 +1288,7 @@ struct ContentView: View {
                                     )
                                     .ignoresSafeArea(.all, edges: .all)
                                     
+                                    // 地圖檢視模式中的精巧即時時速小方塊與工具按鈕
                                     HStack(alignment: .top, spacing: 12) {
                                         Button(action: { showMap.toggle() }) {
                                             Image(systemName: "gauge.with.needle")
@@ -1198,6 +1300,21 @@ struct ContentView: View {
                                                 .overlay(Circle().stroke(currentPrimaryColor, lineWidth: 2))
                                         }
                                         
+                                        // 時速小方塊
+                                        HStack(spacing: 6) {
+                                            Text(String(format: "%.0f", effectiveSpeed))
+                                                .font(.system(size: 22, weight: .black, design: .monospaced))
+                                                .foregroundColor(.white)
+                                            Text("KM/H")
+                                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                .foregroundColor(currentPrimaryColor)
+                                        }
+                                        .padding(.horizontal, 14)
+                                        .frame(height: 44)
+                                        .background(Color.black.opacity(0.85))
+                                        .cornerRadius(22)
+                                        .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor, lineWidth: 1))
+                                        
                                         if vehicleManager.isNavigating {
                                             Button(action: { vehicleManager.cancelNavigation() }) {
                                                 Image(systemName: "xmark.circle.fill")
@@ -1208,58 +1325,12 @@ struct ContentView: View {
                                                     .cornerRadius(22)
                                             }
                                         }
-                                        
-                                        HStack(spacing: 8) {
-                                            Button(action: {
-                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                                    isSearchExpanded.toggle()
-                                                }
-                                            }) {
-                                                Image(systemName: "magnifyingglass")
-                                                    .font(.system(size: 16, weight: .bold))
-                                                    .foregroundColor(currentPrimaryColor)
-                                                    .frame(width: 44, height: 44)
-                                                    .background(Color.black.opacity(0.8))
-                                                    .clipShape(Circle())
-                                                    .overlay(Circle().stroke(currentPrimaryColor, lineWidth: 2))
-                                            }
-                                            
-                                            if isSearchExpanded {
-                                                HStack {
-                                                    TextField("搜尋目的地", text: $searchText, onCommit: {
-                                                        vehicleManager.searchAndNavigate(query: searchText)
-                                                        withAnimation { isSearchExpanded = false }
-                                                        searchText = ""
-                                                    })
-                                                    .font(.system(size: 12, design: .monospaced))
-                                                    .foregroundColor(.white)
-                                                    
-                                                    Button(action: {
-                                                        vehicleManager.searchAndNavigate(query: searchText)
-                                                        withAnimation { isSearchExpanded = false }
-                                                        searchText = ""
-                                                    }) {
-                                                        Text("前往")
-                                                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                                            .padding(.horizontal, 10)
-                                                            .padding(.vertical, 6)
-                                                            .background(currentPrimaryColor)
-                                                            .foregroundColor(.black)
-                                                            .cornerRadius(8)
-                                                    }
-                                                }
-                                                .padding(.horizontal, 12)
-                                                .frame(width: 210, height: 44)
-                                                .background(Color.black.opacity(0.9))
-                                                .cornerRadius(22)
-                                                .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor, lineWidth: 1))
-                                            }
-                                        }
                                     }
                                     .padding(.top, 24)
                                     .padding(.leading, 24)
                                 }
                             } else {
+                                // 標準首頁儀表板
                                 HStack(spacing: 12) {
                                     VStack(spacing: 10) {
                                         Button(action: { showMap.toggle() }) {
@@ -1285,14 +1356,14 @@ struct ContentView: View {
                                             .overlay(RoundedRectangle(cornerRadius: 14).stroke(currentPrimaryColor.opacity(0.6), lineWidth: 1))
                                         }
                                         
-                                        Button(action: { vehicleManager.reportMobileSpeedTrap() }) {
+                                        Button(action: { showPerformanceView = true }) {
                                             VStack(spacing: 3) {
-                                                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 14))
-                                                Text("回報").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                Image(systemName: "timer").font(.system(size: 14))
+                                                Text("測試").font(.system(size: 8, weight: .bold, design: .monospaced))
                                             }
                                             .frame(width: 50, height: 50)
-                                            .background(Color.red.opacity(0.35))
-                                            .foregroundColor(.red)
+                                            .background(Color.orange.opacity(0.25))
+                                            .foregroundColor(.orange)
                                             .cornerRadius(14)
                                         }
                                         
@@ -1310,7 +1381,6 @@ struct ContentView: View {
                                         Spacer()
                                         
                                         Button(action: {
-                                            // 計算評分演算法
                                             var baseScore = 100
                                             baseScore -= (vehicleManager.harshAccelerationCount * 5)
                                             baseScore -= (vehicleManager.harshBrakingCount * 5)
@@ -1327,7 +1397,6 @@ struct ContentView: View {
                                                 tripDistance: vehicleManager.tripDistance
                                             )
                                             
-                                            // 儲存行車歷史
                                             let history = HistoryRecord(
                                                 id: UUID(),
                                                 date: Date(),
@@ -1339,7 +1408,6 @@ struct ContentView: View {
                                             )
                                             historyRecords.append(history)
                                             
-                                            // 彈出評分結算畫面
                                             withAnimation {
                                                 latestTripScoreRecord = scoreRecord
                                             }
@@ -1352,8 +1420,8 @@ struct ContentView: View {
                                                 Text("重置").font(.system(size: 8, weight: .bold, design: .monospaced))
                                             }
                                             .frame(width: 50, height: 50)
-                                            .background(Color.orange.opacity(0.25))
-                                            .foregroundColor(.orange)
+                                            .background(Color.red.opacity(0.25))
+                                            .foregroundColor(.red)
                                             .cornerRadius(14)
                                         }
                                     }
@@ -1445,8 +1513,6 @@ struct ContentView: View {
                     flashWarning = true
                     AudioServicesPlaySystemSound(1005)
                     overspeedLogs.append(OverspeedRecord(id: UUID(), date: Date(), speed: newSpeed, speedLimit: speedLimit))
-                    
-                    // 累計超速秒數（每次觸發 onChange 計算約 1 秒）
                     vehicleManager.overspeedDurationSeconds += 1.0
                     
                     overspeedTimer?.invalidate()
@@ -1466,7 +1532,7 @@ struct ContentView: View {
             .background(
                 Group {
                     NavigationLink(destination: SettingsView(
-                        speechManager: vehicleManager.speechManager,
+                        vehicleManager: vehicleManager,
                         selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }),
                         speedLimit: $speedLimit,
                         isHudMode: $isHudMode,
@@ -1477,7 +1543,10 @@ struct ContentView: View {
                         enableSakuraBackground: $enableSakuraBackground,
                         sakuraDensity: $sakuraDensity
                     ), isActive: $showSettings) { EmptyView() }
+                    
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
+                    
+                    NavigationLink(destination: PerformanceTestDashboardView(vehicleManager: vehicleManager, primaryColor: currentPrimaryColor), isActive: $showPerformanceView) { EmptyView() }
                 }
             )
         }
