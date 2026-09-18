@@ -325,27 +325,27 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 【4K 真車渲染風格】頂級擬真開場動畫
+// MARK: - 4. 【4K 真車動態跑車風格】頂級擬真開場動畫
 struct HorizonBootLoadingView: View {
     @Binding var isFinished: Bool
-    @State private var zoomScale: CGFloat = 1.0
+    @State private var zoomScale: CGFloat = 0.8
+    @State private var carOffset: CGFloat = -200
     @State private var textFadeIn: Bool = false
     @State private var bootTextIndex: Int = 0
-    @State private var lightSweep: CGFloat = -1.0
+    @State private var neonGlow: CGFloat = 0.2
     
     let bootSequenceTexts = [
-        "4K PHOTOREALISTIC ENGINE INITIALIZING...",
-        "LOADING GLOBAL ILLUMINATION & RAY TRACING...",
-        "READY FOR ACCELERATION."
+        "INITIALIZING HYPERCAR TELEMETRY...",
+        "RENDERING 4K AERODYNAMIC BODY...",
+        "READY FOR LAUNCH."
     ]
 
     var body: some View {
         ZStack {
-            // 真車 4K 渲染質感背景（擬真超跑車頭碳纖維與流光折射感）
             LinearGradient(
                 colors: [
                     Color(red: 0.05, green: 0.05, blue: 0.06),
-                    Color(red: 0.15, green: 0.02, blue: 0.02),
+                    Color(red: 0.2, green: 0.02, blue: 0.02),
                     Color(red: 0.02, green: 0.02, blue: 0.03)
                 ],
                 startPoint: .topLeading,
@@ -375,42 +375,34 @@ struct HorizonBootLoadingView: View {
             }
             .zIndex(30)
 
-            VStack(spacing: 24) {
+            VStack(spacing: 28) {
                 Spacer()
                 
-                // 真車視覺圖標取代醜圖：以超跑流線與精準光影展現 4K 渲染感
                 ZStack {
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(red: 0.12, green: 0.12, blue: 0.15), Color(red: 0.03, green: 0.03, blue: 0.04)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+                    Circle()
+                        .stroke(
+                            AngularGradient(gradient: Gradient(colors: [.orange, .red, .safeCyan, .orange]), center: .center),
+                            lineWidth: 3
                         )
-                        .frame(width: 140, height: 140)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 24)
-                                .stroke(
-                                    LinearGradient(colors: [.orange, .red, .safeCyan], startPoint: .topLeading, endPoint: .bottomTrailing),
-                                    lineWidth: 2
-                                )
-                        )
-                        .shadow(color: .orange.opacity(0.5), radius: 20)
+                        .frame(width: 180, height: 180)
+                        .scaleEffect(zoomScale)
+                        .shadow(color: .orange.opacity(neonGlow), radius: 15)
 
-                    Image(systemName: "car.rear.and.tire.marks")
-                        .font(.system(size: 60, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(color: .orange, radius: 10)
+                    VStack(spacing: 8) {
+                        Image(systemName: "car.rear.and.tire.marks")
+                            .font(.system(size: 65, weight: .bold))
+                            .foregroundColor(.white)
+                            .shadow(color: .orange, radius: 12)
+                            .offset(x: carOffset)
+                    }
                 }
-                .scaleEffect(zoomScale)
 
                 VStack(spacing: 8) {
-                    Text("ULTRA 4K REALISTIC V8")
-                        .font(.system(size: 20, weight: .black, design: .monospaced))
-                        .kerning(6)
+                    Text("HYPERCAR V12 ENGINE")
+                        .font(.system(size: 18, weight: .black, design: .monospaced))
+                        .kerning(5)
                         .foregroundColor(.white)
-                        .shadow(color: .orange, radius: 8)
+                        .shadow(color: .red, radius: 8)
                     
                     Text(bootSequenceTexts[bootTextIndex])
                         .font(.system(size: 12, weight: .bold, design: .monospaced))
@@ -425,20 +417,25 @@ struct HorizonBootLoadingView: View {
         }
         .ignoresSafeArea()
         .onAppear {
-            withAnimation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                zoomScale = 1.08
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+                carOffset = 0
+                zoomScale = 1.0
             }
 
-            withAnimation(Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+            withAnimation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                neonGlow = 0.8
+            }
+
+            withAnimation(Animation.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
                 textFadeIn.toggle()
             }
 
-            Timer.scheduledTimer(withTimeInterval: 1.4, repeats: true) { timer in
+            Timer.scheduledTimer(withTimeInterval: 1.3, repeats: true) { timer in
                 if bootTextIndex < bootSequenceTexts.count - 1 {
                     bootTextIndex += 1
                 } else {
                     timer.invalidate()
-                    withAnimation(.easeInOut(duration: 0.5)) {
+                    withAnimation(.easeInOut(duration: 0.6)) {
                         isFinished = true
                     }
                 }
@@ -447,7 +444,7 @@ struct HorizonBootLoadingView: View {
     }
 }
 
-// MARK: - 5. 背景流光霓虹燈條特效
+// MARK: - 5. 背景流光霓虹燈條特效（已加粗並加大發光效果）
 struct BackgroundNeonFlowView: View {
     @State private var isAnimating = false
     var primaryColor: Color
@@ -457,14 +454,14 @@ struct BackgroundNeonFlowView: View {
             RoundedRectangle(cornerRadius: 24)
                 .stroke(
                     AngularGradient(
-                        gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, Color(red: 0.8, green: 0.1, blue: 0.9), primaryColor.opacity(0.2), Color.clear]),
+                        gradient: Gradient(colors: [primaryColor.opacity(0.3), primaryColor, Color(red: 0.8, green: 0.1, blue: 0.9), primaryColor.opacity(0.3), Color.clear]),
                         center: .center,
                         angle: .degrees(isAnimating ? 360 : 0)
                     ),
-                    lineWidth: 5
+                    lineWidth: 10 // 燈條加粗
                 )
-                .padding(4)
-                .shadow(color: primaryColor.opacity(0.8), radius: 12)
+                .padding(2)
+                .shadow(color: primaryColor, radius: 25) // 強化發光特效
         }
         .ignoresSafeArea()
         .onAppear {
@@ -783,7 +780,7 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 13. 設定選單
+// MARK: - 13. 設定選單（新增手動模擬速度調整滑桿）
 struct SettingsView: View {
     @Binding var selectedTheme: DashboardTheme
     @Binding var speedLimit: Double
@@ -791,6 +788,7 @@ struct SettingsView: View {
     @Binding var useCustomColor: Bool
     @Binding var customColor: Color
     @Binding var isNetworkBoostEnabled: Bool
+    @Binding var simulatedSpeed: Double // 新增：模擬車速綁定
     
     var body: some View {
         Form {
@@ -808,10 +806,18 @@ struct SettingsView: View {
                 }
             }
             
+            Section(header: Text("模擬速度測試（設定選單調整）")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("手動模擬車速: \(Int(simulatedSpeed)) km/h").font(.system(size: 14, weight: .bold, design: .monospaced))
+                    Slider(value: $simulatedSpeed, in: 0...200, step: 5)
+                    Text("提示：調整此滑桿可直接測試儀表板速度與日語超速警告效果。").font(.system(size: 11)).foregroundColor(.gray)
+                }
+            }
+            
             Section(header: Text("安全警示")) {
                 VStack(alignment: .leading) {
                     Text("速限警告: \(Int(speedLimit)) km/h").font(.system(size: 14, weight: .bold, design: .monospaced))
-                    Slider(value: $speedLimit, in: 40...180, step: 5)
+                    Slider(value: $speedLimit, in: 10...180, step: 5)
                 }
             }
             
@@ -851,12 +857,20 @@ struct ContentView: View {
     @State private var showHistoryRecords: Bool = false
     @State private var flashWarning: Bool = false
     
-    // 【地平線日語超速警告控制】維持 7 秒機制
+    // 【手動模擬車速控制】預設為 0，若有透過設定調整則覆蓋 GPS 速度
+    @State private var simulatedSpeed: Double = 0.0
+    
+    // 【日語超速警告控制】維持 7 秒機制
     @State private var showJapaneseOverspeedAlert: Bool = false
     @State private var overspeedTimer: Timer? = nil
     
     @State private var searchText: String = ""
     @State private var isSearchExpanded: Bool = false
+    
+    var effectiveSpeed: Double {
+        // 如果使用者在設定裡手動調整了模擬速度大於 0，則優先使用模擬速度，否則採用即時 GPS 速度
+        return simulatedSpeed > 0 ? simulatedSpeed : vehicleManager.speed
+    }
     
     var selectedTheme: DashboardTheme {
         get { DashboardTheme(rawValue: storedThemeRaw) ?? .cyberpunk }
@@ -884,6 +898,7 @@ struct ContentView: View {
                 } else {
                     SciFiParticleAssembleView {
                         ZStack {
+                            // 背景流光霓虹燈條（已加粗發光）
                             BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
                                 .zIndex(0)
                             
@@ -1070,6 +1085,7 @@ struct ContentView: View {
                                                 )
                                                 historyRecords.append(history)
                                                 vehicleManager.resetData()
+                                                simulatedSpeed = 0.0
                                             }) {
                                                 VStack(spacing: 3) {
                                                     Image(systemName: "arrow.counterclockwise.circle.fill").font(.system(size: 13))
@@ -1092,7 +1108,7 @@ struct ContentView: View {
                                                     .foregroundColor(.gray)
                                                     .kerning(2)
                                                 
-                                                Text(String(format: "%.0f", vehicleManager.speed))
+                                                Text(String(format: "%.0f", effectiveSpeed))
                                                     .font(.system(size: 72, weight: .black, design: .monospaced))
                                                     .foregroundColor(.white)
                                                     .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
@@ -1113,13 +1129,13 @@ struct ContentView: View {
                                             ) { showMap = true }
                                             
                                             VStack(spacing: 3) {
-                                                ShiftLightsView(speed: vehicleManager.speed)
+                                                ShiftLightsView(speed: effectiveSpeed)
                                                 Text("RPM LIGHTS").font(.system(size: 7, design: .monospaced)).foregroundColor(.gray)
                                             }
                                             
                                             VStack(alignment: .leading, spacing: 5) {
                                                 HStack { Text("距離:").foregroundColor(.gray); Spacer(); Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green) }
-                                                HStack { Text("極速:").foregroundColor(.gray); Spacer(); Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor) }
+                                                HStack { Text("極速:").foregroundColor(.gray); Spacer(); Text(String(format: "%.0f km/h", max(vehicleManager.maxSpeed, simulatedSpeed))).foregroundColor(currentPrimaryColor) }
                                             }
                                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                                             .padding(8)
@@ -1163,22 +1179,20 @@ struct ContentView: View {
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
             }
-            .onChange(of: vehicleManager.speed) { newSpeed in
+            .onChange(of: effectiveSpeed) { newSpeed in
                 if newSpeed > speedLimit {
-                    if !flashWarning {
-                        flashWarning = true
-                        AudioServicesPlaySystemSound(1005)
-                        overspeedLogs.append(OverspeedRecord(id: UUID(), date: Date(), speed: newSpeed, speedLimit: speedLimit))
-                        
-                        // 觸發日語超速警告，精確控制維持 7 秒
+                    flashWarning = true
+                    AudioServicesPlaySystemSound(1005)
+                    overspeedLogs.append(OverspeedRecord(id: UUID(), date: Date(), speed: newSpeed, speedLimit: speedLimit))
+                    
+                    overspeedTimer?.invalidate()
+                    withAnimation {
+                        showJapaneseOverspeedAlert = true
+                    }
+                    
+                    overspeedTimer = Timer.scheduledTimer(withTimeInterval: 7.0, repeats: false) { _ in
                         withAnimation {
-                            showJapaneseOverspeedAlert = true
-                        }
-                        overspeedTimer?.invalidate()
-                        overspeedTimer = Timer.scheduledTimer(withTimeInterval: 7.0, repeats: false) { _ in
-                            withAnimation {
-                                showJapaneseOverspeedAlert = false
-                            }
+                            showJapaneseOverspeedAlert = false
                         }
                     }
                 } else {
@@ -1187,7 +1201,7 @@ struct ContentView: View {
             }
             .background(
                 Group {
-                    NavigationLink(destination: SettingsView(selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }), speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor, isNetworkBoostEnabled: $isNetworkBoostEnabled), isActive: $showSettings) { EmptyView() }
+                    NavigationLink(destination: SettingsView(selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }), speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor, isNetworkBoostEnabled: $isNetworkBoostEnabled, simulatedSpeed: $simulatedSpeed), isActive: $showSettings) { EmptyView() }
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
                 }
             )
