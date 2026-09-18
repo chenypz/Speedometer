@@ -1505,6 +1505,7 @@ struct ContentView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationBarHidden(true)
             .ignoresSafeArea(.all, edges: .all)
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
@@ -1557,6 +1558,7 @@ struct ContentView: View {
             )
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(.all, edges: .all)
     }
 }
