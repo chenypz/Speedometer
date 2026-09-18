@@ -49,11 +49,10 @@ struct CodableCoordinate: Codable {
     }
 }
 
-// 駕駛行為評分資料模型
 struct DrivingScoreRecord: Identifiable, Codable {
     let id: UUID
     let date: Date
-    let totalScore: Int // 0 - 100 分
+    let totalScore: Int
     let harshAccelerationCount: Int
     let harshBrakingCount: Int
     let overspeedSeconds: Double
@@ -70,7 +69,6 @@ struct DrivingScoreRecord: Identifiable, Codable {
     }
 }
 
-// 支援雲端 JSON 解碼的測速點模型
 struct SpeedCamera: Identifiable, Codable {
     var id: UUID = UUID()
     let latitude: Double
@@ -145,7 +143,7 @@ extension Color: @retroactive RawRepresentable {
     }
 }
 
-// MARK: - 3. 語音播報與多國語系管理器 (Speech Manager)
+// MARK: - 3. 語音播報與多國語系管理器
 class SpeechManager: ObservableObject {
     private let synthesizer = AVSpeechSynthesizer()
     
@@ -328,27 +326,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    func reportMobileSpeedTrap() {
-        addCurrentLocationAsCamera(speedLimit: 50, description: "⚠️ 用戶回報流動測速/三腳架")
-    }
-    
-    func searchAndNavigate(query: String) {
-        guard !query.isEmpty else { return }
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-        request.region = MKCoordinateRegion(center: currentLocation, span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05))
-        
-        let search = MKLocalSearch(request: request)
-        search.start { [weak self] response, error in
-            guard let self = self, let item = response?.mapItems.first else {
-                self?.currentInstruction = "找不到指定地點"
-                return
-            }
-            self.setDestination(item.placemark.coordinate)
-            self.currentInstruction = "目的地: \(item.name ?? query)"
-        }
-    }
-    
     func setDestination(_ coordinate: CLLocationCoordinate2D) {
         self.destinationCoordinate = coordinate
         self.isNavigating = true
@@ -421,6 +398,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         lastLocation = newLocation
         
+        // 0 - 100 km/h 自動計時觸發
         if speedKmh < 5 && !isTesting0_100 && !hasReached100 {
             isTesting0_100 = true
             accelStartTime = Date()
@@ -437,6 +415,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
         
+        // 0 - 100m 自動計時觸發
         if speedKmh < 3 && !isTesting0_100m && !hasReached100m {
             isTesting0_100m = true
             distanceStartTime = Date()
@@ -501,7 +480,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 三種分類 5 秒開場動畫 + 日本電影警告語
+// MARK: - 5. 開場動畫 View
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -653,10 +632,12 @@ private struct SakuraFallingContentView: View {
     }
 }
 
-// MARK: - 7. 強化版超跑流光霓虹框（完美貼合全螢幕）
+// MARK: - 7. 強化版超跑流光霓虹框（支援粗度與動態速度調整）
 struct BackgroundNeonFlowView: View {
     @State private var isAnimating = false
     var primaryColor: Color
+    var borderWidth: Double
+    var animSpeed: Double
     
     var body: some View {
         Rectangle()
@@ -666,16 +647,25 @@ struct BackgroundNeonFlowView: View {
                     center: .center,
                     angle: .degrees(isAnimating ? 360 : 0)
                 ),
-                lineWidth: 4
+                lineWidth: CGFloat(borderWidth)
             )
             .shadow(color: primaryColor, radius: 10)
             .allowsHitTesting(false)
             .ignoresSafeArea(.all, edges: .all)
             .onAppear {
-                withAnimation(Animation.linear(duration: 3.0).repeatForever(autoreverses: false)) {
-                    isAnimating = true
-                }
+                startAnimation()
             }
+            .onChange(of: animSpeed) { _ in
+                startAnimation()
+            }
+    }
+    
+    private func startAnimation() {
+        isAnimating = false
+        let duration = max(0.5, 6.0 - animSpeed) // 速度設定越高，動畫週期秒數越短
+        withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
+            isAnimating = true
+        }
     }
 }
 
@@ -753,11 +743,15 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
     }
 }
 
-// MARK: - 9. 動態速度環形儀表板
+// MARK: - 9. 動態速度環形儀表板 + 外圍旋轉霓虹燈條
 struct NeonSpeedGaugeRing: View {
     var speed: Double
     var maxDisplaySpeed: Double = 220.0
     var color: Color
+    var outerBorderWidth: Double
+    var animSpeed: Double
+    
+    @State private var isOuterRotating = false
     
     var progress: Double {
         return min(max(speed / maxDisplaySpeed, 0.0), 1.0)
@@ -765,33 +759,63 @@ struct NeonSpeedGaugeRing: View {
     
     var body: some View {
         ZStack {
+            // 時速表最外圈：動態旋轉霓虹燈條（同步最外框顏色）
+            Circle()
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(colors: [color.opacity(0.1), color, .white, color, color.opacity(0.1)]),
+                        center: .center,
+                        angle: .degrees(isOuterRotating ? 360 : 0)
+                    ),
+                    lineWidth: CGFloat(outerBorderWidth)
+                )
+                .frame(width: 300, height: 300)
+                .shadow(color: color, radius: 8)
+            
+            // 速度底條
             Circle()
                 .stroke(Color.white.opacity(0.1), lineWidth: 10)
-                .frame(width: 270, height: 270)
+                .frame(width: 260, height: 260)
             
+            // 動態速度進度條
             Circle()
                 .trim(from: 0.0, to: CGFloat(progress))
                 .stroke(
                     AngularGradient(gradient: Gradient(colors: [color.opacity(0.4), color, .white]), center: .center),
                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
                 )
-                .frame(width: 270, height: 270)
+                .frame(width: 260, height: 260)
                 .rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 0.2), value: progress)
                 .shadow(color: color, radius: 10)
             
+            // 刻度線
             ForEach(0..<12, id: \.self) { i in
                 Rectangle()
                     .fill(i < Int(progress * 12) ? color : Color.white.opacity(0.2))
                     .frame(width: 3, height: 10)
-                    .offset(y: -127)
+                    .offset(y: -122)
                     .rotationEffect(.degrees(Double(i) * 30))
             }
+        }
+        .onAppear {
+            startRotation()
+        }
+        .onChange(of: animSpeed) { _ in
+            startRotation()
+        }
+    }
+    
+    private func startRotation() {
+        isOuterRotating = false
+        let duration = max(0.5, 6.0 - animSpeed)
+        withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
+            isOuterRotating = true
         }
     }
 }
 
-// MARK: - 10. 專業轉速提示燈
+// MARK: - 10. 轉速提示燈
 struct ShiftLightsView: View {
     let speed: Double
     
@@ -846,7 +870,7 @@ struct MiniMapView: View {
                     .padding(8)
             }
         }
-        .frame(width: 120, height: 120)
+        .frame(width: 110, height: 110)
         .shadow(color: primaryColor.opacity(0.5), radius: 8)
     }
 }
@@ -1024,7 +1048,7 @@ struct HistoryRecordsView: View {
                     NavigationLink(destination: HistoryDetailMapView(record: record)) {
                         VStack(alignment: .leading) {
                             Text(record.date, formatter: dateFormatter).font(.system(size: 12)).foregroundColor(.gray)
-                            Text(String(format: "極速: %.0f km/h | 里程: %.2f km", record.maxSpeed, record.tripDistance))
+                            Text(String(format: "極速: %.0f km/h | 0-100: %.2fs | 里程: %.2f km", record.maxSpeed, record.zeroToOneHundredTime, record.tripDistance))
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                         }
@@ -1066,9 +1090,25 @@ struct SettingsView: View {
     @Binding var simulatedSpeed: Double
     @Binding var enableSakuraBackground: Bool
     @Binding var sakuraDensity: Double
+    @Binding var borderWidth: Double
+    @Binding var animSpeed: Double
     
     var body: some View {
         Form {
+            Section(header: Text("霓虹邊框與燈條設定")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("霓虹燈條粗度: \(Int(borderWidth)) pt")
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    Slider(value: $borderWidth, in: 2...12, step: 1)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("霓虹旋轉速度: \(Int(animSpeed)) 級")
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    Slider(value: $animSpeed, in: 1...5, step: 1)
+                }
+            }
+            
             Section(header: Text("語音播報與多國語系 (i18n)")) {
                 Picker("語音語言", selection: $vehicleManager.speechManager.currentLanguage) {
                     Text("繁體中文").tag("zh-TW")
@@ -1163,6 +1203,10 @@ struct ContentView: View {
     @AppStorage("enableSakuraBackground") private var enableSakuraBackground: Bool = true
     @AppStorage("sakuraDensity") private var sakuraDensity: Double = 20.0
     
+    // 自訂霓虹燈條設定持久化
+    @AppStorage("borderWidth") private var borderWidth: Double = 4.0
+    @AppStorage("animSpeed") private var animSpeed: Double = 3.0
+    
     @State private var overspeedLogs: [OverspeedRecord] = []
     @State private var historyRecords: [HistoryRecord] = []
     
@@ -1175,9 +1219,6 @@ struct ContentView: View {
     
     @State private var showJapaneseOverspeedAlert: Bool = false
     @State private var overspeedTimer: Timer? = nil
-    
-    @State private var searchText: String = ""
-    @State private var isSearchExpanded: Bool = false
     
     @State private var latestTripScoreRecord: DrivingScoreRecord? = nil
     
@@ -1202,7 +1243,6 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // 1. 滿版背景色強制延伸至所有螢幕邊緣
                 selectedTheme.backgroundGradientColors.first?
                     .ignoresSafeArea(.all, edges: .all)
                 
@@ -1213,7 +1253,6 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea(.all, edges: .all)
                 
-                // 2. 櫻花動態背景
                 if selectedTheme == .sakura && enableSakuraBackground {
                     SakuraFallingView(density: sakuraDensity)
                         .ignoresSafeArea(.all, edges: .all)
@@ -1232,8 +1271,8 @@ struct ContentView: View {
                     .zIndex(50)
                 } else {
                     ZStack {
-                        // 3. 霓虹外框強制佔滿全螢幕
-                        BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
+                        // 最外框霓虹流光線條（可自訂粗度與旋轉速度）
+                        BackgroundNeonFlowView(primaryColor: currentPrimaryColor, borderWidth: borderWidth, animSpeed: animSpeed)
                             .ignoresSafeArea(.all, edges: .all)
                             .zIndex(0)
                         
@@ -1431,8 +1470,14 @@ struct ContentView: View {
                                     }
                                     .frame(width: 54)
                                     
+                                    // 中央核心：時速表 + 外圍雙層動態霓虹燈圈
                                     ZStack {
-                                        NeonSpeedGaugeRing(speed: effectiveSpeed, color: currentPrimaryColor)
+                                        NeonSpeedGaugeRing(
+                                            speed: effectiveSpeed,
+                                            color: currentPrimaryColor,
+                                            outerBorderWidth: borderWidth,
+                                            animSpeed: animSpeed
+                                        )
                                         
                                         VStack(spacing: 4) {
                                             Text(simulatedSpeed > 0 ? "SIMULATED SPEED" : "GPS SPEED")
@@ -1452,7 +1497,8 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     
-                                    VStack(spacing: 12) {
+                                    // 右側面板：重新加回 0-100 KM/H 實時測試數據顯示
+                                    VStack(spacing: 10) {
                                         MiniMapView(
                                             coordinate: vehicleManager.currentLocation,
                                             routePolyline: vehicleManager.routePolyline,
@@ -1465,13 +1511,34 @@ struct ContentView: View {
                                             Text("RPM SHIFT LIGHTS").font(.system(size: 7, weight: .bold, design: .monospaced)).foregroundColor(.gray)
                                         }
                                         
+                                        // 0 - 100 KM/H 加速測試即時卡片（重新加回）
                                         VStack(alignment: .leading, spacing: 4) {
-                                            HStack { Text("里程:").foregroundColor(.gray); Spacer(); Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green) }
-                                            HStack { Text("極速:").foregroundColor(.gray); Spacer(); Text(String(format: "%.0f km/h", max(vehicleManager.maxSpeed, simulatedSpeed))).foregroundColor(currentPrimaryColor) }
-                                            HStack { Text("急加速:").foregroundColor(.gray); Spacer(); Text("\(vehicleManager.harshAccelerationCount) 次").foregroundColor(.orange) }
-                                            HStack { Text("急煞車:").foregroundColor(.gray); Spacer(); Text("\(vehicleManager.harshBrakingCount) 次").foregroundColor(.red) }
+                                            HStack {
+                                                Text("0-100加速:").foregroundColor(.gray)
+                                                Spacer()
+                                                Text(String(format: "%.2fs", vehicleManager.zeroToOneHundredTime))
+                                                    .foregroundColor(vehicleManager.isTesting0_100 ? .yellow : currentPrimaryColor)
+                                            }
+                                            HStack {
+                                                Text("0-100m距:").foregroundColor(.gray)
+                                                Spacer()
+                                                Text(String(format: "%.2fs", vehicleManager.zeroTo100mTime))
+                                                    .foregroundColor(vehicleManager.isTesting0_100m ? .yellow : .orange)
+                                            }
+                                            HStack {
+                                                Text("行車里程:").foregroundColor(.gray)
+                                                Spacer()
+                                                Text(String(format: "%.2fkm", vehicleManager.tripDistance))
+                                                    .foregroundColor(.green)
+                                            }
+                                            HStack {
+                                                Text("最高極速:").foregroundColor(.gray)
+                                                Spacer()
+                                                Text(String(format: "%.0fkm/h", max(vehicleManager.maxSpeed, simulatedSpeed)))
+                                                    .foregroundColor(.white)
+                                            }
                                         }
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                        .font(.system(size: 9, weight: .bold, design: .monospaced))
                                         .padding(8)
                                         .background(Color.white.opacity(0.06))
                                         .cornerRadius(12)
@@ -1549,7 +1616,9 @@ struct ContentView: View {
                         isNetworkBoostEnabled: $isNetworkBoostEnabled,
                         simulatedSpeed: $simulatedSpeed,
                         enableSakuraBackground: $enableSakuraBackground,
-                        sakuraDensity: $sakuraDensity
+                        sakuraDensity: $sakuraDensity,
+                        borderWidth: $borderWidth,
+                        animSpeed: $animSpeed
                     ), isActive: $showSettings) { EmptyView() }
                     
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
