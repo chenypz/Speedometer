@@ -50,12 +50,30 @@ struct CodableCoordinate: Codable {
     }
 }
 
-struct SpeedCamera: Identifiable {
-    let id = UUID()
-    let coordinate: CLLocationCoordinate2D
+// 支援雲端 JSON 解碼的測速點模型
+struct SpeedCamera: Identifiable, Codable {
+    var id: UUID = UUID()
+    let latitude: Double
+    let longitude: Double
     let speedLimit: Double
     let description: String
     var isTemporary: Bool = false
+    
+    enum CodingKeys: String, CodingKey {
+        case latitude, longitude, speedLimit, description, isTemporary
+    }
+    
+    init(latitude: Double, longitude: Double, speedLimit: Double, description: String, isTemporary: Bool = false) {
+        self.latitude = latitude
+        self.longitude = longitude
+        self.speedLimit = speedLimit
+        self.description = description
+        self.isTemporary = isTemporary
+    }
+    
+    var coordinate: CLLocationCoordinate2D {
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
 }
 
 // MARK: - 2. 佈景主題設定
@@ -168,7 +186,55 @@ class MusicPlayerManager: ObservableObject {
     }
 }
 
-// MARK: - 4. GPS、感應器與測速照相管理器
+// MARK: - 3.1 語音播報與多國語系管理器 (Speech Manager)
+class SpeechManager: ObservableObject {
+    private let synthesizer = AVSpeechSynthesizer()
+    
+    @Published var currentLanguage: String = "zh-TW" {
+        didSet {
+            UserDefaults.standard.set(currentLanguage, forKey: "AppLanguage")
+        }
+    }
+    
+    init() {
+        if let savedLang = UserDefaults.standard.string(forKey: "AppLanguage") {
+            self.currentLanguage = savedLang
+        }
+    }
+    
+    func speak(_ text: String) {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+        }
+        
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: currentLanguage)
+        utterance.rate = 0.52 // 稍微調整語速使其更自然清晰
+        utterance.pitchMultiplier = 1.0
+        
+        synthesizer.speak(utterance)
+    }
+    
+    func announceWarning(speedLimit: Int, isOverspeed: Bool) {
+        let text: String
+        if currentLanguage.starts(with: "zh") {
+            if isOverspeed {
+                text = "注意，您已超速！前方速限 \(speedLimit) 公里"
+            } else {
+                text = "前方速限 \(speedLimit) 公里"
+            }
+        } else {
+            if isOverspeed {
+                text = "Warning! Speed limit is \(speedLimit). You are speeding!"
+            } else {
+                text = "Speed limit is \(speedLimit)."
+            }
+        }
+        speak(text)
+    }
+}
+
+// MARK: - 4. GPS、感應器與測速照相管理器 (整合雲端載入與語音播報)
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -199,11 +265,15 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var nearestCameraAlert: String? = nil
     @Published var recordedPath: [CLLocationCoordinate2D] = []
     
+    // 內建與雲端測速點
     @Published var speedCameras: [SpeedCamera] = [
-        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654), speedLimit: 50, description: "台北信義路固定測速"),
-        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0400, longitude: 121.5700), speedLimit: 60, description: "台北忠孝東路固定測速")
+        SpeedCamera(latitude: 25.0330, longitude: 121.5654, speedLimit: 50, description: "台北信義路固定測速"),
+        SpeedCamera(latitude: 25.0400, longitude: 121.5700, speedLimit: 60, description: "台北忠孝東路固定測速")
     ]
     
+    // 整合語音管理器
+    let speechManager = SpeechManager()
+    private var lastSpokenCameraId: UUID? = nil
     private var lastLocation: CLLocation? = nil
     
     override init() {
@@ -217,6 +287,24 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.startUpdatingHeading()
         
         startMotionUpdates()
+        fetchCamerasFromCloud() // 自動嘗試從雲端同步測速點
+    }
+    
+    // 從遠端雲端載入最新測速照相 API
+    func fetchCamerasFromCloud() {
+        guard let url = URL(string: "https://your-server.com/api/cameras.json") else { return }
+        
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+            guard let data = data, error == nil else { return }
+            do {
+                let decoded = try JSONDecoder().decode([SpeedCamera].self, from: data)
+                DispatchQueue.main.async {
+                    self?.speedCameras.append(contentsOf: decoded)
+                }
+            } catch {
+                print("雲端測速點解析失敗: \(error)")
+            }
+        }.resume()
     }
     
     func updateLocationAccuracy(isNetworkBoostEnabled: Bool) {
@@ -239,11 +327,13 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         accelStartTime = nil
         lastLocation = nil
         recordedPath.removeAll()
+        lastSpokenCameraId = nil
     }
     
     func reportMobileSpeedTrap() {
         let newTrap = SpeedCamera(
-            coordinate: currentLocation,
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
             speedLimit: 50,
             description: "⚠️ 用戶回報流動測速/三腳架",
             isTemporary: true
@@ -251,6 +341,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         speedCameras.append(newTrap)
         nearestCameraAlert = "已成功回報流動測速點！"
         AudioServicesPlaySystemSound(1016)
+        speechManager.speak(speechManager.currentLanguage.starts(with: "zh") ? "已成功回報流動測速點" : "Mobile speed trap reported")
     }
     
     func searchAndNavigate(query: String) {
@@ -351,20 +442,40 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    // 結合語音播報的測速照相檢查機制
     private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
         let alertDistance: CLLocationDistance = 400.0
+        
         for camera in speedCameras {
-            let cameraLocation = CLLocation(latitude: camera.coordinate.latitude, longitude: camera.coordinate.longitude)
+            let cameraLocation = CLLocation(latitude: camera.latitude, longitude: camera.longitude)
             let distance = currentLoc.distance(from: cameraLocation)
             
             if distance <= alertDistance {
                 nearestCameraAlert = "\(camera.description) 剩 \(Int(distance))m (速限 \(Int(camera.speedLimit))km)"
-                if currentSpeed > camera.speedLimit {
-                    AudioServicesPlaySystemSound(1007)
+                
+                // 接近 300 公尺以內時自動發出語音播報（避免重複念同一支相機）
+                if distance <= 300, lastSpokenCameraId != camera.id {
+                    lastSpokenCameraId = camera.id
+                    let isOverspeed = currentSpeed > camera.speedLimit
+                    speechManager.announceWarning(speedLimit: Int(camera.speedLimit), isOverspeed: isOverspeed)
+                    
+                    if isOverspeed {
+                        AudioServicesPlaySystemSound(1007)
+                    }
                 }
                 return
             }
         }
+        
+        // 離開範圍後重置，允許再次提醒
+        if let lastId = lastSpokenCameraId,
+           let camera = speedCameras.first(where: { $0.id == lastId }) {
+            let cameraLocation = CLLocation(latitude: camera.latitude, longitude: camera.longitude)
+            if currentLoc.distance(from: cameraLocation) > 500 {
+                lastSpokenCameraId = nil
+            }
+        }
+        
         if nearestCameraAlert?.contains("已成功回報") == false {
             nearestCameraAlert = nil
         }
@@ -738,7 +849,6 @@ struct MusicControlWidgetView: View {
     
     var body: some View {
         HStack(spacing: 10) {
-            // 專輯封面或預設圖示
             Group {
                 if let uiImage = musicManager.artworkImage {
                     Image(uiImage: uiImage)
@@ -757,7 +867,6 @@ struct MusicControlWidgetView: View {
             .cornerRadius(8)
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(primaryColor.opacity(0.5), lineWidth: 1))
             
-            // 歌曲資訊
             VStack(alignment: .leading, spacing: 2) {
                 Text(musicManager.songTitle)
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -770,7 +879,6 @@ struct MusicControlWidgetView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             
-            // 控制按鈕 (上一首、播放/暫停、下一首)
             HStack(spacing: 8) {
                 Button(action: { musicManager.skipToPrevious() }) {
                     Image(systemName: "backward.fill")
@@ -867,8 +975,9 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 14. 設定選單
+// MARK: - 14. 設定選單 (包含語音多國語系切換)
 struct SettingsView: View {
+    @ObservedObject var speechManager: SpeechManager
     @Binding var selectedTheme: DashboardTheme
     @Binding var speedLimit: Double
     @Binding var isHudMode: Bool
@@ -881,6 +990,22 @@ struct SettingsView: View {
     
     var body: some View {
         Form {
+            Section(header: Text("語音播報與多國語系 (i18n)")) {
+                Picker("語音語言 (Voice Language)", selection: $speechManager.currentLanguage) {
+                    Text("繁體中文 (Traditional Chinese)").tag("zh-TW")
+                    Text("English (英文)").tag("en-US")
+                    Text("日本語 (日文)").tag("ja-JP")
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                
+                Button(action: {
+                    speechManager.announceWarning(speedLimit: 60, isOverspeed: true)
+                }) {
+                    Text("測試語音播報效果")
+                        .foregroundColor(.blue)
+                }
+            }
+            
             Section(header: Text("視覺主題與風格")) {
                 Picker("佈景主題", selection: $selectedTheme) {
                     ForEach(DashboardTheme.allCases) { theme in
@@ -902,7 +1027,6 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("櫻花飄落密度: \(Int(sakuraDensity)) 片").font(.system(size: 13, weight: .bold))
                             Slider(value: $sakuraDensity, in: 5...50, step: 5)
-                            Text("提示：可隨喜好自由搭配背景飄落密度。").font(.system(size: 11)).foregroundColor(.gray)
                         }
                     }
                 }
@@ -950,9 +1074,6 @@ struct ContentView: View {
     
     @AppStorage("enableSakuraBackground") private var enableSakuraBackground: Bool = true
     @AppStorage("sakuraDensity") private var sakuraDensity: Double = 20.0
-    
-    @AppStorage("overspeedLogsData") private var overspeedLogsData: Data = Data()
-    @AppStorage("historyRecordsData") private var historyRecordsData: Data = Data()
     
     @State private var overspeedLogs: [OverspeedRecord] = []
     @State private var historyRecords: [HistoryRecord] = []
@@ -1235,7 +1356,6 @@ struct ContentView: View {
                                             primaryColor: currentPrimaryColor
                                         ) { showMap = true }
                                         
-                                        // 整合多媒體音樂控制面板
                                         MusicControlWidgetView(musicManager: musicManager, primaryColor: currentPrimaryColor)
                                             .frame(width: 135)
                                         
@@ -1312,6 +1432,7 @@ struct ContentView: View {
             .background(
                 Group {
                     NavigationLink(destination: SettingsView(
+                        speechManager: vehicleManager.speechManager,
                         selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }),
                         speedLimit: $speedLimit,
                         isHudMode: $isHudMode,
