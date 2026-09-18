@@ -334,26 +334,43 @@ struct BootLoadingView: View {
     @State private var showWarningScreen: Bool = false
     @State private var warningOpacity: Double = 0.0
     
-    @State private var armorScale: CGFloat = 0.2
-    @State private var armorRotation: Double = -180.0
+    // 多階段高科技動畫動態參數
+    @State private var armorScale: CGFloat = 0.1
+    @State private var armorRotation: Double = -360.0
     @State private var coreGlow: CGFloat = 0.0
     @State private var shockwaveScale: CGFloat = 0.1
     @State private var shockwaveOpacity: Double = 0.0
+    @State private var radarRotation: Double = 0.0
+    @State private var matrixGridOpacity: Double = 0.2
     
     let steps = [
-        "CYBERTRON MATRIX CORE INITIALIZING...",
-        "CALIBRATING QUANTUM GPS & SATELLITE UPLINK...",
-        "ASSEMBLING KINETIC SHIELDS & DUAL-BLADE HUD...",
-        "ESTABLISHING SECURE NEURAL OVERDRIVE...",
-        "DIAGNOSTIC COMPLETE. ALL SYSTEMS NOMINAL.",
-        "AUTOBOT PROTOCOL 901 ENGAGED. PREPARE FOR LAUNCH."
+        "PHASE 1: CYBERTRON MATRIX CORE INITIALIZING...",
+        "PHASE 2: CALIBRATING QUANTUM GPS & SATELLITE UPLINK...",
+        "PHASE 3: ASSEMBLING KINETIC SHIELDS & DUAL-BLADE HUD...",
+        "PHASE 4: ESTABLISHING SECURE NEURAL OVERDRIVE...",
+        "PHASE 5: DIAGNOSTIC COMPLETE. ALL SYSTEMS NOMINAL.",
+        "FINAL: AUTOBOT PROTOCOL 901 ENGAGED. PREPARE FOR LAUNCH."
     ]
     
     var body: some View {
         ZStack {
+            // 背景高科技網格
             LinearGradient(colors: [Color(red: 0.02, green: 0.04, blue: 0.08), Color.black, Color(red: 0.06, green: 0.01, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
             
+            // 動態雷達掃描線條裝飾
+            Circle()
+                .stroke(Color.safeCyan.opacity(0.15), lineWidth: 1)
+                .frame(width: 320, height: 320)
+                .scaleEffect(shockwaveScale * 0.8)
+            
+            Circle()
+                .trim(from: 0.0, to: 0.25)
+                .stroke(Color.safeCyan, lineWidth: 2)
+                .frame(width: 240, height: 240)
+                .rotationEffect(.degrees(radarRotation))
+            
+            // 右下角 SKIP 按鈕
             VStack {
                 Spacer()
                 HStack {
@@ -382,12 +399,14 @@ struct BootLoadingView: View {
             if !showWarningScreen {
                 VStack(spacing: 30) {
                     ZStack {
+                        // 脈衝衝擊波
                         Circle()
                             .stroke(Color.safeCyan, lineWidth: 4)
                             .frame(width: 180, height: 180)
                             .scaleEffect(shockwaveScale)
                             .opacity(shockwaveOpacity)
                         
+                        // 多段科技裝甲外環旋轉
                         ForEach(0..<6, id: \.self) { i in
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(LinearGradient(colors: [.safeCyan, Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
@@ -397,12 +416,14 @@ struct BootLoadingView: View {
                                 .shadow(color: .safeCyan, radius: 8)
                         }
                         
+                        // 核心發光體
                         Circle()
                             .fill(RadialGradient(gradient: Gradient(colors: [.white, .safeCyan, .clear]), center: .center, startRadius: 2, endRadius: 50))
                             .frame(width: 100, height: 100)
                             .scaleEffect(coreGlow)
                             .shadow(color: .safeCyan, radius: 20)
                         
+                        // 中央高科技晶片圖示
                         Image(systemName: "cpu")
                             .font(.system(size: 40, weight: .bold))
                             .foregroundColor(.white)
@@ -438,6 +459,7 @@ struct BootLoadingView: View {
                 }
                 .transition(.opacity)
             } else {
+                // 安全警示畫面
                 VStack(spacing: 0) {
                     HStack {
                         Text("安全規範")
@@ -482,22 +504,30 @@ struct BootLoadingView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
         .onAppear {
+            // 啟動 10 秒多階段高科技動畫流程
             withAnimation(.spring(response: 0.9, dampingFraction: 0.6)) {
                 armorScale = 1.0
                 armorRotation = 0.0
                 coreGlow = 1.2
             }
             
-            withAnimation(.easeOut(duration: 0.8)) {
-                shockwaveScale = 2.2
+            withAnimation(.easeOut(duration: 1.2)) {
+                shockwaveScale = 2.5
                 shockwaveOpacity = 0.8
             }
             
-            withAnimation(.easeInOut(duration: 9.0)) {
+            // 持續旋轉雷達
+            withAnimation(Animation.linear(duration: 4.0).repeatForever(autoreverses: false)) {
+                radarRotation = 360.0
+            }
+            
+            // 10秒進度條
+            withAnimation(.easeInOut(duration: 10.0)) {
                 progress = 1.0
             }
             
-            Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { timer in
+            // 文字階段計時器 (共 6 個階段，總計 10 秒)
+            Timer.scheduledTimer(withTimeInterval: 1.6, repeats: true) { timer in
                 if textStep < steps.count - 1 {
                     textStep += 1
                 } else {
@@ -505,6 +535,7 @@ struct BootLoadingView: View {
                     withAnimation(.easeInOut(duration: 0.4)) { showWarningScreen = true }
                     withAnimation(.easeIn(duration: 0.6)) { warningOpacity = 1.0 }
                     
+                    // 顯示警示 2.5 秒後進入主畫面
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                         withAnimation(.easeOut(duration: 0.6)) { warningOpacity = 0.0 }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
