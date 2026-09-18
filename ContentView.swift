@@ -1535,7 +1535,7 @@ struct ContentView: View {
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
             }
-            .onChange(of: effectiveSpeed) { oldVal, newVal in
+            .onChange(of: effectiveSpeed) { newVal in
                 if newVal > speedLimit {
                     flashWarning = true
                     AudioServicesPlaySystemSound(1005)
