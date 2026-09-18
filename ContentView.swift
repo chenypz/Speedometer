@@ -173,14 +173,15 @@ struct BootLoadingView: View {
     @State private var showSubText = false
     @State private var flashBackground = false
     
+    let safeCyan = Color(red: 0.0, green: 0.8, blue: 1.0)
+    
     var body: some View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            // 賽博朋克網格背景掃描線
             VStack {
                 Rectangle()
-                    .fill(LinearGradient(gradient: Gradient(colors: [.clear, Color.cyan.opacity(0.15), .clear]), startPoint: .top, endPoint: .bottom))
+                    .fill(LinearGradient(gradient: Gradient(colors: [.clear, safeCyan.opacity(0.15), .clear]), startPoint: .top, endPoint: .bottom))
                     .frame(height: 100)
                     .offset(y: flashBackground ? 400 : -400)
                     .animation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: flashBackground)
@@ -189,16 +190,14 @@ struct BootLoadingView: View {
             .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 25) {
-                // 電影感日文警告語 1
                 if showWarningText {
                     Text("【 警告：システム異常なし / 接続確立 】")
                         .font(.system(size: 16, weight: .black, design: .monospaced))
-                        .foregroundColor(.cyan)
-                        .shadow(color: .cyan, radius: 8)
+                        .foregroundColor(safeCyan)
+                        .shadow(color: safeCyan, radius: 8)
                         .transition(.opacity)
                 }
                 
-                // 電影感日文警告語 2 (藍寶堅尼超跑風格標題)
                 if showSubText {
                     VStack(spacing: 6) {
                         Text("LAMBORGHINI V12 TELEMETRY")
@@ -215,7 +214,6 @@ struct BootLoadingView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
                 
-                // 科技能量條
                 VStack(spacing: 8) {
                     ZStack(alignment: .leading) {
                         Rectangle()
@@ -224,10 +222,10 @@ struct BootLoadingView: View {
                             .cornerRadius(3)
                         
                         Rectangle()
-                            .fill(LinearGradient(gradient: Gradient(colors: [.cyan, .yellow, .red]), startPoint: .leading, endPoint: .trailing))
+                            .fill(LinearGradient(gradient: Gradient(colors: [safeCyan, .yellow, .red]), startPoint: .leading, endPoint: .trailing))
                             .frame(width: 280 * progress, height: 6)
                             .cornerRadius(3)
-                            .shadow(color: .cyan, radius: 6)
+                            .shadow(color: safeCyan, radius: 6)
                     }
                     
                     Text("INITIALIZING: \(Int(progress * 100))%")
@@ -240,7 +238,6 @@ struct BootLoadingView: View {
         .onAppear {
             flashBackground = true
             
-            // 階段式觸發動畫時序
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 withAnimation(.easeIn(duration: 0.4)) { showWarningText = true }
             }
@@ -251,7 +248,6 @@ struct BootLoadingView: View {
                 progress = 1.0
             }
             
-            // 2.5秒後進入主儀表板
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                 withAnimation(.easeInOut(duration: 0.5)) {
                     isFinished = true
@@ -329,10 +325,10 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 5. 主畫面 (含開機動畫切換)
+// MARK: - 5. 主畫面
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
-    @State private var isBootCompleted = false // 開機動畫開關
+    @State private var isBootCompleted = false
     @State private var isHUDMode = false
     @State private var showMap = false
     @State private var showSettings = false
@@ -351,10 +347,8 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             if !isBootCompleted {
-                // 1. 播放酷炫開機動畫
                 BootLoadingView(isFinished: $isBootCompleted)
             } else {
-                // 2. 進入賽車儀表板主畫面
                 GeometryReader { geometry in
                     let screenWidth = geometry.size.width
                     let screenHeight = geometry.size.height
@@ -374,7 +368,6 @@ struct ContentView: View {
                         }
                         
                         VStack(spacing: 0) {
-                            // 頂部導覽列
                             HStack(alignment: .center, spacing: 8) {
                                 Text(currentTime, style: .time)
                                     .font(.system(size: isLandscape ? screenHeight * 0.045 : screenWidth * 0.038, weight: .black, design: .monospaced))
@@ -436,7 +429,6 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            // 中央儀表板
                             let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.70 : screenWidth * 0.76
                             let progress = min(speedManager.speedKMH / 160.0, 1.0)
                             
@@ -491,7 +483,6 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            // 底部行車電腦
                             if !isHUDMode {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 2) {
