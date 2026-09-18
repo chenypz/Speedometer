@@ -373,39 +373,43 @@ struct OverspeedLogsView: View {
     @Binding var logs: [OverspeedRecord]
     
     var body: some View {
-        List {
-            ForEach(logs) { log in
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(log.date, formatter: dateFormatter)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.gray)
-                        Text(log.date, formatter: timeFormatter)
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
+        ZStack {
+            Color.black.edgesIgnoringSafeArea(.all)
+            
+            List {
+                ForEach(logs) { log in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(log.date, formatter: dateFormatter)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.gray)
+                            Text(log.date, formatter: timeFormatter)
+                                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                .foregroundColor(.white)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text(String(format: "%.0f km/h", log.speed))
+                                .font(.system(size: 16, weight: .black, design: .monospaced))
+                                .foregroundColor(.red)
+                            Text(String(format: "速限: %.0f", log.speedLimit))
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(.gray)
+                        }
                     }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(String(format: "%.0f km/h", log.speed))
-                            .font(.system(size: 16, weight: .black, design: .monospaced))
-                            .foregroundColor(.red)
-                        Text(String(format: "速限: %.0f", log.speedLimit))
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.gray)
-                    }
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color.black)
                 }
-                .padding(.vertical, 4)
+                .onDelete { indexSet in
+                    logs.remove(atOffsets: indexSet)
+                }
             }
-            .onDelete { indexSet in
-                logs.remove(atOffsets: indexSet)
-            }
+            .listStyle(PlainListStyle())
         }
         .navigationTitle("超速違規紀錄")
         .navigationBarItems(trailing: Button("清除全部") {
             logs.removeAll()
         }.foregroundColor(.red))
-        .background(Color.black.edgesIgnoringSafeArea(.all))
-        .scrollContentBackground(.hidden)
     }
     
     private var dateFormatter: DateFormatter {
@@ -428,49 +432,53 @@ struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     
     var body: some View {
-        List {
-            ForEach(records) { record in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(record.date, formatter: dateFormatter)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.gray)
-                        Text(record.date, formatter: timeFormatter)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.gray)
-                        Spacer()
-                        Text(String(format: "%.2f km", record.tripDistance))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundColor(.green)
+        ZStack {
+            Color.black.edgesIgnoringSafeArea(.all)
+            
+            List {
+                ForEach(records) { record in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(record.date, formatter: dateFormatter)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.gray)
+                            Text(record.date, formatter: timeFormatter)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.gray)
+                            Spacer()
+                            Text(String(format: "%.2f km", record.tripDistance))
+                                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                .foregroundColor(.green)
+                        }
+                        
+                        HStack(spacing: 20) {
+                            VStack(alignment: .leading) {
+                                Text("極速").font(.system(size: 10)).foregroundColor(.gray)
+                                Text(String(format: "%.0f", record.maxSpeed)).font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.white)
+                            }
+                            VStack(alignment: .leading) {
+                                Text("0-100加速").font(.system(size: 10)).foregroundColor(.gray)
+                                Text(record.zeroToOneHundredTime > 0 ? String(format: "%.1fs", record.zeroToOneHundredTime) : "---").font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.orange)
+                            }
+                            VStack(alignment: .leading) {
+                                Text("最大G力").font(.system(size: 10)).foregroundColor(.gray)
+                                Text(String(format: "%.2fG", record.maxGForce)).font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
+                            }
+                        }
                     }
-                    
-                    HStack(spacing: 20) {
-                        VStack(alignment: .leading) {
-                            Text("極速").font(.system(size: 10)).foregroundColor(.gray)
-                            Text(String(format: "%.0f", record.maxSpeed)).font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.white)
-                        }
-                        VStack(alignment: .leading) {
-                            Text("0-100加速").font(.system(size: 10)).foregroundColor(.gray)
-                            Text(record.zeroToOneHundredTime > 0 ? String(format: "%.1fs", record.zeroToOneHundredTime) : "---").font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.orange)
-                        }
-                        VStack(alignment: .leading) {
-                            Text("最大G力").font(.system(size: 10)).foregroundColor(.gray)
-                            Text(String(format: "%.2fG", record.maxGForce)).font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
-                        }
-                    }
+                    .padding(.vertical, 6)
+                    .listRowBackground(Color.black)
                 }
-                .padding(.vertical, 6)
+                .onDelete { indexSet in
+                    records.remove(atOffsets: indexSet)
+                }
             }
-            .onDelete { indexSet in
-                records.remove(atOffsets: indexSet)
-            }
+            .listStyle(PlainListStyle())
         }
         .navigationTitle("行程歷史封存")
         .navigationBarItems(trailing: Button("清除全部") {
             records.removeAll()
         }.foregroundColor(.red))
-        .background(Color.black.edgesIgnoringSafeArea(.all))
-        .scrollContentBackground(.hidden)
     }
     
     private var dateFormatter: DateFormatter {
