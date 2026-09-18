@@ -264,7 +264,7 @@ struct BootLoadingView: View {
     var body: some View {
         ZStack {
             LinearGradient(colors: [Color(red: 0.02, green: 0.04, blue: 0.08), Color.black, Color(red: 0.06, green: 0.01, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .edgesIgnoringSafeArea(.all)
+                .ignoresSafeArea()
             
             if !showWarningScreen {
                 VStack(spacing: 30) {
@@ -367,7 +367,7 @@ struct BootLoadingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .edgesIgnoringSafeArea(.all)
+        .ignoresSafeArea()
         .onAppear {
             withAnimation(.spring(response: 0.9, dampingFraction: 0.6)) {
                 armorScale = 1.0
@@ -639,7 +639,7 @@ struct OverspeedLogsView: View {
     
     var body: some View {
         ZStack {
-            Color.black.edgesIgnoringSafeArea(.all)
+            Color.black.ignoresSafeArea()
             List {
                 ForEach(logs) { log in
                     HStack {
@@ -672,7 +672,7 @@ struct HistoryRecordsView: View {
     
     var body: some View {
         ZStack {
-            Color.black.edgesIgnoringSafeArea(.all)
+            Color.black.ignoresSafeArea()
             List {
                 ForEach(records) { record in
                     VStack(alignment: .leading, spacing: 8) {
@@ -748,7 +748,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 14. 主畫面 ContentView
+// MARK: - 14. 主畫面 ContentView (已強制完全解禁安全區域與邊距)
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     @State private var isBootLoaded: Bool = false
@@ -788,13 +788,13 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // 背景填滿整個螢幕
+                // 背景填滿整個螢幕，忽略所有安全邊距
                 LinearGradient(
                     colors: selectedTheme.backgroundGradientColors,
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .edgesIgnoringSafeArea(.all)
+                .ignoresSafeArea()
                 
                 if !isBootLoaded {
                     BootLoadingView(isFinished: $isBootLoaded)
@@ -808,7 +808,7 @@ struct ContentView: View {
                             
                             if flashWarning {
                                 Color.red.opacity(0.3)
-                                    .edgesIgnoringSafeArea(.all)
+                                    .ignoresSafeArea()
                                     .animation(Animation.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: flashWarning)
                                     .zIndex(10)
                             }
@@ -875,7 +875,7 @@ struct ContentView: View {
                                                 isInteractive: true,
                                                 onMapTap: { clickedCoord in vehicleManager.setDestination(clickedCoord) }
                                             )
-                                            .edgesIgnoringSafeArea(.all)
+                                            .ignoresSafeArea()
                                             
                                             HStack(alignment: .top, spacing: 12) {
                                                 Button(action: { showMap.toggle() }) {
@@ -1039,7 +1039,7 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
-            .edgesIgnoringSafeArea(.all)
+            .ignoresSafeArea()
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
@@ -1064,6 +1064,6 @@ struct ContentView: View {
             )
         }
         .navigationViewStyle(StackNavigationViewStyle())
-        .edgesIgnoringSafeArea(.all)
+        .ignoresSafeArea()
     }
 }
