@@ -326,7 +326,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 暴力犯罪、骷髏與紅黑白拉線風格 7 秒開場動畫
+// MARK: - 4. 【極度刺激】機車飆速甩開警車追逐 7 秒開場動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -335,40 +335,45 @@ struct BootLoadingView: View {
     @State private var warningOpacity: Double = 0.0
     
     @State private var glitchOffset: CGFloat = 0.0
-    @State private var warningFlash: Bool = false
-    @State private var skullScale: CGFloat = 0.2
-    @State private var ringRotation: Double = 0.0
+    @State private var policeFlash: Bool = false
+    @State private var bikeSpeed: Double = 30.0
     @State private var speedLineOffset: CGFloat = 0.0
+    @State private var copDistance: Int = 300 // 警車距離
 
-    let brutalSteps = [
-        "⚠️ [0.0s] INITIALIZING KERNEL SYNDICATE...",
-        "⚡ [1.5s] BYPASSING POLICE FIREWALL...",
-        "💀 [3.0s] INJECTING SKULL OVERDRIVE MATRIX...",
-        "🔥 [4.5s] DISABLING SPEED LIMITERS...",
-        "☠️ [6.0s] READY. NO RULES. PURE SPEED."
+    let chaseSteps = [
+        "🚨 [0.0s] 警告：前方 300 公尺發現國道紅斑馬攔截...",
+        "⚡ [1.5s] 油門全開！轉速直逼紅線區 (14,000 RPM)...",
+        "🏍️ [3.0s] 鑽車縫！極限壓車過彎，甩開警車追擊...",
+        "🔥 [4.5s] 甩尾脫離！Current Speed: 185 km/h...",
+        "☠️ [6.0s] 甩尾成功。甩開法律，全速逃脫。"
     ]
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color.black, Color(red: 0.14, green: 0.0, blue: 0.03), Color.black], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
+            // 紅藍警笛交替閃爍背景
+            Group {
+                if policeFlash {
+                    Color.red.opacity(0.4)
+                } else {
+                    Color.blue.opacity(0.4)
+                }
+            }
+            .ignoresSafeArea()
+            .animation(Animation.easeInOut(duration: 0.18).repeatForever(autoreverses: true), value: policeFlash)
 
-            VStack(spacing: 16) {
-                ForEach(0..<14, id: \.self) { i in
+            // 速度殘影線條
+            VStack(spacing: 12) {
+                ForEach(0..<16, id: \.self) { i in
                     Rectangle()
-                        .fill(i % 3 == 0 ? Color.red : (i % 3 == 1 ? Color.white : Color.gray))
-                        .frame(height: i % 2 == 0 ? 2 : 1)
-                        .opacity(i % 3 == 1 ? 0.7 : 0.4)
+                        .fill(i % 2 == 0 ? Color.cyan : Color.white)
+                        .frame(height: i % 3 == 0 ? 3 : 1)
+                        .opacity(0.6)
                         .offset(x: (i % 2 == 0 ? speedLineOffset : -speedLineOffset) * CGFloat(i + 1))
                 }
             }
             .ignoresSafeArea()
 
-            Color.red
-                .opacity(warningFlash ? 0.25 : 0.0)
-                .ignoresSafeArea()
-                .animation(Animation.easeInOut(duration: 0.12).repeatForever(autoreverses: true), value: warningFlash)
-
+            // 跳過按鈕
             VStack {
                 Spacer()
                 HStack {
@@ -378,7 +383,7 @@ struct BootLoadingView: View {
                             isFinished = true
                         }
                     }) {
-                        Text("SKIP ❯❯")
+                        Text("SKIP CHASE ❯❯")
                             .font(.system(size: 11, weight: .black, design: .monospaced))
                             .foregroundColor(.black)
                             .padding(.horizontal, 14)
@@ -394,41 +399,48 @@ struct BootLoadingView: View {
             .zIndex(30)
 
             if !showWarningScreen {
-                VStack(spacing: 22) {
+                VStack(spacing: 18) {
+                    // 警車追逐視覺儀表板
                     ZStack {
                         Circle()
-                            .stroke(style: StrokeStyle(lineWidth: 4, dash: [10, 6]))
-                            .foregroundColor(.red)
-                            .frame(width: 190, height: 190)
-                            .rotationEffect(.degrees(ringRotation))
-                            .shadow(color: .red, radius: 12)
+                            .stroke(style: StrokeStyle(lineWidth: 6, dash: [12, 8]))
+                            .foregroundColor(policeFlash ? Color.red : Color.blue)
+                            .frame(width: 200, height: 200)
+                            .shadow(color: policeFlash ? .red : .blue, radius: 15)
 
-                        Circle()
-                            .stroke(Color.white.opacity(0.8), lineWidth: 2)
-                            .frame(width: 140, height: 140)
-                            .rotationEffect(.degrees(-ringRotation * 1.5))
+                        VStack(spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "light.beacon.max.fill")
+                                    .foregroundColor(policeFlash ? .red : .blue)
+                                    .font(.system(size: 14))
+                                Text("POLICE CHASE")
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.white)
+                            }
+                            
+                            Text(String(format: "%.0f", bikeSpeed))
+                                .font(.system(size: 56, weight: .black, design: .monospaced))
+                                .foregroundColor(.white)
+                                .shadow(color: .cyan, radius: 10)
+                            
+                            Text("KM/H (WANTED)")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundColor(.red)
 
-                        Circle()
-                            .stroke(style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
-                            .foregroundColor(Color.gray)
-                            .frame(width: 90, height: 90)
-                            .rotationEffect(.degrees(ringRotation * 2))
-
-                        Image(systemName: "skull.fill")
-                            .font(.system(size: 55, weight: .black))
-                            .foregroundColor(.white)
-                            .shadow(color: .red, radius: 18)
-                            .scaleEffect(skullScale)
-                            .offset(x: glitchOffset)
+                            Text("警車距離: \(copDistance)m")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .foregroundColor(copDistance < 100 ? .red : .yellow)
+                                .padding(.top, 2)
+                        }
                     }
-                    .frame(height: 190)
+                    .frame(height: 200)
 
-                    Text("UNDERGROUND OVERDRIVE")
-                        .font(.system(size: 18, weight: .black, design: .monospaced))
-                        .kerning(5)
+                    Text("UNDERGROUND BIKE ESCAPE")
+                        .font(.system(size: 16, weight: .black, design: .monospaced))
+                        .kerning(3)
                         .foregroundColor(.white)
                         .shadow(color: .red, radius: 10)
-                        .offset(x: -glitchOffset)
+                        .offset(x: glitchOffset)
 
                     VStack(alignment: .leading, spacing: 8) {
                         ZStack(alignment: .leading) {
@@ -438,39 +450,40 @@ struct BootLoadingView: View {
                                 .cornerRadius(2)
 
                             Rectangle()
-                                .fill(LinearGradient(colors: [.red, .white, .gray], startPoint: .leading, endPoint: .trailing))
+                                .fill(LinearGradient(colors: [.blue, .red, .white], startPoint: .leading, endPoint: .trailing))
                                 .frame(width: 320 * progress, height: 8)
                                 .cornerRadius(2)
                                 .shadow(color: .red, radius: 10)
                         }
 
-                        Text(brutalSteps[min(textStep, brutalSteps.count - 1)])
+                        Text(chaseSteps[min(textStep, chaseSteps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                     }
                 }
                 .transition(.opacity)
             } else {
+                // 逃脫成功警告卡片
                 VStack(spacing: 0) {
                     HStack {
-                        Text("⚠️ SYSTEM BREACHED")
+                        Text("🚨 ESCAPE SUCCESSFUL")
                             .font(.system(size: 14, weight: .black, design: .monospaced))
                             .foregroundColor(.black)
                         Spacer()
-                        Text("MAX WANTED")
+                        Text("LOS SANTOS POLICE")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundColor(.black)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Color.red)
+                    .background(Color.yellow)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("非法超速與競速模組已啟動")
+                        Text("成功甩開警車攔截！")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
 
-                        Text("各項防護罩已解除。請注意周遭路況，踩下油門，生死自負。")
+                        Text("通緝狀態已解除。解鎖地下飆車模式，油門一拜，生死無懼。")
                             .font(.system(size: 12))
                             .foregroundColor(.gray)
                     }
@@ -479,7 +492,7 @@ struct BootLoadingView: View {
                     .background(Color.black)
                 }
                 .frame(width: min(UIScreen.main.bounds.width - 40, 440))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow, lineWidth: 2))
                 .cornerRadius(8)
                 .shadow(color: .red.opacity(0.8), radius: 20)
                 .opacity(warningOpacity)
@@ -488,30 +501,31 @@ struct BootLoadingView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
         .onAppear {
-            warningFlash = true
+            policeFlash = true
 
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.4)) {
-                skullScale = 1.15
-            }
-
-            withAnimation(Animation.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                ringRotation = 360.0
-            }
-
-            withAnimation(Animation.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                speedLineOffset = 180.0
+            withAnimation(Animation.linear(duration: 0.6).repeatForever(autoreverses: false)) {
+                speedLineOffset = 200.0
             }
 
             withAnimation(Animation.easeInOut(duration: 0.08).repeatForever(autoreverses: true)) {
-                glitchOffset = CGFloat(Int.random(in: -5...5))
+                glitchOffset = CGFloat(Int.random(in: -4...4))
             }
 
             withAnimation(.easeInOut(duration: 7.0)) {
                 progress = 1.0
+                bikeSpeed = 195.0
+            }
+
+            // 模擬警車距離逐漸拉開
+            Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { timer in
+                if copDistance > 30 {
+                    copDistance -= Int.random(in: 40...80)
+                    if copDistance < 0 { copDistance = 0 }
+                }
             }
 
             Timer.scheduledTimer(withTimeInterval: 1.35, repeats: true) { timer in
-                if textStep < brutalSteps.count - 1 {
+                if textStep < chaseSteps.count - 1 {
                     textStep += 1
                 } else {
                     timer.invalidate()
@@ -1060,7 +1074,6 @@ struct ContentView: View {
                                         .padding(.leading, 20)
                                     }
                                 } else {
-                                    // 調整整體水平與垂直安全內距，解決卡到邊框的問題
                                     HStack(spacing: 12) {
                                         VStack(spacing: 10) {
                                             Button(action: { showMap.toggle() }) {
@@ -1184,7 +1197,6 @@ struct ContentView: View {
                                     }
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 14)
-                                    // 確保內容安全內縮，不貼齊手機兩側與上下圓角邊緣
                                 }
                                 
                                 if let cameraAlert = vehicleManager.nearestCameraAlert {
