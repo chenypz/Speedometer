@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import CoreMotion
 import MapKit
 import AVFoundation
 
@@ -110,7 +111,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func startMotionUpdates() {
         if motionManager.isAccelerometerAvailable {
             motionManager.accelerometerUpdateInterval = 0.1
-            motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
+            motionManager.startAccelerometerUpdates(to: OperationQueue.main) { [weak self] (data: CMAccelerometerData?, error: Error?) in
                 guard let self = self, let acceleration = data?.acceleration else { return }
                 self.currentGForceX = acceleration.x
                 self.currentGForceY = acceleration.y
