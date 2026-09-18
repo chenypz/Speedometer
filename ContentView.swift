@@ -5,7 +5,25 @@ import CoreMotion
 import Combine
 import AudioToolbox
 
-// MARK: - 1. 主題風格
+// MARK: - 1. 數據模型 (歷史與超速紀錄)
+struct SpeedHistoryRecord: Identifiable, Codable {
+    var id = UUID()
+    var date: Date
+    var maxSpeed: Double
+    var zeroToHundred: Double?
+    var quarterMile: Double?
+    var maxGForce: Double
+    var totalDistance: Double
+}
+
+struct OverspeedLog: Identifiable, Codable {
+    var id = UUID()
+    var date: Date
+    var speed: Double
+    var limit: Double
+}
+
+// MARK: - 2. 主題風格
 enum DashboardTheme: String, CaseIterable, Identifiable {
     case porsche = "🏎️ 保時捷經典"
     case cyberpunk = "🌌 賽博朋克"
@@ -30,7 +48,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - 2. GPS + G-Force 核心
+// MARK: - 3. GPS + G-Force 核心
 class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -42,6 +60,10 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     @Published var headingDegree: Double = 0.0
     @Published var userLocation: CLLocationCoordinate2D?
     @Published var isGpsReady: Bool = false
+    
+    @Published var isOfflineMode: Bool = false {
+        didSet { updateLocationAccuracy() }
+    }
     
     @Published var gForceX: Double = 0.0
     @Published var gForceY: Double = 0.0
@@ -57,6 +79,10 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     private var quarterMileStartDistance: Double = 0.0
     private var quarterMileStartTime: Date?
     
+    // 歷史紀錄與超速紀錄
+    @Published var historyRecords: [SpeedHistoryRecord] = []
+    @Published var overspeedLogs: [OverspeedLog] = []
+    
     private var speedRecords: [Double] = []
     @Published var avgSpeed: Double = 0.0
     private var lastLocation: CLLocation?
@@ -69,11 +95,21 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     
     private func setupGPS() {
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        updateLocationAccuracy()
         locationManager.distanceFilter = kCLDistanceFilterNone
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
         locationManager.startUpdatingHeading()
+    }
+    
+    private func updateLocationAccuracy() {
+        if isOfflineMode {
+            locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+            locationManager.activityType = .automotiveNavigation
+        } else {
+            locationManager.desiredAccuracy = kCLLocationAccuracyBest
+            locationManager.activityType = .automotiveNavigation
+        }
     }
     
     private func setupGForce() {
@@ -91,11 +127,15 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
+        if location.horizontalAccuracy < 0 || location.horizontalAccuracy > 20 { return }
+        
         self.isGpsReady = true
         self.userLocation = location.coordinate
         self.altitudeMeters = max(0, location.altitude)
         
-        let speed = max(0, location.speed * 3.6)
+        let rawSpeed = location.speed * 3.6
+        let speed = rawSpeed > 0.8 ? rawSpeed : 0.0
+        
         self.speedKMH = speed
         if speed > maxSpeed { maxSpeed = speed }
         
@@ -143,7 +183,26 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
         }
     }
     
+    func saveCurrentTripToHistory() {
+        let record = SpeedHistoryRecord(
+            date: Date(),
+            maxSpeed: maxSpeed,
+            zeroToHundred: zeroToHundredTime,
+            quarterMile: quarterMileTime,
+            maxGForce: maxGForce,
+            totalDistance: totalDistanceMeters
+        )
+        historyRecords.insert(record, at: 0)
+    }
+    
+    func logOverspeed(currentSpeed: Double, limit: Double) {
+        let log = OverspeedLog(date: Date(), speed: currentSpeed, limit: limit)
+        overspeedLogs.insert(log, at: 0)
+        if overspeedLogs.count > 50 { overspeedLogs.removeLast() }
+    }
+    
     func resetData() {
+        saveCurrentTripToHistory()
         maxSpeed = 0.0; avgSpeed = 0.0; totalDistanceMeters = 0.0; maxGForce = 0.0
         speedRecords.removeAll(); zeroToHundredTime = nil; quarterMileTime = nil
         quarterMileTrapSpeed = 0.0; isTimingZeroToHundred = false; isTimingQuarterMile = false
@@ -165,7 +224,7 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 }
 
-// MARK: - 3. 開機動畫畫面 (Boot Sequence)
+// MARK: - 4. 開機動畫畫面
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -178,7 +237,6 @@ struct BootLoadingView: View {
     var body: some View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
-            
             VStack {
                 Rectangle()
                     .fill(LinearGradient(gradient: Gradient(colors: [.clear, safeCyan.opacity(0.15), .clear]), startPoint: .top, endPoint: .bottom))
@@ -195,69 +253,40 @@ struct BootLoadingView: View {
                         .font(.system(size: 16, weight: .black, design: .monospaced))
                         .foregroundColor(safeCyan)
                         .shadow(color: safeCyan, radius: 8)
-                        .transition(.opacity)
                 }
-                
                 if showSubText {
                     VStack(spacing: 6) {
                         Text("LAMBORGHINI V12 TELEMETRY")
                             .font(.system(size: 22, weight: .black, design: .rounded))
                             .foregroundColor(.yellow)
                             .tracking(4)
-                            .shadow(color: .yellow, radius: 10)
-                        
                         Text("⚠️ 危険：駆動系システム・セキュア起動中")
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundColor(.red)
-                            .tracking(2)
                     }
-                    .transition(.scale.combined(with: .opacity))
                 }
-                
                 VStack(spacing: 8) {
                     ZStack(alignment: .leading) {
-                        Rectangle()
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: 280, height: 6)
-                            .cornerRadius(3)
-                        
-                        Rectangle()
-                            .fill(LinearGradient(gradient: Gradient(colors: [safeCyan, .yellow, .red]), startPoint: .leading, endPoint: .trailing))
-                            .frame(width: 280 * progress, height: 6)
-                            .cornerRadius(3)
-                            .shadow(color: safeCyan, radius: 6)
+                        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 280, height: 6).cornerRadius(3)
+                        Rectangle().fill(LinearGradient(gradient: Gradient(colors: [safeCyan, .yellow, .red]), startPoint: .leading, endPoint: .trailing))
+                            .frame(width: 280 * progress, height: 6).cornerRadius(3)
                     }
-                    
                     Text("INITIALIZING: \(Int(progress * 100))%")
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
                         .foregroundColor(.white.opacity(0.7))
                 }
-                .padding(.top, 15)
             }
         }
         .onAppear {
             flashBackground = true
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                withAnimation(.easeIn(duration: 0.4)) { showWarningText = true }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { showSubText = true }
-            }
-            withAnimation(.easeInOut(duration: 2.2)) {
-                progress = 1.0
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    isFinished = true
-                }
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { withAnimation { showWarningText = true } }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { withAnimation { showSubText = true } }
+            withAnimation(.easeInOut(duration: 2.2)) { progress = 1.0 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { withAnimation { isFinished = true } }
         }
     }
 }
 
-// MARK: - 4. 輔助小元件
 struct ShiftLightsView: View {
     var speed: Double
     var maxSpeed: Double = 160.0
@@ -271,9 +300,7 @@ struct ShiftLightsView: View {
                 let isRedZone = index >= 8
                 Rectangle()
                     .fill(isActive ? (isRedZone ? Color.red : (index >= 6 ? Color.yellow : Color.green)) : Color.white.opacity(0.1))
-                    .frame(height: 5)
-                    .cornerRadius(2)
-                    .shadow(color: isActive ? (isRedZone ? Color.red : Color.green) : Color.clear, radius: 4)
+                    .frame(height: 5).cornerRadius(2)
             }
         }
         .padding(.horizontal, 16)
@@ -292,17 +319,13 @@ struct GForceView: View {
             }.stroke(Color.white.opacity(0.15), lineWidth: 1)
             let posX = CGFloat(min(max(gx, -1.0), 1.0)) * 30
             let posY = CGFloat(min(max(-gy, -1.0), 1.0)) * 30
-            Circle().fill(themeColor).frame(width: 8, height: 8).shadow(color: themeColor, radius: 4).offset(x: posX, y: posY)
+            Circle().fill(themeColor).frame(width: 8, height: 8).offset(x: posX, y: posY)
             VStack {
                 Spacer()
-                Text(String(format: "MAX %.2fG", maxG))
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.7))
+                Text(String(format: "MAX %.2fG", maxG)).font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundColor(.white.opacity(0.7))
             }
         }
-        .frame(width: 70, height: 70)
-        .background(Color.black.opacity(0.5))
-        .cornerRadius(35)
+        .frame(width: 70, height: 70).background(Color.black.opacity(0.5)).cornerRadius(35)
         .overlay(Circle().stroke(themeColor.opacity(0.4), lineWidth: 1.5))
     }
 }
@@ -357,10 +380,11 @@ struct ContentView: View {
                     ZStack {
                         Color(red: 0.03, green: 0.03, blue: 0.05).edgesIgnoringSafeArea(.all)
                         
-                        if showMap && !isHUDMode, let location = speedManager.userLocation {
+                        // 地圖模式背景
+                        if showMap, let location = speedManager.userLocation {
                             MapTrackingView(userLocation: location)
                                 .edgesIgnoringSafeArea(.all)
-                                .overlay(Color.black.opacity(0.6))
+                                .overlay(Color.black.opacity(showMap && !isHUDMode ? 0.4 : 0.0))
                         }
                         
                         if isOverspeed && flashWarning {
@@ -368,36 +392,49 @@ struct ContentView: View {
                         }
                         
                         VStack(spacing: 0) {
-                            HStack(alignment: .center, spacing: 8) {
+                            // 頂部導覽列 (在地圖模式下自動隱藏次要資訊，只留時速與必要按鈕)
+                            HStack(alignment: .center, spacing: 6) {
                                 Text(currentTime, style: .time)
-                                    .font(.system(size: isLandscape ? screenHeight * 0.045 : screenWidth * 0.038, weight: .black, design: .monospaced))
+                                    .font(.system(size: isLandscape ? screenHeight * 0.042 : screenWidth * 0.035, weight: .black, design: .monospaced))
                                     .foregroundColor(activePrimaryColor)
                                 
                                 Spacer()
                                 
-                                if !isHUDMode {
-                                    HStack(spacing: 8) {
+                                if !showMap {
+                                    Button(action: {
+                                        speedManager.isOfflineMode.toggle()
+                                        AudioServicesPlaySystemSound(1104)
+                                    }) {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: speedManager.isOfflineMode ? "wifi.slash" : "wifi")
+                                            Text(speedManager.isOfflineMode ? "OFF" : "ON")
+                                        }
+                                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                                        .padding(.horizontal, 6).padding(.vertical, 5)
+                                        .background(speedManager.isOfflineMode ? Color.purple.opacity(0.4) : Color.blue.opacity(0.4))
+                                        .foregroundColor(speedManager.isOfflineMode ? Color.purple : Color.cyan)
+                                        .cornerRadius(6)
+                                    }
+                                }
+                                
+                                if !isHUDMode && !showMap {
+                                    HStack(spacing: 6) {
                                         Text("⛰️ \(Int(speedManager.altitudeMeters))m")
                                         Text("🧭 \(speedManager.headingDirectionText)")
                                     }
-                                    .font(.system(size: isLandscape ? screenHeight * 0.032 : screenWidth * 0.028, weight: .bold, design: .monospaced))
+                                    .font(.system(size: isLandscape ? screenHeight * 0.030 : screenWidth * 0.026, weight: .bold, design: .monospaced))
                                     .foregroundColor(.white.opacity(0.85))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 6).padding(.vertical, 4)
                                     .background(Color.white.opacity(0.1))
                                     .cornerRadius(8)
-                                    
-                                    Spacer()
                                 }
                                 
-                                if !isHUDMode {
-                                    Button(action: { withAnimation { showMap.toggle() } }) {
-                                        Image(systemName: "map.fill")
-                                            .padding(6)
-                                            .background(showMap ? activePrimaryColor : Color.gray.opacity(0.3))
-                                            .foregroundColor(showMap ? .black : .white)
-                                            .cornerRadius(8)
-                                    }
+                                Button(action: { withAnimation { showMap.toggle() } }) {
+                                    Image(systemName: "map.fill")
+                                        .padding(6)
+                                        .background(showMap ? activePrimaryColor : Color.gray.opacity(0.3))
+                                        .foregroundColor(showMap ? .black : .white)
+                                        .cornerRadius(8)
                                 }
                                 
                                 Button(action: { isHUDMode.toggle() }) {
@@ -409,7 +446,7 @@ struct ContentView: View {
                                         .cornerRadius(8)
                                 }
                                 
-                                if !isHUDMode {
+                                if !isHUDMode && !showMap {
                                     Button(action: { showSettings.toggle() }) {
                                         Image(systemName: "gearshape.fill")
                                             .padding(6)
@@ -422,7 +459,7 @@ struct ContentView: View {
                             .padding(.horizontal, 16)
                             .padding(.top, geometry.safeAreaInsets.top + 5)
                             
-                            if !isHUDMode {
+                            if !isHUDMode && !showMap {
                                 ShiftLightsView(speed: speedManager.speedKMH)
                                     .padding(.top, 8)
                             }
@@ -432,22 +469,19 @@ struct ContentView: View {
                             let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.70 : screenWidth * 0.76
                             let progress = min(speedManager.speedKMH / 160.0, 1.0)
                             
+                            // 主儀表與 G力表 (地圖模式下僅保留中央時速，隱藏G力表讓畫面極簡)
                             HStack(spacing: 20) {
                                 ZStack {
                                     Circle()
                                         .trim(from: 0.125, to: 0.875)
-                                        .stroke(Color.white.opacity(isHUDMode ? 0.05 : 0.12), style: StrokeStyle(lineWidth: 18, lineCap: .butt))
+                                        .stroke(Color.white.opacity(isHUDMode || showMap ? 0.15 : 0.12), style: StrokeStyle(lineWidth: 18, lineCap: .butt))
                                         .rotationEffect(.degrees(90))
                                         .frame(width: gaugeSize, height: gaugeSize)
                                     
                                     Circle()
                                         .trim(from: 0.125, to: 0.125 + (0.75 * CGFloat(progress)))
                                         .stroke(
-                                            LinearGradient(
-                                                gradient: Gradient(colors: [selectedTheme.secondaryColor, activePrimaryColor]),
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            ),
+                                            LinearGradient(gradient: Gradient(colors: [selectedTheme.secondaryColor, activePrimaryColor]), startPoint: .leading, endPoint: .trailing),
                                             style: StrokeStyle(lineWidth: 18, lineCap: .round)
                                         )
                                         .rotationEffect(.degrees(90))
@@ -474,8 +508,10 @@ struct ContentView: View {
                                         }
                                     }
                                 }
+                                .background(showMap ? Color.black.opacity(0.5) : Color.clear)
+                                .clipShape(Circle())
                                 
-                                if !isHUDMode {
+                                if !isHUDMode && !showMap {
                                     GForceView(gx: speedManager.gForceX, gy: speedManager.gForceY, maxG: speedManager.maxGForce, themeColor: activePrimaryColor)
                                 }
                             }
@@ -483,7 +519,8 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            if !isHUDMode {
+                            // 地圖模式或 HUD 模式下隱藏下方多餘數據條，保持乾淨
+                            if !isHUDMode && !showMap {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("0-100 KM/H").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
@@ -519,16 +556,14 @@ struct ContentView: View {
                                         Text(String(format: "%.0fkm/h", speedManager.maxSpeed)).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(.orange)
                                     }.frame(maxWidth: .infinity)
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12).padding(.vertical, 8)
                                 .background(Color.black.opacity(0.7))
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(activePrimaryColor.opacity(0.3), lineWidth: 1))
                                 .cornerRadius(12)
-                                .padding(.horizontal, 16)
-                                .padding(.bottom, 10)
+                                .padding(.horizontal, 16).padding(.bottom, 10)
                             }
                         }
-                        .scaleEffect(x: isHUDMode ? -1 : 1, y: 1)
+                        // 移除 HUD 顛倒效果，改為正常顯示
                     }
                 }
             }
@@ -536,6 +571,10 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             NavigationView {
                 Form {
+                    Section(header: Text("定位設定")) {
+                        Toggle("離線精準模式 (停用網路輔助)", isOn: $speedManager.isOfflineMode)
+                    }
+                    
                     Section(header: Text("視覺主題")) {
                         Picker("風格主題", selection: $selectedTheme) {
                             ForEach(DashboardTheme.allCases) { theme in
@@ -554,11 +593,21 @@ struct ContentView: View {
                         Slider(value: $speedLimit, in: 30...200, step: 5)
                     }
                     
-                    Section(header: Text("重置數據")) {
+                    Section(header: Text("歷史行程與超速紀錄")) {
+                        NavigationLink(destination: HistoryView(speedManager: speedManager)) {
+                            Label("查看歷史操作紀錄 (\(speedManager.historyRecords.count))", systemImage: "clock.arrow.circlepath")
+                        }
+                        NavigationLink(destination: OverspeedLogView(speedManager: speedManager)) {
+                            Label("查看超速違規紀錄 (\(speedManager.overspeedLogs.count))", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundColor(speedManager.overspeedLogs.isEmpty ? .primary : .red)
+                        }
+                    }
+                    
+                    Section(header: Text("行車電腦")) {
                         Button(action: { speedManager.resetData() }) {
                             HStack {
                                 Image(systemName: "trash.fill")
-                                Text("重置行車電腦 (0-100 / 0-400m / G-Force)")
+                                Text("重置目前數據並封存至歷史紀錄")
                             }
                             .foregroundColor(.red)
                         }
@@ -574,6 +623,7 @@ struct ContentView: View {
                 if isOverspeed {
                     flashWarning.toggle()
                     AudioServicesPlaySystemSound(1005)
+                    speedManager.logOverspeed(currentSpeed: speedManager.speedKMH, limit: speedLimit)
                 } else {
                     flashWarning = false
                 }
@@ -581,5 +631,77 @@ struct ContentView: View {
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+    }
+}
+
+// MARK: - 6. 歷史紀錄列表頁面
+struct HistoryView: View {
+    @ObservedObject var speedManager: SpeedometerManager
+    var body: some View {
+        List {
+            if speedManager.historyRecords.isEmpty {
+                Text("尚無歷史紀錄，點擊重置行車電腦可封存當次行程。").foregroundColor(.gray)
+            } else {
+                ForEach(speedManager.historyRecords) { record in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(record.date, style: .date) + Text(" ") + Text(record.date, style: .time)
+                            .font(.caption).bold().foregroundColor(.gray)
+                        
+                        HStack {
+                            Text("極速: \(Int(record.maxSpeed)) km/h").bold().foregroundColor(.orange)
+                            Spacer()
+                            Text("里程: String(format: \"%.2fkm\", record.totalDistance / 1000.0)").bold()
+                        }
+                        HStack {
+                            if let t100 = record.zeroToHundred {
+                                Text("0-100: \(String(format: "%.2fs", t100))").foregroundColor(.green)
+                            }
+                            Spacer()
+                            Text("最大G力: \(String(format: "%.2fG", record.maxGForce))").foregroundColor(.cyan)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .navigationTitle("📜 歷史操作紀錄")
+    }
+}
+
+// MARK: - 7. 超速紀錄列表頁面
+struct OverspeedLogView: View {
+    @ObservedObject var speedManager: SpeedometerManager
+    var body: some View {
+        List {
+            if speedManager.overspeedLogs.isEmpty {
+                Text("太棒了！目前沒有任何超速紀錄。").foregroundColor(.gray)
+            } else {
+                ForEach(speedManager.overspeedLogs) { log in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(log.date, style: .date) + Text(" ") + Text(log.date, style: .time)
+                                .font(.caption).bold().foregroundColor(.gray)
+                            Text("當前速限: \(Int(log.limit)) km/h")
+                                .font(.subresso ?? .caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing) {
+                            Text("\(Int(log.speed)) km/h")
+                                .font(.headline).bold()
+                                .foregroundColor(.red)
+                            Text("超速")
+                                .font(.system(size: 10, weight: .black))
+                                .padding(.horizontal, 4).padding(.vertical, 2)
+                                .background(Color.red.opacity(0.2))
+                                .foregroundColor(.red)
+                                .cornerRadius(4)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .navigationTitle("⚠️ 超速紀錄表")
     }
 }
