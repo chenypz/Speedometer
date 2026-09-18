@@ -326,7 +326,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 暴力犯罪、骷髏與紅黑白拉線風格 10 秒開場動畫
+// MARK: - 4. 暴力犯罪、骷髏與紅黑白拉線風格 7 秒開場動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -342,37 +342,36 @@ struct BootLoadingView: View {
     @State private var speedLineOffset: CGFloat = 0.0
 
     let brutalSteps = [
-        "⚠️ [CRITICAL] BYPASSING POLICE FIREWALL...",
-        "⚡ [OVERDRIVE] INJECTING ILLEGAL NITROUS MATRIX...",
-        "💀 [BLACK_MARKET] SYNDICATE PROTOCOL 666 ENGAGED...",
-        "🔥 [WARNING] SATELLITE TRACKING JAMMED BY USER...",
-        "🚨 [BREACH] SPEED LIMITERS PERMANENTLY DELETED...",
-        "☠️ WELCOME TO THE UNDERGROUND. NO RULES. JUST SPEED."
+        "⚠️ [0.0s] INITIALIZING KERNEL SYNDICATE...",
+        "⚡ [1.5s] BYPASSING POLICE FIREWALL...",
+        "💀 [3.0s] INJECTING SKULL OVERDRIVE MATRIX...",
+        "🔥 [4.5s] DISABLING SPEED LIMITERS...",
+        "☠️ [6.0s] READY. NO RULES. PURE SPEED."
     ]
 
     var body: some View {
         ZStack {
             // 純黑與血紅色底調
-            LinearGradient(colors: [Color.black, Color(red: 0.12, green: 0.0, blue: 0.02), Color.black], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Color.black, Color(red: 0.14, green: 0.0, blue: 0.03), Color.black], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
 
-            // 紅、白、黑交織的暴力高速拉線（極速感）
-            VStack(spacing: 18) {
-                ForEach(0..<12, id: \.self) { i in
+            // 紅、白、黑交織的高速拉線特效
+            VStack(spacing: 16) {
+                ForEach(0..<14, id: \.self) { i in
                     Rectangle()
                         .fill(i % 3 == 0 ? Color.red : (i % 3 == 1 ? Color.white : Color.gray))
                         .frame(height: i % 2 == 0 ? 2 : 1)
-                        .opacity(i % 3 == 1 ? 0.6 : 0.3)
+                        .opacity(i % 3 == 1 ? 0.7 : 0.4)
                         .offset(x: (i % 2 == 0 ? speedLineOffset : -speedLineOffset) * CGFloat(i + 1))
                 }
             }
             .ignoresSafeArea()
 
-            // 畫面警告閃爍遮罩
+            // 畫面閃爍警告遮罩
             Color.red
-                .opacity(warningFlash ? 0.2 : 0.0)
+                .opacity(warningFlash ? 0.25 : 0.0)
                 .ignoresSafeArea()
-                .animation(Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true), value: warningFlash)
+                .animation(Animation.easeInOut(duration: 0.12).repeatForever(autoreverses: true), value: warningFlash)
 
             // 右下角 SKIP 按鈕
             VStack {
@@ -380,11 +379,11 @@ struct BootLoadingView: View {
                 HStack {
                     Spacer()
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
                             isFinished = true
                         }
                     }) {
-                        Text("FORCED SKIP ❯❯")
+                        Text("SKIP ❯❯")
                             .font(.system(size: 11, weight: .black, design: .monospaced))
                             .foregroundColor(.black)
                             .padding(.horizontal, 14)
@@ -400,43 +399,49 @@ struct BootLoadingView: View {
             .zIndex(30)
 
             if !showWarningScreen {
-                VStack(spacing: 25) {
-                    // 骷髏頭核心圖示與紅黑白拉線環
+                VStack(spacing: 22) {
+                    // 中央骷髏頭與多重紅黑白拉線環
                     ZStack {
-                        // 外圈血紅拉線
+                        // 外圈血紅高速拉線
                         Circle()
-                            .stroke(style: StrokeStyle(lineWidth: 4, dash: [12, 8]))
+                            .stroke(style: StrokeStyle(lineWidth: 4, dash: [10, 6]))
                             .foregroundColor(.red)
                             .frame(width: 190, height: 190)
                             .rotationEffect(.degrees(ringRotation))
-                            .shadow(color: .red, radius: 10)
+                            .shadow(color: .red, radius: 12)
 
-                        // 內圈白色科技拉線
+                        // 中圈白色雷達波拉線
                         Circle()
-                            .stroke(Color.white.opacity(0.7), lineWidth: 2)
+                            .stroke(Color.white.opacity(0.8), lineWidth: 2)
                             .frame(width: 140, height: 140)
                             .rotationEffect(.degrees(-ringRotation * 1.5))
 
-                        // 中央骷髏頭標誌
+                        // 內圈黑紅轉動環
+                        Circle()
+                            .stroke(style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
+                            .foregroundColor(Color.gray)
+                            .frame(width: 90, height: 90)
+                            .rotationEffect(.degrees(ringRotation * 2))
+
+                        // 中央骷髏頭圖標
                         Image(systemName: "skull.fill")
-                            .font(.system(size: 60, weight: .black))
+                            .font(.system(size: 55, weight: .black))
                             .foregroundColor(.white)
-                            .shadow(color: .red, radius: 15)
+                            .shadow(color: .red, radius: 18)
                             .scaleEffect(skullScale)
-                            // 霓虹失真錯位效果 (Glitch Effect)
                             .offset(x: glitchOffset)
                     }
-                    .frame(height: 200)
+                    .frame(height: 190)
 
-                    // 狂氣標題
+                    // 動態霓虹標題
                     Text("UNDERGROUND OVERDRIVE")
-                        .font(.system(size: 20, weight: .black, design: .monospaced))
-                        .kerning(6)
+                        .font(.system(size: 18, weight: .black, design: .monospaced))
+                        .kerning(5)
                         .foregroundColor(.white)
-                        .shadow(color: .red, radius: 8)
+                        .shadow(color: .red, radius: 10)
                         .offset(x: -glitchOffset)
 
-                    // 進度條與駭客指令 (紅黑白配色)
+                    // 7秒精準進度條與多階段駭客指令
                     VStack(alignment: .leading, spacing: 8) {
                         ZStack(alignment: .leading) {
                             Rectangle()
@@ -458,41 +463,35 @@ struct BootLoadingView: View {
                 }
                 .transition(.opacity)
             } else {
-                // 極惡警告畫面
+                // 7秒結束前的最終警告彈窗
                 VStack(spacing: 0) {
                     HStack {
-                        Text("⚠️ CRIMINAL OFFENSE WARNING")
+                        Text("⚠️ SYSTEM BREACHED")
                             .font(.system(size: 14, weight: .black, design: .monospaced))
                             .foregroundColor(.black)
                         Spacer()
-                        Text("ILLEGAL OS")
+                        Text("MAX WANTED")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundColor(.black)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                     .background(Color.red)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("超速、非法改裝與街頭競速協議")
-                            .font(.system(size: 15, weight: .bold))
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("非法超速與競速模組已啟動")
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
 
-                        Text("您正在載入非官方、高度危險之地下賽博競速與測速略過核心。本系統不承擔任何警方追捕、超速罰單與物理撞擊之法律責任。踩下油門，生死自負。")
+                        Text("各項防護罩已解除。請注意周遭路況，踩下油門，生死自負。")
                             .font(.system(size: 12))
                             .foregroundColor(.gray)
-                            .lineSpacing(4)
-
-                        Text("STATUS: WANTED LEVEL MAXED OUT.")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundColor(.red)
-                            .padding(.top, 4)
                     }
-                    .padding(20)
+                    .padding(18)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.black)
                 }
-                .frame(width: min(UIScreen.main.bounds.width - 40, 480))
+                .frame(width: min(UIScreen.main.bounds.width - 40, 440))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white, lineWidth: 2))
                 .cornerRadius(8)
                 .shadow(color: .red.opacity(0.8), radius: 20)
@@ -504,38 +503,40 @@ struct BootLoadingView: View {
         .onAppear {
             warningFlash = true
 
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.4)) {
-                skullScale = 1.1
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.4)) {
+                skullScale = 1.15
             }
 
-            withAnimation(Animation.linear(duration: 2.5).repeatForever(autoreverses: false)) {
+            withAnimation(Animation.linear(duration: 2.0).repeatForever(autoreverses: false)) {
                 ringRotation = 360.0
             }
 
-            withAnimation(Animation.linear(duration: 1.0).repeatForever(autoreverses: false)) {
-                speedLineOffset = 150.0
+            withAnimation(Animation.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+                speedLineOffset = 180.0
             }
 
-            withAnimation(Animation.easeInOut(duration: 0.1).repeatForever(autoreverses: true)) {
-                glitchOffset = CGFloat(Int.random(in: -4...4))
+            withAnimation(Animation.easeInOut(duration: 0.08).repeatForever(autoreverses: true)) {
+                glitchOffset = CGFloat(Int.random(in: -5...5))
             }
 
-            withAnimation(.easeInOut(duration: 10.0)) {
+            // 總共 7 秒的動畫進度配置
+            withAnimation(.easeInOut(duration: 7.0)) {
                 progress = 1.0
             }
 
-            Timer.scheduledTimer(withTimeInterval: 1.6, repeats: true) { timer in
+            // 7 秒內切換 5 個豐富階段指令
+            Timer.scheduledTimer(withTimeInterval: 1.35, repeats: true) { timer in
                 if textStep < brutalSteps.count - 1 {
                     textStep += 1
                 } else {
                     timer.invalidate()
-                    withAnimation(.easeInOut(duration: 0.3)) { showWarningScreen = true }
-                    withAnimation(.easeIn(duration: 0.4)) { warningOpacity = 1.0 }
+                    withAnimation(.easeInOut(duration: 0.2)) { showWarningScreen = true }
+                    withAnimation(.easeIn(duration: 0.2)) { warningOpacity = 1.0 }
 
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                        withAnimation(.easeOut(duration: 0.4)) { warningOpacity = 0.0 }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            withAnimation(.easeInOut(duration: 0.5)) { isFinished = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        withAnimation(.easeOut(duration: 0.3)) { warningOpacity = 0.0 }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation(.easeInOut(duration: 0.3)) { isFinished = true }
                         }
                     }
                 }
