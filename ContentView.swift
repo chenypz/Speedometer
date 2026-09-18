@@ -507,7 +507,7 @@ struct MajesticWhiteFoxFaceView: View {
                 path.closeSubpath()
             }
             .fill(Color.white)
-            .shadow(color: Color.cyan, radius: 10)
+            .shadow(color: .safeCyan, radius: 10)
             
             // 右耳外廓
             Path { path in
@@ -517,7 +517,7 @@ struct MajesticWhiteFoxFaceView: View {
                 path.closeSubpath()
             }
             .fill(Color.white)
-            .shadow(color: Color.cyan, radius: 10)
+            .shadow(color: .safeCyan, radius: 10)
             
             // 左耳內側 (冰藍靈力)
             Path { path in
@@ -556,7 +556,7 @@ struct MajesticWhiteFoxFaceView: View {
                 .frame(width: 45, height: 20)
                 .rotationEffect(.degrees(25))
                 .position(x: 105, y: 170)
-                .shadow(color: .cyan, radius: 12)
+                .shadow(color: .safeCyan, radius: 12)
             
             // 霸氣冰藍銳眼 (右)
             Ellipse()
@@ -564,7 +564,7 @@ struct MajesticWhiteFoxFaceView: View {
                 .frame(width: 45, height: 20)
                 .rotationEffect(.degrees(-25))
                 .position(x: 195, y: 170)
-                .shadow(color: .cyan, radius: 12)
+                .shadow(color: .safeCyan, radius: 12)
             
             // 眼神高光點睛
             Circle().fill(Color.white).frame(width: 8, height: 8).position(x: 112, y: 166)
@@ -576,7 +576,7 @@ struct MajesticWhiteFoxFaceView: View {
                 path.addLine(to: CGPoint(x: 150, y: 190))
             }
             .stroke(Color(red: 0.2, green: 0.6, blue: 1.0), lineWidth: 4)
-            .shadow(color: .cyan, radius: 6)
+            .shadow(color: .safeCyan, radius: 6)
         }
         .frame(width: 300, height: 320)
     }
@@ -635,13 +635,16 @@ struct MultiThemeBootLoadingView: View {
                     if flashScreen { Color.red.opacity(0.85).ignoresSafeArea() }
                     
                     ForEach(0..<50, id: \.self) { i in
+                        let rectColor: Color = (i % 2 == 0) ? .red : .white
+                        let randomWidth = CGFloat.random(in: 4...14)
+                        let randomHeight = CGFloat.random(in: 4...14)
+                        let offsetX = particleExplode ? CGFloat(cos(Double(i) * 7.0 * .pi / 180.0) * CGFloat.random(in: 120...550)) : 0
+                        let offsetY = particleExplode ? CGFloat(sin(Double(i) * 7.0 * .pi / 180.0) * CGFloat.random(in: 120...550)) : 0
+                        
                         Rectangle()
-                            .fill(i % 2 == 0 ? Color.red : Color.white)
-                            .frame(width: CGFloat.random(in: 4...14), height: CGFloat.random(in: 4...14))
-                            .offset(
-                                x: particleExplode ? CGFloat(cos(Double(i) * 7.0 * .pi / 180.0) * CGFloat.random(in: 120...550)) : 0,
-                                y: particleExplode ? CGFloat(sin(Double(i) * 7.0 * .pi / 180.0) * CGFloat.random(in: 120...550)) : 0
-                            )
+                            .fill(rectColor)
+                            .frame(width: randomWidth, height: randomHeight)
+                            .offset(x: offsetX, y: offsetY)
                             .opacity(particleExplode ? 0.0 : 1.0)
                     }
                 }
@@ -659,13 +662,16 @@ struct MultiThemeBootLoadingView: View {
                     if flashScreen { Color.safeCyan.opacity(0.8).ignoresSafeArea() }
                     
                     ForEach(0..<60, id: \.self) { i in
+                        let circleColor: Color = (i % 3 == 0) ? .white : .safeCyan
+                        let circleWidth = CGFloat.random(in: 3...8)
+                        let circleHeight = CGFloat.random(in: 3...8)
+                        let offsetX = particleExplode ? CGFloat(sin(Double(i)) * CGFloat.random(in: 50...400)) : 0
+                        let offsetY = particleExplode ? CGFloat(Double(i) * 12.0 - 250.0) : 0
+                        
                         Circle()
-                            .fill(i % 3 == 0 ? Color.white : Color.safeCyan)
-                            .frame(width: CGFloat.random(in: 3...8), height: CGFloat.random(in: 3...8))
-                            .offset(
-                                x: particleExplode ? CGFloat(sin(Double(i)) * CGFloat.random(in: 50...400)) : 0,
-                                y: particleExplode ? CGFloat(Double(i) * 12.0 - 250.0) : 0
-                            )
+                            .fill(circleColor)
+                            .frame(width: circleWidth, height: circleHeight)
+                            .offset(x: offsetX, y: offsetY)
                             .opacity(particleExplode ? 0.0 : 1.0)
                     }
                 }
@@ -684,7 +690,7 @@ struct MultiThemeBootLoadingView: View {
                                 path.addLine(to: CGPoint(x: 100, y: 350))
                                 path.addLine(to: CGPoint(x: 320, y: 800))
                             }
-                            .stroke(Color.cyan, lineWidth: 6)
+                            .stroke(Color.safeCyan, lineWidth: 6)
                             .shadow(color: .white, radius: 15)
                             
                             Path { path in
@@ -719,13 +725,14 @@ struct MultiThemeBootLoadingView: View {
                             }
                             
                             ForEach(0..<50, id: \.self) { i in
+                                let ellipseColor: Color = (i % 2 == 0) ? .white : Color(red: 1.0, green: 0.65, blue: 0.85)
+                                let offsetX = sakuraPhase == 1 ? 0 : (particleExplode ? CGFloat(cos(Double(i) * 8.0) * CGFloat.random(in: 60...380)) : 0)
+                                let offsetY = sakuraPhase == 1 ? 0 : (particleExplode ? CGFloat(sin(Double(i) * 5.0) * CGFloat.random(in: 60...400)) : 0)
+                                
                                 Ellipse()
-                                    .fill(i % 2 == 0 ? Color.white : Color(red: 1.0, green: 0.65, blue: 0.85))
+                                    .fill(ellipseColor)
                                     .frame(width: 14, height: 9)
-                                    .offset(
-                                        x: sakuraPhase == 1 ? 0 : (particleExplode ? CGFloat(cos(Double(i) * 8.0) * CGFloat.random(in: 60...380)) : 0),
-                                        y: sakuraPhase == 1 ? 0 : (particleExplode ? CGFloat(sin(Double(i) * 5.0) * CGFloat.random(in: 60...400)) : 0)
-                                    )
+                                    .offset(x: offsetX, y: offsetY)
                                     .rotationEffect(.degrees(rotateAngle * Double(i)))
                                     .opacity(sakuraPhase == 1 ? 0.2 : (particleExplode ? 0.0 : 1.0))
                             }
@@ -745,7 +752,7 @@ struct MultiThemeBootLoadingView: View {
                                 Text("霊狐降臨 • 神速起動")
                                     .font(.system(size: 18, weight: .black, design: .monospaced))
                                     .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.9))
-                                    .shadow(color: .cyan, radius: 10)
+                                    .shadow(color: .safeCyan, radius: 10)
                             }
                             .transition(.scale.combined(with: .opacity))
                         }
@@ -817,13 +824,15 @@ struct MultiThemeBootLoadingView: View {
                         ZStack {
                             Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.6).ignoresSafeArea()
                             ForEach(0..<60, id: \.self) { i in
+                                let offsetX = CGFloat(cos(Double(i) * 6.0) * CGFloat.random(in: 100...500))
+                                let offsetY = CGFloat(sin(Double(i) * 6.0) * CGFloat.random(in: 100...500))
+                                let circleWidth = CGFloat.random(in: 6...16)
+                                let circleHeight = CGFloat.random(in: 6...16)
+                                
                                 Circle()
                                     .fill(Color.white)
-                                    .frame(width: CGFloat.random(in: 6...16), height: CGFloat.random(in: 6...16))
-                                    .offset(
-                                        x: CGFloat(cos(Double(i) * 6.0) * CGFloat.random(in: 100...500)),
-                                        y: CGFloat(sin(Double(i) * 6.0) * CGFloat.random(in: 100...500))
-                                    )
+                                    .frame(width: circleWidth, height: circleHeight)
+                                    .offset(x: offsetX, y: offsetY)
                                     .opacity(0.0)
                             }
                         }
