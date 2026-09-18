@@ -1,4 +1,4 @@
-import SwiftUI
+=import SwiftUI
 import CoreLocation
 import CoreMotion
 import MapKit
@@ -275,7 +275,7 @@ struct BootLoadingView: View {
                     ZStack {
                         Circle()
                             .stroke(
-                                AngularGradient(gradient: Gradient(colors: [.cyan, .purple, .pink, .cyan]), center: .center, angle: .degrees(matrixRotation)),
+                                AngularGradient(gradient: Gradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), .purple, .pink, Color(red: 0.0, green: 0.8, blue: 1.0)]), center: .center, angle: .degrees(matrixRotation)),
                                 lineWidth: 2
                             )
                             .frame(width: 140, height: 140)
@@ -288,7 +288,7 @@ struct BootLoadingView: View {
                         Circle()
                             .trim(from: 0, to: progress)
                             .stroke(
-                                LinearGradient(colors: [.cyan, .purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), .purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
                                 style: StrokeStyle(lineWidth: 8, lineCap: .round)
                             )
                             .frame(width: 110, height: 110)
@@ -297,17 +297,17 @@ struct BootLoadingView: View {
                         
                         Image(systemName: "waveform.path.ecg")
                             .font(.system(size: 38))
-                            .foregroundColor(.cyan)
-                            .shadow(color: .cyan, radius: 8)
+                            .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
+                            .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 8)
                     }
                     
                     Text("VORTEX RACING HUD")
                         .font(.system(size: 24, weight: .black, design: .monospaced))
                         .tracking(6)
                         .foregroundStyle(
-                            LinearGradient(colors: [.cyan, .white, .pink], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), .white, .pink], startPoint: .leading, endPoint: .trailing)
                         )
-                        .shadow(color: .cyan.opacity(0.8), radius: 6)
+                        .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.8), radius: 6)
                     
                     VStack(alignment: .leading, spacing: 10) {
                         ZStack(alignment: .leading) {
@@ -317,7 +317,7 @@ struct BootLoadingView: View {
                                 .cornerRadius(4)
                             
                             Rectangle()
-                                .fill(LinearGradient(colors: [.cyan, .purple, .pink], startPoint: .leading, endPoint: .trailing))
+                                .fill(LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), .purple, .pink], startPoint: .leading, endPoint: .trailing))
                                 .frame(width: 300 * progress, height: 8)
                                 .cornerRadius(4)
                                 .shadow(color: .pink, radius: 4)
@@ -325,7 +325,7 @@ struct BootLoadingView: View {
                         
                         Text(steps[min(textStep, steps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.cyan.opacity(0.8))
+                            .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.8))
                     }
                 }
             } else {
