@@ -93,7 +93,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     // 導航與路向相關屬性
     @Published var isNavigating: Bool = false
     @Published var routePolyline: MKPolyline? = nil
-    @Published var currentInstruction: String = "地圖をタップして目的地を設定してください"
+    @Published var currentInstruction: String = "目的地を検索するか、地図をタップしてください"
     @Published var distanceToNextStep: Double = 0.0
     @Published var destinationCoordinate: CLLocationCoordinate2D? = nil
     
@@ -131,6 +131,24 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         hasReached100 = false
         accelStartTime = nil
         lastLocation = nil
+    }
+    
+    // 關鍵字搜尋地點並導航
+    func searchAndNavigate(query: String) {
+        guard !query.isEmpty else { return }
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        request.region = MKCoordinateRegion(center: currentLocation, span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05))
+        
+        let search = MKLocalSearch(request: request)
+        search.start { [weak self] response, error in
+            guard let self = self, let item = response?.mapItems.first else {
+                self?.currentInstruction = "指定の場所が見つかりませんでした"
+                return
+            }
+            self.setDestination(item.placemark.coordinate)
+            self.currentInstruction = "目的地: \(item.name ?? query)"
+        }
     }
     
     // 計算導航路線
@@ -846,6 +864,10 @@ struct ContentView: View {
     
     @State private var flashWarning: Bool = false
     
+    // 搜尋與伸縮按鈕狀態
+    @State private var searchText: String = ""
+    @State private var isSearchExpanded: Bool = false
+    
     var selectedTheme: DashboardTheme {
         get { DashboardTheme(rawValue: storedThemeRaw) ?? .cyberpunk }
         set { storedThemeRaw = newValue.rawValue }
@@ -890,7 +912,7 @@ struct ContentView: View {
                                             .foregroundColor(.white)
                                             .lineLimit(1)
                                         
-                                        Text(vehicleManager.isNavigating ? "ナビゲーション中 (地図タップで再設定)" : "ヒント: マップモードで任意の場所をタップしてナビを開始")
+                                        Text(vehicleManager.isNavigating ? "ナビゲーション中" : "ヒント: マップで場所を検索またはタップ")
                                             .font(.system(size: 10, design: .monospaced))
                                             .foregroundColor(.gray)
                                     }
@@ -919,7 +941,7 @@ struct ContentView: View {
                                 
                                 ZStack {
                                     if showMap {
-                                        // === 全螢幕地圖模式 (支援點擊設目的地) ===
+                                        // === 全螢幕地圖模式 (支援伸縮搜尋列與點擊) ===
                                         ZStack(alignment: .topLeading) {
                                             InteractiveNavigationMapView(
                                                 coordinate: vehicleManager.currentLocation,
@@ -933,6 +955,7 @@ struct ContentView: View {
                                             .edgesIgnoringSafeArea(.all)
                                             
                                             HStack(alignment: .top, spacing: 12) {
+                                                // 伸縮式返回儀表按鈕
                                                 Button(action: { showMap.toggle() }) {
                                                     Image(systemName: "gauge.with.needle")
                                                         .font(.system(size: 16, weight: .bold))
@@ -944,20 +967,54 @@ struct ContentView: View {
                                                         .shadow(radius: 4)
                                                 }
                                                 
-                                                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                                    Text(String(format: "%.0f", vehicleManager.speed))
-                                                        .font(.system(size: 32, weight: .black, design: .monospaced))
-                                                        .foregroundColor(.white)
-                                                    Text("KM/H")
-                                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                                        .foregroundColor(currentPrimaryColor)
+                                                // 伸縮式地點搜尋與導航放大鏡列
+                                                HStack(spacing: 8) {
+                                                    Button(action: {
+                                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                            isSearchExpanded.toggle()
+                                                        }
+                                                    }) {
+                                                        Image(systemName: "magnifyingglass")
+                                                            .font(.system(size: 16, weight: .bold))
+                                                            .foregroundColor(currentPrimaryColor)
+                                                            .frame(width: 44, height: 44)
+                                                            .background(Color.black.opacity(0.75))
+                                                            .clipShape(Circle())
+                                                            .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
+                                                    }
+                                                    
+                                                    if isSearchExpanded {
+                                                        HStack {
+                                                            TextField("目的地を検索 (例: 東京タワー)", text: $searchText, onCommit: {
+                                                                vehicleManager.searchAndNavigate(query: searchText)
+                                                                withAnimation { isSearchExpanded = false }
+                                                                searchText = ""
+                                                            })
+                                                            .font(.system(size: 12, design: .monospaced))
+                                                            .foregroundColor(.white)
+                                                            
+                                                            Button(action: {
+                                                                vehicleManager.searchAndNavigate(query: searchText)
+                                                                withAnimation { isSearchExpanded = false }
+                                                                searchText = ""
+                                                            }) {
+                                                                Text("移動")
+                                                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                                                    .padding(.horizontal, 10)
+                                                                    .padding(.vertical, 6)
+                                                                    .background(currentPrimaryColor)
+                                                                    .foregroundColor(.black)
+                                                                    .cornerRadius(8)
+                                                            }
+                                                        }
+                                                        .padding(.horizontal, 12)
+                                                        .frame(width: 210, height: 44)
+                                                        .background(Color.black.opacity(0.85))
+                                                        .cornerRadius(22)
+                                                        .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor.opacity(0.6), lineWidth: 1))
+                                                        .transition(.scale(scale: 0.8, anchor: .leading).combined(with: .opacity))
+                                                    }
                                                 }
-                                                .padding(.horizontal, 14)
-                                                .padding(.vertical, 8)
-                                                .background(Color.black.opacity(0.75))
-                                                .cornerRadius(22)
-                                                .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor.opacity(0.5), lineWidth: 1))
-                                                .shadow(radius: 4)
                                             }
                                             .padding(.top, 12)
                                             .padding(.leading, 12)
