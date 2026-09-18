@@ -600,7 +600,7 @@ struct MultiThemeBootLoadingView: View {
                 Spacer()
             }
         }
-        .ignoresSafeArea()
+        .ignoresSafeArea(.all, edges: .all)
         .onAppear {
             withAnimation(.spring(response: 0.8, dampingFraction: 0.5)) {
                 animVal = 1.0
@@ -652,7 +652,7 @@ private struct SakuraFallingContentView: View {
             }
         }
         .allowsHitTesting(false)
-        .ignoresSafeArea()
+        .ignoresSafeArea(.all, edges: .all)
     }
 }
 
@@ -662,17 +662,16 @@ struct BackgroundNeonFlowView: View {
     var primaryColor: Color
     
     var body: some View {
-        RoundedRectangle(cornerRadius: 30)
+        RoundedRectangle(cornerRadius: 0)
             .stroke(
                 AngularGradient(
                     gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, .white, primaryColor, primaryColor.opacity(0.2)]),
                     center: .center,
                     angle: .degrees(isAnimating ? 360 : 0)
                 ),
-                lineWidth: 5
+                lineWidth: 4
             )
-            .shadow(color: primaryColor, radius: 12)
-            .shadow(color: primaryColor.opacity(0.4), radius: 4)
+            .shadow(color: primaryColor, radius: 10)
             .allowsHitTesting(false)
             .ignoresSafeArea(.all, edges: .all)
             .onAppear {
@@ -863,7 +862,7 @@ struct PerformanceTestDashboardView: View {
     var body: some View {
         TabView {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.black.ignoresSafeArea(.all, edges: .all)
                 VStack(spacing: 24) {
                     Text("0 - 100 KM/H 加速測試")
                         .font(.system(size: 20, weight: .black, design: .monospaced))
@@ -894,7 +893,7 @@ struct PerformanceTestDashboardView: View {
             }
             
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.black.ignoresSafeArea(.all, edges: .all)
                 VStack(spacing: 24) {
                     Text("0 - 100 公尺短距加速")
                         .font(.system(size: 20, weight: .black, design: .monospaced))
@@ -1022,7 +1021,7 @@ struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.black.ignoresSafeArea(.all, edges: .all)
             List {
                 ForEach(records) { record in
                     NavigationLink(destination: HistoryDetailMapView(record: record)) {
@@ -1039,7 +1038,7 @@ struct HistoryRecordsView: View {
             }
         }
         .navigationTitle("行車歷史封存")
-        .ignoresSafeArea(.all, edges: .bottom)
+        .ignoresSafeArea(.all, edges: .all)
     }
     private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df }
 }
@@ -1053,7 +1052,7 @@ struct HistoryDetailMapView: View {
             isInteractive: true,
             onMapTap: { _ in }
         )
-        .ignoresSafeArea()
+        .ignoresSafeArea(.all, edges: .all)
         .navigationTitle("軌跡回放")
     }
 }
@@ -1206,11 +1205,10 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // 絕對定位的底色填滿整個 Window 邊緣，徹底解決黑邊
+                // 1. 滿版背景色強制延伸至所有螢幕邊緣
                 selectedTheme.backgroundGradientColors.first?
                     .ignoresSafeArea(.all, edges: .all)
                 
-                // 1. 滿版漸層背景，強制忽略所有安全區域邊緣
                 LinearGradient(
                     colors: selectedTheme.backgroundGradientColors,
                     startPoint: .topLeading,
@@ -1218,7 +1216,7 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea(.all, edges: .all)
                 
-                // 2. 櫻花動態背景（若啟用）
+                // 2. 櫻花動態背景
                 if selectedTheme == .sakura && enableSakuraBackground {
                     SakuraFallingView(density: sakuraDensity)
                         .ignoresSafeArea(.all, edges: .all)
@@ -1237,7 +1235,7 @@ struct ContentView: View {
                     .zIndex(50)
                 } else {
                     ZStack {
-                        // 3. 霓虹外框，確保填滿全螢幕
+                        // 3. 霓虹外框強制佔滿全螢幕
                         BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
                             .ignoresSafeArea(.all, edges: .all)
                             .zIndex(0)
@@ -1338,6 +1336,7 @@ struct ContentView: View {
                                     .padding(.top, 24)
                                     .padding(.leading, 24)
                                 }
+                                .ignoresSafeArea(.all, edges: .all)
                             } else {
                                 HStack(spacing: 12) {
                                     VStack(spacing: 10) {
@@ -1507,7 +1506,6 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 16)
                 }
             }
             .navigationBarHidden(true)
@@ -1563,6 +1561,5 @@ struct ContentView: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .ignoresSafeArea(.all, edges: .all)
-        .background(selectedTheme.backgroundGradientColors.first?.ignoresSafeArea(.all))
     }
 }
