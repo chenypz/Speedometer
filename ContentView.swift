@@ -19,14 +19,30 @@ struct HistoryRecord: Identifiable, Codable {
     let zeroToOneHundredTime: Double
     let maxGForce: Double
     let tripDistance: Double
+    let routeCoordinates: [CodableCoordinate] // 用於行車軌跡回放
+}
+
+struct CodableCoordinate: Codable {
+    let latitude: Double
+    let longitude: Double
+    
+    init(_ coordinate: CLLocationCoordinate2D) {
+        self.latitude = coordinate.latitude
+        self.longitude = coordinate.longitude
+    }
+    
+    var coordinate: CLLocationCoordinate2D {
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
 }
 
 // MARK: - 測速照相資料結構
 struct SpeedCamera: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
-    let speedLimit: Double // 速限 (km/h)
-    let description: String // 地點描述
+    let speedLimit: Double
+    let description: String
+    var isTemporary: BooleanLiteralType = false // 標記是否為社群回報的流動測速
 }
 
 // MARK: - 2. 佈景主題設定
@@ -58,7 +74,6 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Color 擴充：支援存入 UserDefaults
 extension Color: @retroactive RawRepresentable {
     public init?(rawValue: String) {
         let components = rawValue.components(separatedBy: ",")
@@ -110,12 +125,13 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     // 測速照相預警狀態
     @Published var nearestCameraAlert: String? = nil
     
-    // 內建有效之全台示範與常見測速照相點資料庫（可自行擴充）
-    private let speedCameras: [SpeedCamera] = [
-        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654), speedLimit: 50, description: "台北信義路示範測速點"),
-        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0400, longitude: 121.5700), speedLimit: 60, description: "台北忠孝東路示範測速點"),
-        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 24.1477, longitude: 120.6736), speedLimit: 50, description: "台中台灣大道示範測速點"),
-        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 22.6273, longitude: 120.3014), speedLimit: 50, description: "高雄中山一路示範測速點")
+    // 行車軌跡紀錄點
+    @Published var recordedPath: [CLLocationCoordinate2D] = []
+    
+    // 測速照相資料庫（包含固定與動態社群回報點）
+    @Published var speedCameras: [SpeedCamera] = [
+        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654), speedLimit: 50, description: "台北信義路固定測速"),
+        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0400, longitude: 121.5700), speedLimit: 60, description: "台北忠孝東路固定測速")
     ]
     
     private var lastLocation: CLLocation? = nil
@@ -152,6 +168,20 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         hasReached100 = false
         accelStartTime = nil
         lastLocation = nil
+        recordedPath.removeAll()
+    }
+    
+    // **新功能：社群回報流動測速**
+    func reportMobileSpeedTrap() {
+        let newTrap = SpeedCamera(
+            coordinate: currentLocation,
+            speedLimit: 50, // 預設速限
+            description: "⚠️ 用戶回報流動測速/三腳架",
+            isTemporary: true
+        )
+        speedCameras.append(newTrap)
+        nearestCameraAlert = "已成功回報流動測速點！"
+        AudioServicesPlaySystemSound(1016) // 提示音
     }
     
     func searchAndNavigate(query: String) {
@@ -222,10 +252,12 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard let newLocation = locations.last else { return }
         currentLocation = newLocation.coordinate
         
+        // **記錄行車軌跡點**
+        recordedPath.append(newLocation.coordinate)
+        
         let speedKmh = max(0, newLocation.speed * 3.6)
         self.speed = speedKmh
         
-        // 自動檢查鄰近測速照相
         checkSpeedCameras(currentLoc: newLocation, currentSpeed: speedKmh)
         
         if speedKmh > maxSpeed { maxSpeed = speedKmh }
@@ -253,25 +285,24 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    // 測速照相距離比對與警報邏輯
     private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
-        let alertDistance: CLLocationDistance = 400.0 // 400公尺前開始預警
+        let alertDistance: CLLocationDistance = 400.0
         
         for camera in speedCameras {
             let cameraLocation = CLLocation(latitude: camera.coordinate.latitude, longitude: camera.coordinate.longitude)
             let distance = currentLoc.distance(from: cameraLocation)
             
             if distance <= alertDistance {
-                nearestCameraAlert = "前方 \(Int(distance))m 測速 (\(Int(camera.speedLimit))km)"
-                
-                // 超速時自動播放警告音效
+                nearestCameraAlert = "\(camera.description) 剩 \(Int(distance))m (速限 \(Int(camera.speedLimit))km)"
                 if currentSpeed > camera.speedLimit {
                     AudioServicesPlaySystemSound(1007)
                 }
                 return
             }
         }
-        nearestCameraAlert = nil
+        if nearestCameraAlert?.contains("已成功回報") == false {
+            nearestCameraAlert = nil
+        }
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
@@ -491,11 +522,12 @@ struct BackgroundNeonFlowView: View {
     }
 }
 
-// MARK: - 6. 互動式導航地圖
+// MARK: - 6. 互動式導航地圖（支援路線回放）
 struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
     var destinationCoordinate: CLLocationCoordinate2D?
+    var historyPath: [CLLocationCoordinate2D]? // 用於歷史軌跡回放
     var isInteractive: Bool = true
     var onMapTap: (CLLocationCoordinate2D) -> Void
     
@@ -504,7 +536,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.showsUserLocation = true
-        mapView.userTrackingMode = .followWithHeading
+        mapView.userTrackingMode = isInteractive ? .followWithHeading : .none
         mapView.isZoomEnabled = isInteractive
         mapView.isScrollEnabled = isInteractive
         mapView.isRotateEnabled = isInteractive
@@ -512,8 +544,10 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         mapView.showsTraffic = false
         mapView.delegate = context.coordinator
         
-        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
-        mapView.addGestureRecognizer(tapGesture)
+        if isInteractive {
+            let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+            mapView.addGestureRecognizer(tapGesture)
+        }
         return mapView
     }
     
@@ -524,7 +558,21 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         uiView.removeOverlays(uiView.overlays)
         uiView.removeAnnotations(uiView.annotations)
         
-        if let polyline = routePolyline { uiView.addOverlay(polyline) }
+        // 繪製導航藍色路線
+        if let polyline = routePolyline {
+            uiView.addOverlay(polyline)
+        }
+        
+        // 繪製歷史行車軌跡回放線條
+        if let path = historyPath, !path.isEmpty {
+            let polyline = MKPolyline(coordinates: path, count: path.count)
+            uiView.addOverlay(polyline)
+            if let firstCoord = path.first {
+                let region = MKCoordinateRegion(center: firstCoord, span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05))
+                uiView.setRegion(region, animated: true)
+            }
+        }
+        
         if let dest = destinationCoordinate {
             let annotation = MKPointAnnotation()
             annotation.coordinate = dest
@@ -547,7 +595,8 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
-                renderer.strokeColor = UIColor.cyan
+                // 如果是歷史軌跡用橘色，導航用藍色
+                renderer.strokeColor = parent.historyPath != nil ? UIColor.systemOrange : UIColor.cyan
                 renderer.lineWidth = 6
                 return renderer
             }
@@ -709,7 +758,7 @@ struct OverspeedLogsView: View {
     private var timeFormatter: DateFormatter { let df = DateFormatter(); df.timeStyle = .medium; return df }
 }
 
-// MARK: - 12. 行程歷史封存紀錄頁面
+// MARK: - 12. 行程歷史封存與軌跡回放頁面
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     
@@ -718,22 +767,27 @@ struct HistoryRecordsView: View {
             Color.black.ignoresSafeArea()
             List {
                 ForEach(records) { record in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(record.date, formatter: dateFormatter).font(.system(size: 12, design: .monospaced)).foregroundColor(.gray)
-                            Spacer()
-                            Text(String(format: "%.2f km", record.tripDistance)).font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundColor(.green)
-                        }
-                        HStack(spacing: 20) {
-                            VStack(alignment: .leading) {
-                                Text("最高速度").font(.system(size: 10)).foregroundColor(.gray)
-                                Text(String(format: "%.0f", record.maxSpeed)).font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.white)
+                    NavigationLink(destination: HistoryDetailMapView(record: record)) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(record.date, formatter: dateFormatter).font(.system(size: 12, design: .monospaced)).foregroundColor(.gray)
+                                Spacer()
+                                Text(String(format: "%.2f km", record.tripDistance)).font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundColor(.green)
                             }
-                            VStack(alignment: .leading) {
-                                Text("0-100加速").font(.system(size: 10)).foregroundColor(.gray)
-                                Text(record.zeroToOneHundredTime > 0 ? String(format: "%.1fs", record.zeroToOneHundredTime) : "---").font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.orange)
+                            HStack(spacing: 20) {
+                                VStack(alignment: .leading) {
+                                    Text("最高速度").font(.system(size: 10)).foregroundColor(.gray)
+                                    Text(String(format: "%.0f", record.maxSpeed)).font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.white)
+                                }
+                                VStack(alignment: .leading) {
+                                    Text("0-100加速").font(.system(size: 10)).foregroundColor(.gray)
+                                    Text(record.zeroToOneHundredTime > 0 ? String(format: "%.1fs", record.zeroToOneHundredTime) : "---").font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.orange)
+                                }
+                                Spacer()
+                                Text("點擊回放軌跡 ➔").font(.system(size: 11, weight: .bold)).foregroundColor(.cyan)
                             }
                         }
+                        .padding(.vertical, 4)
                     }
                     .listRowBackground(Color.black)
                 }
@@ -745,6 +799,39 @@ struct HistoryRecordsView: View {
         .navigationBarItems(trailing: Button("全部刪除") { records.removeAll() }.foregroundColor(.red))
     }
     private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df }
+}
+
+// MARK: - 行車軌跡詳細回放畫面
+struct HistoryDetailMapView: View {
+    let record: HistoryRecord
+    
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            InteractiveNavigationMapView(
+                coordinate: record.routeCoordinates.first?.coordinate ?? CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654),
+                historyPath: record.routeCoordinates.map { $0.coordinate },
+                isInteractive: true,
+                onMapTap: { _ in }
+            )
+            .ignoresSafeArea()
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text("行程軌跡回放數據").font(.system(size: 14, weight: .bold)).foregroundColor(.cyan)
+                HStack {
+                    Text("極速: \(Int(record.maxSpeed)) km/h")
+                    Spacer()
+                    Text("總里程: \(String(format: "%.2f", record.tripDistance)) km")
+                }
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.white)
+            }
+            .padding()
+            .background(Color.black.opacity(0.85))
+            .cornerRadius(16)
+            .padding()
+        }
+        .navigationTitle("軌跡地圖回放")
+    }
 }
 
 // MARK: - 13. 設定選單
@@ -791,7 +878,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 14. 主畫面 ContentView (內建測速照相警告橫幅)
+// MARK: - 14. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     @State private var isBootLoaded: Bool = false
@@ -866,6 +953,7 @@ struct ContentView: View {
                                         )
                                         .ignoresSafeArea()
                                         
+                                        // 地圖上方的控制按鈕列
                                         HStack(alignment: .top, spacing: 12) {
                                             Button(action: { showMap.toggle() }) {
                                                 Image(systemName: "gauge.with.needle")
@@ -875,6 +963,19 @@ struct ContentView: View {
                                                     .foregroundColor(currentPrimaryColor)
                                                     .cornerRadius(22)
                                                     .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
+                                            }
+                                            
+                                            // **新功能：清除導航路線按鈕（當有導航時顯示）**
+                                            if vehicleManager.isNavigating {
+                                                Button(action: { vehicleManager.cancelNavigation() }) {
+                                                    Image(systemName: "xmark.circle.fill")
+                                                        .font(.system(size: 16, weight: .bold))
+                                                        .frame(width: 44, height: 44)
+                                                        .background(Color.red.opacity(0.8))
+                                                        .foregroundColor(.white)
+                                                        .cornerRadius(22)
+                                                        .shadow(color: .red, radius: 4)
+                                                }
                                             }
                                             
                                             HStack(spacing: 8) {
@@ -941,10 +1042,22 @@ struct ContentView: View {
                                                 .cornerRadius(12)
                                             }
                                             
-                                            Button(action: { showSettings = true }) {
+                                            // **新功能：社群回報流動測速按鈕**
+                                            Button(action: { vehicleManager.reportMobileSpeedTrap() }) {
                                                 VStack(spacing: 4) {
-                                                    Image(systemName: "gearshape.fill").font(.system(size: 14))
-                                                    Text("設定").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 14))
+                                                    Text("回報照相").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                }
+                                                .frame(width: 52, height: 52)
+                                                .background(Color.red.opacity(0.3))
+                                                .foregroundColor(.red)
+                                                .cornerRadius(12)
+                                            }
+                                            
+                                            Button(action: { showHistoryRecords = true }) {
+                                                VStack(spacing: 4) {
+                                                    Image(systemName: "list.bullet.rectangle.portrait.fill").font(.system(size: 14))
+                                                    Text("紀錄").font(.system(size: 8, weight: .bold, design: .monospaced))
                                                 }
                                                 .frame(width: 52, height: 52)
                                                 .background(Color.white.opacity(0.1))
@@ -955,7 +1068,15 @@ struct ContentView: View {
                                             Spacer()
                                             
                                             Button(action: {
-                                                let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
+                                                let history = HistoryRecord(
+                                                    id: UUID(),
+                                                    date: Date(),
+                                                    maxSpeed: vehicleManager.maxSpeed,
+                                                    zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime,
+                                                    maxGForce: vehicleManager.maxGForce,
+                                                    tripDistance: vehicleManager.tripDistance,
+                                                    routeCoordinates: vehicleManager.recordedPath.map { CodableCoordinate($0) }
+                                                )
                                                 historyRecords.append(history)
                                                 vehicleManager.resetData()
                                             }) {
@@ -1022,7 +1143,7 @@ struct ContentView: View {
                                     .padding(.vertical, 10)
                                 }
                                 
-                                // --- 自動測速照相警告橫幅 (置頂顯示) ---
+                                // --- 自動測速照相警告橫幅 ---
                                 if let cameraAlert = vehicleManager.nearestCameraAlert {
                                     HStack(spacing: 8) {
                                         Image(systemName: "camera.fill")
@@ -1065,7 +1186,6 @@ struct ContentView: View {
             .background(
                 Group {
                     NavigationLink(destination: SettingsView(selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }), speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor, isNetworkBoostEnabled: $isNetworkBoostEnabled), isActive: $showSettings) { EmptyView() }
-                    NavigationLink(destination: OverspeedLogsView(logs: $overspeedLogs), isActive: $showOverspeedLogs) { EmptyView() }
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
                 }
             )
