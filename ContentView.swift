@@ -600,6 +600,7 @@ struct MultiThemeBootLoadingView: View {
                 Spacer()
             }
         }
+        .ignoresSafeArea()
         .onAppear {
             withAnimation(.spring(response: 0.8, dampingFraction: 0.5)) {
                 animVal = 1.0
@@ -655,25 +656,25 @@ private struct SakuraFallingContentView: View {
     }
 }
 
-// MARK: - 7. 強化版超跑流光霓虹框（已對準手機邊框修復）
+// MARK: - 7. 強化版超跑流光霓虹框（完美貼合全螢幕）
 struct BackgroundNeonFlowView: View {
     @State private var isAnimating = false
     var primaryColor: Color
     
     var body: some View {
-        RoundedRectangle(cornerRadius: 40)
+        RoundedRectangle(cornerRadius: 30)
             .stroke(
                 AngularGradient(
                     gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, .white, primaryColor, primaryColor.opacity(0.2)]),
                     center: .center,
                     angle: .degrees(isAnimating ? 360 : 0)
                 ),
-                lineWidth: 6
+                lineWidth: 5
             )
-            .shadow(color: primaryColor, radius: 15)
-            .shadow(color: primaryColor.opacity(0.5), radius: 6)
+            .shadow(color: primaryColor, radius: 12)
+            .shadow(color: primaryColor.opacity(0.4), radius: 4)
             .allowsHitTesting(false)
-            .ignoresSafeArea()
+            .ignoresSafeArea(.all)
             .onAppear {
                 withAnimation(Animation.linear(duration: 3.0).repeatForever(autoreverses: false)) {
                     isAnimating = true
@@ -925,6 +926,7 @@ struct PerformanceTestDashboardView: View {
         }
         .accentColor(primaryColor)
         .navigationTitle("車輛效能測試")
+        .ignoresSafeArea(.all, edges: .all)
     }
 }
 
@@ -1037,6 +1039,7 @@ struct HistoryRecordsView: View {
             }
         }
         .navigationTitle("行車歷史封存")
+        .ignoresSafeArea(.all, edges: .bottom)
     }
     private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df }
 }
@@ -1203,7 +1206,7 @@ struct ContentView: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .ignoresSafeArea(.all, edges: .all)
+                .ignoresSafeArea(.all, edges: .all) // 讓背景強制填滿整個 iPhone 11 螢幕
                 
                 if selectedTheme == .sakura && enableSakuraBackground {
                     SakuraFallingView(density: sakuraDensity)
@@ -1318,7 +1321,7 @@ struct ContentView: View {
                                             }
                                         }
                                     }
-                                    .padding(.top, 24)
+                                    .padding(.top, 44)
                                     .padding(.leading, 24)
                                 }
                             } else {
@@ -1494,7 +1497,7 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
-            .ignoresSafeArea(.all, edges: .all)
+            .ignoresSafeArea(.all, edges: .all) // 強制主畫面忽略安全區域，填滿全螢幕
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
