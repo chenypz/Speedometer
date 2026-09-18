@@ -494,7 +494,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 三種風格完全獨立的開場動畫（內含日文測速警告標語）
+// MARK: - 5. 三種風格完全獨立的開場動畫（櫻花風升級為：櫻花爆發 ➔ 櫻花樹聚攏 ➔ 白狐衝向螢幕 ➔ 黑紅日文警告 ➔ 櫻花炸裂進入主畫面）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -508,6 +508,10 @@ struct MultiThemeBootLoadingView: View {
     @State private var warningFlash: Bool = false
     @State private var screenShake: CGFloat = 0.0
     
+    @State private var sakuraPhase: Int = 0
+    @State private var foxScale: CGFloat = 0.1
+    @State private var warningGlow: CGFloat = 0.0
+    
     var themeColor: Color {
         switch selectedTheme {
         case .skull: return .red
@@ -520,7 +524,7 @@ struct MultiThemeBootLoadingView: View {
         ZStack {
             Color.black.ignoresSafeArea(.all, edges: .all)
             
-            // ─── 1. 骷髏暴力風：血色地獄雷射與暴走震動特效 ───
+            // ─── 1. 骷髏暴力風 ───
             if selectedTheme == .skull {
                 ZStack {
                     ForEach(0..<4, id: \.self) { i in
@@ -545,7 +549,7 @@ struct MultiThemeBootLoadingView: View {
                     }
                 }
             }
-            // ─── 2. 賽伯戰爭風：數位矩陣網格與高科技雷達掃描 ───
+            // ─── 2. 賽伯戰爭風 ───
             else if selectedTheme == .cyberpunk {
                 ZStack {
                     ForEach(0..<5, id: \.self) { i in
@@ -569,63 +573,154 @@ struct MultiThemeBootLoadingView: View {
                     }
                 }
             }
-            // ─── 3. 日本櫻花風：浪漫櫻雪紛飛與柔和霓虹暈染 ───
+            // ─── 3. 日本櫻花風（自訂順序動畫） ───
             else {
                 ZStack {
-                    ForEach(0..<6, id: \.self) { i in
-                        Circle()
-                            .stroke(Color(red: 1.0, green: 0.6, blue: 0.8).opacity(0.4), lineWidth: 3)
-                            .frame(width: CGFloat(80 + i * 65), height: CGFloat(80 + i * 65))
-                            .scaleEffect(effectScale)
-                    }
-                    if flashScreen { Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.7).ignoresSafeArea() }
+                    if flashScreen { Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.85).ignoresSafeArea() }
                     
-                    ForEach(0..<45, id: \.self) { i in
-                        Ellipse()
-                            .fill(Color(red: 1.0, green: 0.7, blue: 0.85))
-                            .frame(width: 14, height: 9)
-                            .offset(
-                                x: particleExplode ? CGFloat(cos(Double(i) * 8.0) * CGFloat.random(in: 50...350)) : 0,
-                                y: particleExplode ? CGFloat(sin(Double(i) * 5.0) * CGFloat.random(in: 50...400) + 100) : 0
-                            )
-                            .rotationEffect(.degrees(rotateAngle * Double(i)))
-                            .opacity(particleExplode ? 0.0 : 1.0)
+                    if sakuraPhase <= 1 {
+                        ZStack {
+                            ForEach(0..<6, id: \.self) { i in
+                                Circle()
+                                    .stroke(Color(red: 1.0, green: 0.6, blue: 0.8).opacity(sakuraPhase == 1 ? 0.8 : 0.4), lineWidth: 3)
+                                    .frame(width: CGFloat(80 + i * 65), height: CGFloat(80 + i * 65))
+                                    .scaleEffect(sakuraPhase == 1 ? (1.0 - effectScale * 0.2) : effectScale)
+                            }
+                            
+                            if sakuraPhase == 1 {
+                                Image(systemName: "tree.fill")
+                                    .font(.system(size: 100))
+                                    .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.85))
+                                    .shadow(color: .white, radius: 20)
+                                    .scaleEffect(animVal)
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                            
+                            ForEach(0..<50, id: \.self) { i in
+                                Ellipse()
+                                    .fill(i % 2 == 0 ? Color.white : Color(red: 1.0, green: 0.65, blue: 0.85))
+                                    .frame(width: 14, height: 9)
+                                    .offset(
+                                        x: sakuraPhase == 1 ? 0 : (particleExplode ? CGFloat(cos(Double(i) * 8.0) * CGFloat.random(in: 60...380)) : 0),
+                                        y: sakuraPhase == 1 ? 0 : (particleExplode ? CGFloat(sin(Double(i) * 5.0) * CGFloat.random(in: 60...400)) : 0)
+                                    )
+                                    .rotationEffect(.degrees(rotateAngle * Double(i)))
+                                    .opacity(sakuraPhase == 1 ? 0.2 : (particleExplode ? 0.0 : 1.0))
+                            }
+                        }
+                    }
+                    
+                    if sakuraPhase == 2 {
+                        ZStack {
+                            VStack(spacing: 12) {
+                                Image(systemName: "hare.fill")
+                                    .font(.system(size: 120))
+                                    .foregroundColor(.white)
+                                    .shadow(color: Color(red: 1.0, green: 0.4, blue: 0.7), radius: 30)
+                                    .scaleEffect(foxScale)
+                                    .rotationEffect(.degrees(warningFlash ? 5 : -5))
+                                
+                                Text("霊狐降臨 • 神速起動")
+                                    .font(.system(size: 18, weight: .black, design: .monospaced))
+                                    .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.9))
+                                    .shadow(color: .red, radius: 10)
+                            }
+                            .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    
+                    if sakuraPhase >= 3 {
+                        ZStack {
+                            Color.black.opacity(0.95).ignoresSafeArea()
+                            
+                            VStack(spacing: 16) {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.black)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(
+                                                AngularGradient(
+                                                    gradient: Gradient(colors: [.red, .black, .red, .white, .red]),
+                                                    center: .center,
+                                                    angle: .degrees(rotateAngle * 2)
+                                                ),
+                                                lineWidth: 4
+                                            )
+                                    )
+                                    .frame(width: 320, height: 110)
+                                    .shadow(color: .red.opacity(0.9), radius: 15)
+                                    .overlay(
+                                        VStack(spacing: 8) {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "exclamationmark.triangle.fill")
+                                                    .foregroundColor(.yellow)
+                                                    .font(.system(size: 18))
+                                                Text("⚠️ 警戒発動 ⚠️")
+                                                    .font(.system(size: 16, weight: .black, design: .monospaced))
+                                                    .foregroundColor(.white)
+                                            }
+                                            Text("速度超過注意 • レーダー監視")
+                                                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                                .foregroundColor(.red)
+                                        }
+                                    )
+                            }
+                            .scaleEffect(warningGlow)
+                            .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    
+                    if sakuraPhase == 4 {
+                        ZStack {
+                            Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.6).ignoresSafeArea()
+                            ForEach(0..<60, id: \.self) { i in
+                                Circle()
+                                    .fill(Color.white)
+                                    .frame(width: CGFloat.random(in: 6...16), height: CGFloat.random(in: 6...16))
+                                    .offset(
+                                        x: CGFloat(cos(Double(i) * 6.0) * CGFloat.random(in: 100...500)),
+                                        y: CGFloat(sin(Double(i) * 6.0) * CGFloat.random(in: 100...500))
+                                    )
+                                    .opacity(0.0)
+                            }
+                        }
                     }
                 }
             }
             
-            Group {
-                if bootStep == 0 {
-                    VStack(spacing: 22) {
-                        Image(systemName: selectedTheme == .skull ? "skull.fill" : (selectedTheme == .cyberpunk ? "cpu" : "flower.tulip.fill"))
-                            .font(.system(size: 110))
-                            .foregroundColor(themeColor)
-                            .shadow(color: themeColor, radius: 40)
-                            .scaleEffect(animVal)
-                            .rotationEffect(.degrees(warningFlash ? 10 : -10))
-                        
-                        Text(selectedTheme == .skull ? "⚠️ 速度取締注意 • 警報発動 ⚠️" : (selectedTheme == .cyberpunk ? "⚡ レーダー探知機 • オンライン ⚡" : "🌸 オービス監視中 • 安全運転 🌸"))
-                            .font(.system(size: selectedTheme == .sakura ? 18 : 16, weight: .black, design: .monospaced))
-                            .foregroundColor(.white)
-                            .kerning(2)
-                            .shadow(color: themeColor, radius: 15)
+            if selectedTheme != .sakura {
+                Group {
+                    if bootStep == 0 {
+                        VStack(spacing: 22) {
+                            Image(systemName: selectedTheme == .skull ? "skull.fill" : "cpu")
+                                .font(.system(size: 110))
+                                .foregroundColor(themeColor)
+                                .shadow(color: themeColor, radius: 40)
+                                .scaleEffect(animVal)
+                                .rotationEffect(.degrees(warningFlash ? 10 : -10))
+                            
+                            Text(selectedTheme == .skull ? "⚠️ 速度取締注意 • 警報発動 ⚠️" : "⚡ レーダー探知機 • オンライン ⚡")
+                                .font(.system(size: 16, weight: .black, design: .monospaced))
+                                .foregroundColor(.white)
+                                .kerning(2)
+                                .shadow(color: themeColor, radius: 15)
+                        }
+                        .transition(.opacity.combined(with: .scale(scale: 0.5)))
+                    } else {
+                        VStack(spacing: 20) {
+                            Text(selectedTheme == .skull ? "⚠️ 暴力極限超速模式解禁 ⚠️" : "⚡ 網路核心系統完全同步 ⚡")
+                                .font(.system(size: 18, weight: .black, design: .monospaced))
+                                .foregroundColor(themeColor)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(themeColor.opacity(0.25))
+                                .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(themeColor, lineWidth: 2))
+                        }
+                        .transition(.scale.combined(with: .opacity))
                     }
-                    .transition(.opacity.combined(with: .scale(scale: 0.5)))
-                } else {
-                    VStack(spacing: 20) {
-                        Text(selectedTheme == .skull ? "⚠️ 暴力極限超速模式解禁 ⚠️" : (selectedTheme == .cyberpunk ? "⚡ 網路核心系統完全同步 ⚡" : "🌸 桜の極致 • 準備發車 🌸"))
-                            .font(.system(size: 18, weight: .black, design: .monospaced))
-                            .foregroundColor(themeColor)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(themeColor.opacity(0.25))
-                            .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(themeColor, lineWidth: 2))
-                    }
-                    .transition(.scale.combined(with: .opacity))
                 }
             }
-            .offset(x: CGFloat.random(in: -screenShake...screenShake), y: CGFloat.random(in: -screenShake...screenShake))
             
             VStack {
                 HStack {
@@ -661,7 +756,7 @@ struct MultiThemeBootLoadingView: View {
             
             withAnimation(.easeIn(duration: 0.08)) {
                 flashScreen = true
-                screenShake = selectedTheme == .skull ? 18.0 : (selectedTheme == .cyberpunk ? 8.0 : 3.0)
+                screenShake = selectedTheme == .skull ? 18.0 : 6.0
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
                 withAnimation(.easeOut(duration: 0.3)) {
@@ -674,25 +769,47 @@ struct MultiThemeBootLoadingView: View {
                 animVal = 1.0
                 effectScale = 3.5
             }
-            
             withAnimation(Animation.easeOut(duration: 1.6)) {
                 particleExplode = true
             }
-            
             withAnimation(Animation.linear(duration: 2.5).repeatForever(autoreverses: false)) {
                 rotateAngle = 360.0
             }
-            
             withAnimation(Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
                 warningFlash.toggle()
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
-                withAnimation(.easeInOut(duration: 0.3)) { bootStep = 1 }
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
-                withAnimation(.easeOut(duration: 0.4)) { isFinished = true }
+            if selectedTheme == .sakura {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    withAnimation(.easeInOut(duration: 0.5)) { sakuraPhase = 1 }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                    AudioServicesPlaySystemSound(1104)
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
+                        sakuraPhase = 2
+                        foxScale = 2.8
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    AudioServicesPlaySystemSound(1005)
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        sakuraPhase = 3
+                        warningGlow = 1.1
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                    withAnimation(.easeInOut(duration: 0.4)) { sakuraPhase = 4 }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.6) {
+                    withAnimation(.easeOut(duration: 0.3)) { isFinished = true }
+                }
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+                    withAnimation(.easeInOut(duration: 0.3)) { bootStep = 1 }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
+                    withAnimation(.easeOut(duration: 0.4)) { isFinished = true }
+                }
             }
         }
     }
