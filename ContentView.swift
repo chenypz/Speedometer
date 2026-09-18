@@ -1506,8 +1506,11 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // ▼ 關鍵修正區塊：徹底消除安全區域限制
+            .navigationTitle("")
             .navigationBarHidden(true)
-            .ignoresSafeArea(.all, edges: .all)
+            .statusBarHidden(true) // 隱藏頂部狀態列(時間、電池等)
+            .ignoresSafeArea(.all, edges: .all) // 強制覆蓋全螢幕
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
@@ -1559,6 +1562,8 @@ struct ContentView: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // ▼ 在最外層再次宣告隱藏系統 UI
+        .statusBarHidden(true)
         .ignoresSafeArea(.all, edges: .all)
     }
 }
