@@ -303,10 +303,8 @@ struct BootLoadingView: View {
                     
                     Text("VORTEX RACING HUD")
                         .font(.system(size: 24, weight: .black, design: .monospaced))
-                        .tracking(6)
-                        .foregroundStyle(
-                            LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), .white, .pink], startPoint: .leading, endPoint: .trailing)
-                        )
+                        .kerning(6)
+                        .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
                         .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.8), radius: 6)
                     
                     VStack(alignment: .leading, spacing: 10) {
@@ -334,7 +332,6 @@ struct BootLoadingView: View {
                         Text("警告")
                             .font(.system(size: 22, weight: .black))
                             .foregroundColor(.white)
-                            .tracking(6)
                         Spacer()
                         Text("警告 / 法律遵守事項")
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
@@ -1080,7 +1077,7 @@ struct ContentView: View {
                                                     Text("GPS SPEED")
                                                         .font(.system(size: 11, weight: .bold, design: .monospaced))
                                                         .foregroundColor(.gray)
-                                                        .tracking(2)
+                                                        .kerning(2)
                                                     
                                                     Text(String(format: "%.0f", vehicleManager.speed))
                                                         .font(.system(size: 78, weight: .black, design: .monospaced))
