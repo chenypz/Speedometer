@@ -348,10 +348,10 @@ struct BootLoadingView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(Color(.systemCyan).opacity(0.3))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.systemCyan), lineWidth: 1.5))
+                            .background(.cyan.opacity(0.3))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(.cyan, lineWidth: 1.5))
                             .cornerRadius(16)
-                            .shadow(color: Color(.systemCyan), radius: 5)
+                            .shadow(color: .cyan, radius: 5)
                     }
                     .padding(.trailing, 24)
                     .padding(.bottom, 24)
@@ -363,25 +363,25 @@ struct BootLoadingView: View {
                 VStack(spacing: 30) {
                     ZStack {
                         Circle()
-                            .stroke(Color(.systemCyan), lineWidth: 4)
+                            .stroke(.cyan, lineWidth: 4)
                             .frame(width: 180, height: 180)
                             .scaleEffect(shockwaveScale)
                             .opacity(shockwaveOpacity)
                         
                         ForEach(0..<6, id: \.self) { i in
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(LinearGradient(colors: [Color(.systemCyan), Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
+                                .fill(LinearGradient(colors: [.cyan, Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
                                 .frame(width: 24, height: 75)
                                 .offset(y: -55)
                                 .rotationEffect(.degrees(Double(i) * 60.0 + armorRotation))
-                                .shadow(color: Color(.systemCyan), radius: 8)
+                                .shadow(color: .cyan, radius: 8)
                         }
                         
                         Circle()
-                            .fill(RadialGradient(gradient: Gradient(colors: [.white, Color(.systemCyan), .clear]), center: .center, startRadius: 2, endRadius: 50))
+                            .fill(RadialGradient(gradient: Gradient(colors: [.white, .cyan, .clear]), center: .center, startRadius: 2, endRadius: 50))
                             .frame(width: 100, height: 100)
                             .scaleEffect(coreGlow)
-                            .shadow(color: Color(.systemCyan), radius: 20)
+                            .shadow(color: .cyan, radius: 20)
                         
                         Image(systemName: "cpu")
                             .font(.system(size: 40, weight: .bold))
@@ -393,8 +393,8 @@ struct BootLoadingView: View {
                     Text("AUTOBOT QUANTUM HUD")
                         .font(.system(size: 22, weight: .black, design: .monospaced))
                         .kerning(8)
-                        .foregroundColor(Color(.systemCyan))
-                        .shadow(color: Color(.systemCyan), radius: 10)
+                        .foregroundColor(.cyan)
+                        .shadow(color: .cyan, radius: 10)
                         .opacity(Double(progress))
                     
                     VStack(alignment: .leading, spacing: 10) {
@@ -405,15 +405,15 @@ struct BootLoadingView: View {
                                 .cornerRadius(3)
                             
                             Rectangle()
-                                .fill(LinearGradient(colors: [Color(.systemCyan), Color(red: 0.8, green: 0.1, blue: 0.9), .orange], startPoint: .leading, endPoint: .trailing))
+                                .fill(LinearGradient(colors: [.cyan, Color(red: 0.8, green: 0.1, blue: 0.9), .orange], startPoint: .leading, endPoint: .trailing))
                                 .frame(width: 300 * progress, height: 6)
                                 .cornerRadius(3)
-                                .shadow(color: Color(.systemCyan), radius: 8)
+                                .shadow(color: .cyan, radius: 8)
                         }
                         
                         Text(steps[min(textStep, steps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(Color(.systemCyan).opacity(0.8))
+                            .foregroundColor(.cyan.opacity(0.8))
                     }
                 }
                 .transition(.opacity)
@@ -473,7 +473,6 @@ struct BootLoadingView: View {
                 shockwaveOpacity = 0.8
             }
             
-            // 總共約 10 秒的流暢進度條
             withAnimation(.easeInOut(duration: 9.0)) {
                 progress = 1.0
             }
@@ -711,10 +710,10 @@ struct SciFiParticleAssembleView<Content: View>: View {
                         let angle = Double(i) * (Double.pi * 2 / 25.0)
                         let distance = (1.0 - assembleProgress) * 250.0
                         Circle()
-                            .fill(i % 2 == 0 ? Color(.systemCyan) : Color.white)
+                            .fill(i % 2 == 0 ? .cyan : Color.white)
                             .frame(width: 4, height: 4)
                             .offset(x: cos(angle) * distance, y: sin(angle) * distance)
-                            .shadow(color: Color(.systemCyan), radius: 4)
+                            .shadow(color: .cyan, radius: 4)
                     }
                 }
             }
@@ -785,7 +784,7 @@ struct HistoryRecordsView: View {
                                     Text(record.zeroToOneHundredTime > 0 ? String(format: "%.1fs", record.zeroToOneHundredTime) : "---").font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.orange)
                                 }
                                 Spacer()
-                                Text("點擊回放軌跡 ➔").font(.system(size: 11, weight: .bold)).foregroundColor(Color(.systemCyan))
+                                Text("點擊回放軌跡 ➔").font(.system(size: 11, weight: .bold)).foregroundColor(.cyan)
                             }
                         }
                         .padding(.vertical, 4)
@@ -817,7 +816,7 @@ struct HistoryDetailMapView: View {
             .ignoresSafeArea()
             
             VStack(alignment: .leading, spacing: 6) {
-                Text("行程軌跡回放數據").font(.system(size: 14, weight: .bold)).foregroundColor(Color(.systemCyan))
+                Text("行程軌跡回放數據").font(.system(size: 14, weight: .bold)).foregroundColor(.cyan)
                 HStack {
                     Text("極速: \(Int(record.maxSpeed)) km/h")
                     Spacer()
