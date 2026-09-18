@@ -114,7 +114,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     var backgroundGradientColors: [Color] {
         switch self {
         case .skull:
-            return [Color(red: 0.1, green: 0.0, blue: 0.0), Color.black, Color(red: 0.05, green: 0.0, blue: 0.0)]
+            return [Color(red: 0.12, green: 0.0, blue: 0.0), Color.black, Color(red: 0.06, green: 0.0, blue: 0.0)]
         case .cyberpunk:
             return [Color(red: 0.01, green: 0.02, blue: 0.08), Color.black, Color(red: 0.03, green: 0.0, blue: 0.1)]
         case .sakura:
@@ -143,7 +143,7 @@ extension Color: @retroactive RawRepresentable {
     }
 }
 
-// MARK: - 3. 語音播報與多國語系管理器
+// MARK: - 3. 語音播報管理器
 class SpeechManager: ObservableObject {
     private let synthesizer = AVSpeechSynthesizer()
     
@@ -191,7 +191,7 @@ class SpeechManager: ObservableObject {
     }
 }
 
-// MARK: - 4. GPS、感應器與測速照相管理器
+// MARK: - 4. GPS & 感應器管理器
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -398,7 +398,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         lastLocation = newLocation
         
-        // 0 - 100 km/h 自動計時觸發
         if speedKmh < 5 && !isTesting0_100 && !hasReached100 {
             isTesting0_100 = true
             accelStartTime = Date()
@@ -415,7 +414,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
         
-        // 0 - 100m 自動計時觸發
         if speedKmh < 3 && !isTesting0_100m && !hasReached100m {
             isTesting0_100m = true
             distanceStartTime = Date()
@@ -480,118 +478,180 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 開場動畫 View
+// MARK: - 5. 全新升級：高質感沉浸式開場動畫
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
     
     @State private var step: Int = 0
     @State private var animVal: CGFloat = 0.0
+    @State private var pulseVal: CGFloat = 1.0
+    @State private var rotateVal: Double = 0.0
+    @State private var warningFlash: Bool = false
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.black.ignoresSafeArea(.all, edges: .all)
             
             if step == 0 {
-                Group {
+                ZStack {
                     if selectedTheme == .skull {
-                        VStack(spacing: 16) {
+                        // 骷髏風：雷射光束 + 呼吸脈衝
+                        Circle()
+                            .fill(Color.red.opacity(0.15))
+                            .frame(width: 260, height: 260)
+                            .scaleEffect(pulseVal)
+                            .blur(radius: 20)
+                        
+                        VStack(spacing: 18) {
                             Image(systemName: "skull.fill")
-                                .font(.system(size: 90))
+                                .font(.system(size: 96))
                                 .foregroundColor(.red)
-                                .shadow(color: .red, radius: 20)
+                                .shadow(color: .red, radius: 25)
                                 .scaleEffect(animVal)
+                            
                             Text("CRIME & SPEED SYNDICATE")
                                 .font(.system(size: 18, weight: .black, design: .monospaced))
                                 .foregroundColor(.white)
-                                .kerning(4)
+                                .kerning(5)
+                                .opacity(Double(animVal))
                         }
                     } else if selectedTheme == .cyberpunk {
-                        VStack(spacing: 16) {
+                        // 賽伯風：雙重齒輪反轉 + 霓虹光暈
+                        ZStack {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 160))
+                                .foregroundColor(.safeCyan.opacity(0.12))
+                                .rotationEffect(.degrees(-rotateVal * 0.5))
+                            
                             Image(systemName: "cpu")
                                 .font(.system(size: 90))
                                 .foregroundColor(.safeCyan)
-                                .shadow(color: .safeCyan, radius: 20)
-                                .rotationEffect(.degrees(Double(animVal * 360)))
+                                .shadow(color: .safeCyan, radius: 25)
+                                .rotationEffect(.degrees(rotateVal))
+                        }
+                        .scaleEffect(animVal)
+                        
+                        VStack {
+                            Spacer().frame(height: 180)
                             Text("CYBERNETIC WARFARE V.4")
                                 .font(.system(size: 18, weight: .black, design: .monospaced))
                                 .foregroundColor(.safeCyan)
-                                .kerning(4)
+                                .kerning(5)
+                                .shadow(color: .safeCyan, radius: 10)
+                                .opacity(Double(animVal))
                         }
                     } else {
-                        VStack(spacing: 16) {
+                        // 櫻花風：花瓣散開 + 柔光綻放
+                        ZStack {
+                            Circle()
+                                .fill(Color.pink.opacity(0.2))
+                                .frame(width: 220, height: 220)
+                                .scaleEffect(pulseVal)
+                                .blur(radius: 30)
+                            
                             Image(systemName: "flower.tulip.fill")
                                 .font(.system(size: 90))
                                 .foregroundColor(Color(red: 1.0, green: 0.6, blue: 0.8))
                                 .shadow(color: .pink, radius: 20)
+                                .rotationEffect(.degrees(rotateVal * 0.2))
                                 .scaleEffect(animVal)
+                        }
+                        
+                        VStack {
+                            Spacer().frame(height: 180)
                             Text("桜吹雪 • 疾走御意見番")
                                 .font(.system(size: 22, weight: .black, design: .serif))
                                 .foregroundColor(.white)
                                 .kerning(6)
+                                .shadow(color: .pink, radius: 12)
+                                .opacity(Double(animVal))
                         }
                     }
                 }
-                .transition(.opacity)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             } else {
-                VStack(spacing: 20) {
+                // 階段 2：劇院級日本電影警告語
+                VStack(spacing: 22) {
                     Rectangle()
                         .fill(Color.red)
-                        .frame(height: 4)
-                        .padding(.horizontal, 40)
+                        .frame(height: 3)
+                        .padding(.horizontal, 50)
+                        .shadow(color: .red, radius: warningFlash ? 8 : 2)
                     
-                    Text("【 警告：劇場型狂暴運転注意 】")
-                        .font(.system(size: 20, weight: .black, design: .serif))
-                        .foregroundColor(.yellow)
-                        .kerning(3)
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.yellow)
+                        Text("【 警告：劇場型狂暴運転注意 】")
+                            .font(.system(size: 18, weight: .black, design: .serif))
+                            .foregroundColor(.yellow)
+                            .kerning(3)
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.yellow)
+                    }
                     
                     Text("本作品はフィクションであり、実際の公道における\n極端な速度超過や危険運転は法律で厳禁されています。\n安全第一で理性的なドライビングをお楽しみください。")
                         .font(.system(size: 12, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundColor(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
+                        .lineSpacing(6)
                         .padding(.horizontal, 30)
                     
                     Rectangle()
                         .fill(Color.red)
-                        .frame(height: 4)
-                        .padding(.horizontal, 40)
+                        .frame(height: 3)
+                        .padding(.horizontal, 50)
+                        .shadow(color: .red, radius: warningFlash ? 8 : 2)
                 }
                 .transition(.opacity)
             }
             
+            // 右上角 SKIP 按鈕
             VStack {
                 HStack {
                     Spacer()
                     Button("SKIP ❯❯") {
-                        withAnimation { isFinished = true }
+                        withAnimation(.easeOut(duration: 0.3)) { isFinished = true }
                     }
-                    .font(.system(size: 12, weight: .black, design: .monospaced))
+                    .font(.system(size: 11, weight: .black, design: .monospaced))
                     .foregroundColor(.white)
-                    .padding(10)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(8)
-                    .padding(.trailing, 20)
-                    .padding(.top, 40)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.15))
+                    .cornerRadius(20)
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.3), lineWidth: 1))
+                    .padding(.trailing, 24)
+                    .padding(.top, 24)
                 }
                 Spacer()
             }
         }
         .ignoresSafeArea(.all, edges: .all)
         .onAppear {
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.5)) {
+            // 動畫 1：入場放大
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.6)) {
                 animVal = 1.0
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                withAnimation { step = 1 }
+            // 動畫 2：持續旋轉與呼吸
+            withAnimation(Animation.linear(duration: 8.0).repeatForever(autoreverses: false)) {
+                rotateVal = 360.0
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                withAnimation { isFinished = true }
+            withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                pulseVal = 1.25
+                warningFlash = true
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                withAnimation(.easeInOut(duration: 0.4)) { step = 1 }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.8) {
+                withAnimation(.easeOut(duration: 0.3)) { isFinished = true }
             }
         }
     }
 }
 
-// MARK: - 6. 櫻花飄落動態背景 (iOS 15+ 防護)
+// MARK: - 6. 櫻花飄落動態背景 (優化獨立繪製，不干擾主畫面)
 struct SakuraFallingView: View {
     var density: Double
     
@@ -632,12 +692,13 @@ private struct SakuraFallingContentView: View {
     }
 }
 
-// MARK: - 7. 強化版超跑流光霓虹框（支援粗度與動態速度調整）
+// MARK: - 7. 最外框霓虹流光線條（獨立繪製，高效能）
 struct BackgroundNeonFlowView: View {
-    @State private var isAnimating = false
     var primaryColor: Color
     var borderWidth: Double
     var animSpeed: Double
+    
+    @State private var isAnimating = false
     
     var body: some View {
         Rectangle()
@@ -653,19 +714,11 @@ struct BackgroundNeonFlowView: View {
             .allowsHitTesting(false)
             .ignoresSafeArea(.all, edges: .all)
             .onAppear {
-                startAnimation()
+                let duration = max(0.5, 6.0 - animSpeed)
+                withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
+                    isAnimating = true
+                }
             }
-            .onChange(of: animSpeed) { _ in
-                startAnimation()
-            }
-    }
-    
-    private func startAnimation() {
-        isAnimating = false
-        let duration = max(0.5, 6.0 - animSpeed) // 速度設定越高，動畫週期秒數越短
-        withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
-            isAnimating = true
-        }
     }
 }
 
@@ -743,7 +796,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
     }
 }
 
-// MARK: - 9. 動態速度環形儀表板 + 外圍旋轉霓虹燈條
+// MARK: - 9. 動態速度環形儀表板 + 獨立旋轉燈條
 struct NeonSpeedGaugeRing: View {
     var speed: Double
     var maxDisplaySpeed: Double = 220.0
@@ -759,7 +812,7 @@ struct NeonSpeedGaugeRing: View {
     
     var body: some View {
         ZStack {
-            // 時速表最外圈：動態旋轉霓虹燈條（同步最外框顏色）
+            // 最外圈：同步外框色調的流光燈圈
             Circle()
                 .stroke(
                     AngularGradient(
@@ -769,53 +822,44 @@ struct NeonSpeedGaugeRing: View {
                     ),
                     lineWidth: CGFloat(outerBorderWidth)
                 )
-                .frame(width: 300, height: 300)
+                .frame(width: 295, height: 295)
                 .shadow(color: color, radius: 8)
             
-            // 速度底條
+            // 速度底軌
             Circle()
                 .stroke(Color.white.opacity(0.1), lineWidth: 10)
-                .frame(width: 260, height: 260)
+                .frame(width: 255, height: 255)
             
-            // 動態速度進度條
+            // 速度指針條
             Circle()
                 .trim(from: 0.0, to: CGFloat(progress))
                 .stroke(
                     AngularGradient(gradient: Gradient(colors: [color.opacity(0.4), color, .white]), center: .center),
                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
                 )
-                .frame(width: 260, height: 260)
+                .frame(width: 255, height: 255)
                 .rotationEffect(.degrees(-90))
-                .animation(.easeInOut(duration: 0.2), value: progress)
                 .shadow(color: color, radius: 10)
             
-            // 刻度線
+            // 刻度
             ForEach(0..<12, id: \.self) { i in
                 Rectangle()
                     .fill(i < Int(progress * 12) ? color : Color.white.opacity(0.2))
                     .frame(width: 3, height: 10)
-                    .offset(y: -122)
+                    .offset(y: -120)
                     .rotationEffect(.degrees(Double(i) * 30))
             }
         }
         .onAppear {
-            startRotation()
-        }
-        .onChange(of: animSpeed) { _ in
-            startRotation()
-        }
-    }
-    
-    private func startRotation() {
-        isOuterRotating = false
-        let duration = max(0.5, 6.0 - animSpeed)
-        withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
-            isOuterRotating = true
+            let duration = max(0.5, 6.0 - animSpeed)
+            withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
+                isOuterRotating = true
+            }
         }
     }
 }
 
-// MARK: - 10. 轉速提示燈
+// MARK: - 10. 轉速燈元件
 struct ShiftLightsView: View {
     let speed: Double
     
@@ -840,7 +884,7 @@ struct ShiftLightsView: View {
     }
 }
 
-// MARK: - 11. 內嵌小地圖元件
+// MARK: - 11. 內嵌小地圖
 struct MiniMapView: View {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
@@ -875,7 +919,7 @@ struct MiniMapView: View {
     }
 }
 
-// MARK: - 12. 效能測試分頁檢視
+// MARK: - 12. 效能測試檢視
 struct PerformanceTestDashboardView: View {
     @ObservedObject var vehicleManager: VehicleManager
     var primaryColor: Color
@@ -950,7 +994,7 @@ struct PerformanceTestDashboardView: View {
     }
 }
 
-// MARK: - 13. 駕駛行為結算報告彈窗元件
+// MARK: - 13. 行程表現結算彈窗
 struct TripScoreSummaryView: View {
     let record: DrivingScoreRecord
     var primaryColor: Color
@@ -1037,7 +1081,7 @@ struct ScoreDetailRow: View {
     }
 }
 
-// MARK: - 14. 歷史紀錄頁面
+// MARK: - 14. 歷史紀錄
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     var body: some View {
@@ -1078,7 +1122,7 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 15. 設定選單
+// MARK: - 15. 設定頁面
 struct SettingsView: View {
     @ObservedObject var vehicleManager: VehicleManager
     @Binding var selectedTheme: DashboardTheme
@@ -1203,7 +1247,6 @@ struct ContentView: View {
     @AppStorage("enableSakuraBackground") private var enableSakuraBackground: Bool = true
     @AppStorage("sakuraDensity") private var sakuraDensity: Double = 20.0
     
-    // 自訂霓虹燈條設定持久化
     @AppStorage("borderWidth") private var borderWidth: Double = 4.0
     @AppStorage("animSpeed") private var animSpeed: Double = 3.0
     
@@ -1271,7 +1314,6 @@ struct ContentView: View {
                     .zIndex(50)
                 } else {
                     ZStack {
-                        // 最外框霓虹流光線條（可自訂粗度與旋轉速度）
                         BackgroundNeonFlowView(primaryColor: currentPrimaryColor, borderWidth: borderWidth, animSpeed: animSpeed)
                             .ignoresSafeArea(.all, edges: .all)
                             .zIndex(0)
@@ -1470,7 +1512,7 @@ struct ContentView: View {
                                     }
                                     .frame(width: 54)
                                     
-                                    // 中央核心：時速表 + 外圍雙層動態霓虹燈圈
+                                    // 中央核心時速表 + 霓虹燈圈
                                     ZStack {
                                         NeonSpeedGaugeRing(
                                             speed: effectiveSpeed,
@@ -1497,7 +1539,7 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     
-                                    // 右側面板：重新加回 0-100 KM/H 實時測試數據顯示
+                                    // 右側數據卡片：0-100 KM/H 測試數據
                                     VStack(spacing: 10) {
                                         MiniMapView(
                                             coordinate: vehicleManager.currentLocation,
@@ -1511,7 +1553,6 @@ struct ContentView: View {
                                             Text("RPM SHIFT LIGHTS").font(.system(size: 7, weight: .bold, design: .monospaced)).foregroundColor(.gray)
                                         }
                                         
-                                        // 0 - 100 KM/H 加速測試即時卡片（重新加回）
                                         VStack(alignment: .leading, spacing: 4) {
                                             HStack {
                                                 Text("0-100加速:").foregroundColor(.gray)
