@@ -429,11 +429,11 @@ struct ContentView: View {
         set { savedThemeRaw = newValue.rawValue }
     }
     
-    // 修正：提供正確的 Binding 讓 Picker 使用
+    // 修正：補上 get 與 set 標籤，解決 Binding 初始化錯誤
     var bindingTheme: Binding<DashboardTheme> {
         Binding(
-            get { DashboardTheme(rawValue: savedThemeRaw) ?? .porsche },
-            set { savedThemeRaw = newValue.rawValue }
+            get: { DashboardTheme(rawValue: savedThemeRaw) ?? .porsche },
+            set: { newValue in savedThemeRaw = newValue.rawValue }
         )
     }
     
@@ -777,7 +777,7 @@ struct OverspeedLogView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(log.date, style: .date) + Text(" ") + Text(log.date, style: .time)
                                 .font(.caption).bold().foregroundColor(.gray)
-                            Text("当前速限: \(Int(log.limit)) km/h")
+                            Text("当期速限: \(Int(log.limit)) km/h")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
