@@ -4,6 +4,21 @@ import CoreMotion
 import MapKit
 import AVFoundation
 
+// MARK: - iOS 14 / 15 相容性色彩防護
+extension Color {
+    static var safeCyan: Color {
+        if #available(iOS 15.0, *) { return Color.cyan }
+        else { return Color(red: 0.0, green: 0.75, blue: 1.0) }
+    }
+}
+
+extension UIColor {
+    static var safeSystemCyan: UIColor {
+        if #available(iOS 15.0, *) { return UIColor.systemCyan }
+        else { return UIColor(red: 0.0, green: 0.75, blue: 1.0, alpha: 1.0) }
+    }
+}
+
 // MARK: - 1. 資料模型與歷史紀錄
 struct OverspeedRecord: Identifiable, Codable {
     let id: UUID
@@ -93,7 +108,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
         if let custom = custom { return custom }
         switch self {
         case .skull: return .red
-        case .cyberpunk: return .cyan
+        case .cyberpunk: return .safeCyan
         case .sakura: return Color(red: 1.0, green: 0.6, blue: 0.75)
         }
     }
@@ -516,12 +531,12 @@ struct MultiThemeBootLoadingView: View {
                         VStack(spacing: 16) {
                             Image(systemName: "cpu")
                                 .font(.system(size: 90))
-                                .foregroundColor(.cyan)
-                                .shadow(color: .cyan, radius: 20)
+                                .foregroundColor(.safeCyan)
+                                .shadow(color: .safeCyan, radius: 20)
                                 .rotationEffect(.degrees(Double(animVal * 360)))
                             Text("CYBERNETIC WARFARE V.4")
                                 .font(.system(size: 18, weight: .black, design: .monospaced))
-                                .foregroundColor(.cyan)
+                                .foregroundColor(.safeCyan)
                                 .kerning(4)
                         }
                     } else {
@@ -597,8 +612,21 @@ struct MultiThemeBootLoadingView: View {
     }
 }
 
-// MARK: - 6. 櫻花飄落動態背景 (直接使用 iOS 15+ Canvas)
+// MARK: - 6. 櫻花飄落動態背景 (iOS 15+ 防護)
 struct SakuraFallingView: View {
+    var density: Double
+    
+    var body: some View {
+        if #available(iOS 15.0, *) {
+            SakuraFallingContentView(density: density)
+        } else {
+            EmptyView()
+        }
+    }
+}
+
+@available(iOS 15.0, *)
+private struct SakuraFallingContentView: View {
     var density: Double
     
     var body: some View {
@@ -716,7 +744,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
-                renderer.strokeColor = parent.historyPath != nil ? .systemOrange : .systemCyan
+                renderer.strokeColor = parent.historyPath != nil ? .systemOrange : .safeSystemCyan
                 renderer.lineWidth = 6
                 return renderer
             }
@@ -1478,7 +1506,6 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .toolbar(.hidden, for: .navigationBar)
             .navigationBarHidden(true)
             .statusBarHidden(true)
             .ignoresSafeArea(.all, edges: .all)
@@ -1486,7 +1513,7 @@ struct ContentView: View {
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
             }
-            .onChange(of: effectiveSpeed) { oldVal, newSpeed in
+            .onChange(of: effectiveSpeed) { newSpeed in
                 if newSpeed > speedLimit {
                     flashWarning = true
                     AudioServicesPlaySystemSound(1005)
