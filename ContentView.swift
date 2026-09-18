@@ -494,7 +494,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 三種風格完全獨立的開場動畫（100-FX Ultimate Matrix Boot）
+// MARK: - 5. 三種風格完全獨立的開場動畫（內含日文測速警告標語）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -604,10 +604,10 @@ struct MultiThemeBootLoadingView: View {
                             .scaleEffect(animVal)
                             .rotationEffect(.degrees(warningFlash ? 10 : -10))
                         
-                        Text(selectedTheme == .skull ? "CRIME & SPEED SYNDICATE" : (selectedTheme == .cyberpunk ? "CYBERNETIC WARFARE V.4" : "桜吹雪 • 疾走御意見番"))
-                            .font(.system(size: selectedTheme == .sakura ? 22 : 18, weight: .black, design: selectedTheme == .sakura ? .serif : .monospaced))
+                        Text(selectedTheme == .skull ? "⚠️ 速度取締注意 • 警報発動 ⚠️" : (selectedTheme == .cyberpunk ? "⚡ レーダー探知機 • オンライン ⚡" : "🌸 オービス監視中 • 安全運転 🌸"))
+                            .font(.system(size: selectedTheme == .sakura ? 18 : 16, weight: .black, design: .monospaced))
                             .foregroundColor(.white)
-                            .kerning(4)
+                            .kerning(2)
                             .shadow(color: themeColor, radius: 15)
                     }
                     .transition(.opacity.combined(with: .scale(scale: 0.5)))
