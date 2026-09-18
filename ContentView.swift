@@ -49,26 +49,6 @@ struct CodableCoordinate: Codable {
     }
 }
 
-struct DrivingScoreRecord: Identifiable, Codable {
-    let id: UUID
-    let date: Date
-    let totalScore: Int
-    let harshAccelerationCount: Int
-    let harshBrakingCount: Int
-    let overspeedSeconds: Double
-    let tripDistance: Double
-    
-    var gradeLevel: String {
-        switch totalScore {
-        case 90...100: return "SSS 級 • 賽道神人"
-        case 80..<90:  return "S 級 • 黃金右腳"
-        case 70..<80:  return "A 級 • 安全駕駛"
-        case 60..<70:  return "B 級 • 普通駕駛"
-        default:       return "C 級 • 狂暴飆風者"
-        }
-    }
-}
-
 struct SpeedCamera: Identifiable, Codable {
     var id: UUID = UUID()
     let latitude: Double
@@ -212,7 +192,7 @@ class SpeechManager: ObservableObject {
         let text: String
         if currentLanguage.starts(with: "zh") {
             if isOverspeed {
-                text = "注意, 您已超速！前方速限 \(speedLimit) 公里"
+                text = "注意，您已超速！前方速限 \(speedLimit) 公里"
             } else {
                 text = "前方速限 \(speedLimit) 公里"
             }
@@ -514,12 +494,12 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 多段式滿屏爆炸動態開場動畫（3個連續視覺畫面）
+// MARK: - 5. 多段式滿屏爆炸動態開場動畫
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
     
-    @State private var bootStep: Int = 0 // 0: 第一幕(核心聚能與粒子炸裂), 1: 第二幕(極速警報與雷射掃描), 2: 第三幕(日系劇場級警告語)
+    @State private var bootStep: Int = 0
     @State private var animVal: CGFloat = 0.0
     @State private var shockwaveScale: CGFloat = 0.1
     @State private var particleExplode: Bool = false
@@ -539,7 +519,6 @@ struct MultiThemeBootLoadingView: View {
         ZStack {
             Color.black.ignoresSafeArea(.all, edges: .all)
             
-            // 滿屏閃光與動態背景特效
             ZStack {
                 Circle()
                     .fill(
@@ -559,7 +538,6 @@ struct MultiThemeBootLoadingView: View {
                         .transition(.opacity)
                 }
                 
-                // 滿屏炸裂彩色粒子
                 ForEach(0..<30, id: \.self) { i in
                     Circle()
                         .fill(i % 3 == 0 ? .white : themeColor)
@@ -574,10 +552,8 @@ struct MultiThemeBootLoadingView: View {
             }
             .allowsHitTesting(false)
             
-            // 分鏡畫面切換
             Group {
                 if bootStep == 0 {
-                    // ---------------- 畫面一：核心聚能與圖標炸裂 ----------------
                     ZStack {
                         if selectedTheme == .skull {
                             VStack(spacing: 16) {
@@ -644,7 +620,6 @@ struct MultiThemeBootLoadingView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.7)))
                     
                 } else if bootStep == 1 {
-                    // ---------------- 畫面二：極速警報與雷射條碼閃爍 ----------------
                     VStack(spacing: 20) {
                         Image(systemName: "gauge.with.needle.fill")
                             .font(.system(size: 90))
@@ -668,7 +643,6 @@ struct MultiThemeBootLoadingView: View {
                     .transition(.scale.combined(with: .opacity))
                     
                 } else {
-                    // ---------------- 畫面三：日系劇場級狂暴警告語 ----------------
                     VStack(spacing: 22) {
                         Rectangle()
                             .fill(LinearGradient(colors: [.clear, .red, .clear], startPoint: .leading, endPoint: .trailing))
@@ -704,7 +678,6 @@ struct MultiThemeBootLoadingView: View {
                 }
             }
             
-            // 跳過按鈕
             VStack {
                 HStack {
                     Spacer()
@@ -727,7 +700,6 @@ struct MultiThemeBootLoadingView: View {
         }
         .ignoresSafeArea(.all, edges: .all)
         .onAppear {
-            // 畫面一閃光與爆炸
             withAnimation(.easeIn(duration: 0.1)) { flashScreen = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 withAnimation(.easeOut(duration: 0.25)) { flashScreen = false }
@@ -750,7 +722,6 @@ struct MultiThemeBootLoadingView: View {
                 warningFlash.toggle()
             }
             
-            // 多段式畫面自動切換時間軸
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
                 withAnimation(.easeInOut(duration: 0.3)) { bootStep = 1 }
             }
@@ -1103,94 +1074,7 @@ struct PerformanceTestDashboardView: View {
     }
 }
 
-// MARK: - 13. 行程表現結算彈窗
-struct TripScoreSummaryView: View {
-    let record: DrivingScoreRecord
-    var primaryColor: Color
-    var onDismiss: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("🏁 行程表現結算報告")
-                .font(.system(size: 18, weight: .black, design: .monospaced))
-                .foregroundColor(.white)
-            
-            ZStack {
-                Circle()
-                    .stroke(primaryColor.opacity(0.3), lineWidth: 10)
-                    .frame(width: 130, height: 130)
-                
-                Circle()
-                    .trim(from: 0.0, to: CGFloat(Double(record.totalScore) / 100.0))
-                    .stroke(primaryColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                    .frame(width: 130, height: 130)
-                    .rotationEffect(.degrees(-90))
-                
-                VStack(spacing: 2) {
-                    Text("\(record.totalScore)")
-                        .font(.system(size: 44, weight: .black, design: .monospaced))
-                        .foregroundColor(.white)
-                    Text("分")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(primaryColor)
-                }
-            }
-            
-            Text(record.gradeLevel)
-                .font(.system(size: 14, weight: .bold, design: .monospaced))
-                .foregroundColor(primaryColor)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(primaryColor.opacity(0.15))
-                .cornerRadius(8)
-            
-            VStack(spacing: 10) {
-                ScoreDetailRow(title: "行車總里程", value: String(format: "%.2f km", record.tripDistance))
-                ScoreDetailRow(title: "急加速次數", value: "\(record.harshAccelerationCount) 次", isWarning: record.harshAccelerationCount > 3)
-                ScoreDetailRow(title: "急煞車次數", value: "\(record.harshBrakingCount) 次", isWarning: record.harshBrakingCount > 3)
-                ScoreDetailRow(title: "超速持續時間", value: String(format: "%.1f 秒", record.overspeedSeconds), isWarning: record.overspeedSeconds > 10)
-            }
-            .padding(.horizontal, 10)
-            
-            Button(action: onDismiss) {
-                Text("確認並存檔")
-                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(primaryColor)
-                    .cornerRadius(12)
-            }
-        }
-        .padding(24)
-        .background(Color.black.opacity(0.95))
-        .cornerRadius(24)
-        .overlay(RoundedRectangle(cornerRadius: 24).stroke(primaryColor, lineWidth: 2))
-        .shadow(color: primaryColor.opacity(0.5), radius: 20)
-        .padding(.horizontal, 30)
-    }
-}
-
-struct ScoreDetailRow: View {
-    let title: String
-    let value: String
-    var isWarning: Bool = false
-    
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(.gray)
-            Spacer()
-            Text(value)
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundColor(isWarning ? .red : .white)
-        }
-        .padding(.horizontal, 8)
-    }
-}
-
-// MARK: - 14. 歷史紀錄
+// MARK: - 13. 歷史紀錄
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     var body: some View {
@@ -1231,7 +1115,7 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 15. 設定頁面
+// MARK: - 14. 設定頁面
 struct SettingsView: View {
     @ObservedObject var vehicleManager: VehicleManager
     @Binding var selectedTheme: DashboardTheme
@@ -1340,7 +1224,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 16. 主畫面 ContentView
+// MARK: - 15. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     @State private var isBootLoaded: Bool = false
@@ -1371,8 +1255,6 @@ struct ContentView: View {
     
     @State private var showJapaneseOverspeedAlert: Bool = false
     @State private var overspeedTimer: Timer? = nil
-    
-    @State private var latestTripScoreRecord: DrivingScoreRecord? = nil
     
     var customColor: Color {
         get { Color(rawValue: customColorRaw) ?? Color(red: 1.0, green: 0.6, blue: 0.75) }
@@ -1426,18 +1308,6 @@ struct ContentView: View {
                             Color.red.opacity(0.35)
                                 .ignoresSafeArea(.all, edges: .all)
                                 .zIndex(10)
-                        }
-                        
-                        if let scoreRecord = latestTripScoreRecord {
-                            Color.black.opacity(0.85)
-                                .ignoresSafeArea(.all, edges: .all)
-                                .zIndex(100)
-                            
-                            TripScoreSummaryView(record: scoreRecord, primaryColor: currentPrimaryColor) {
-                                latestTripScoreRecord = nil
-                            }
-                            .zIndex(101)
-                            .transition(.scale.combined(with: .opacity))
                         }
                         
                         if showJapaneseOverspeedAlert {
@@ -1570,22 +1440,6 @@ struct ContentView: View {
                                         Spacer()
                                         
                                         Button(action: {
-                                            var baseScore = 100
-                                            baseScore -= (vehicleManager.harshAccelerationCount * 5)
-                                            baseScore -= (vehicleManager.harshBrakingCount * 5)
-                                            baseScore -= Int(vehicleManager.overspeedDurationSeconds)
-                                            let finalScore = max(baseScore, 0)
-                                            
-                                            let scoreRecord = DrivingScoreRecord(
-                                                id: UUID(),
-                                                date: Date(),
-                                                totalScore: finalScore,
-                                                harshAccelerationCount: vehicleManager.harshAccelerationCount,
-                                                harshBrakingCount: vehicleManager.harshBrakingCount,
-                                                overspeedSeconds: vehicleManager.overspeedDurationSeconds,
-                                                tripDistance: vehicleManager.tripDistance
-                                            )
-                                            
                                             let history = HistoryRecord(
                                                 id: UUID(),
                                                 date: Date(),
@@ -1596,11 +1450,6 @@ struct ContentView: View {
                                                 routeCoordinates: vehicleManager.recordedPath.map { CodableCoordinate($0) }
                                             )
                                             historyRecords.append(history)
-                                            
-                                            withAnimation {
-                                                latestTripScoreRecord = scoreRecord
-                                            }
-                                            
                                             vehicleManager.resetData()
                                             simulatedSpeed = 0.0
                                         }) {
