@@ -207,29 +207,22 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
         quarterMileTrapSpeed = 0.0; isTimingZeroToHundred = false; isTimingQuarterMile = false
         zeroToHundredStartTime = nil; quarterMileStartTime = nil
     }
-    
-    var headingDirectionText: String {
-        let degrees = headingDegree
-        switch degrees {
-        case 22.5..<67.5: return "NE \(Int(degrees))°"
-        case 67.5..<112.5: return "E \(Int(degrees))°"
-        case 112.5..<157.5: return "SE \(Int(degrees))°"
-        case 157.5..<202.5: return "S \(Int(degrees))°"
-        case 202.5..<247.5: return "SW \(Int(degrees))°"
-        case 247.5..<292.5: return "W \(Int(degrees))°"
-        case 292.5..<337.5: return "NW \(Int(degrees))°"
-        default: return "N \(Int(degrees))°"
-        }
-    }
 }
 
-// MARK: - 4. 啟動動畫
+// MARK: - 4. 深度升級版開機動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
-    @State private var showWarningText = false
-    @State private var showSubText = false
+    @State private var currentStepIndex = 0
     @State private var glitchEffect = false
+    
+    let bootSteps = [
+        "INITIALIZING QUANTUM CORE...",
+        "CONNECTING TO SATELLITE CONSTELLATION...",
+        "CALIBRATING HIGH-PRECISION GYROSCOPE...",
+        "LOADING TELEMETRY & OVERCLOCK PROFILES...",
+        "SYSTEM READY. LAUNCHING INTERFACE..."
+    ]
     
     let safeCyan = Color(red: 0.0, green: 0.9, blue: 1.0)
     
@@ -237,48 +230,79 @@ struct BootLoadingView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 20) {
-                if showWarningText {
-                    Text("⚠️ 【 警告：システム強制起動・バイオメトリック認証完了 】")
-                        .font(.system(size: 14, weight: .black, design: .monospaced))
-                        .foregroundColor(.red)
-                        .shadow(color: .red, radius: 10)
+            VStack {
+                Rectangle()
+                    .fill(LinearGradient(gradient: Gradient(colors: [.clear, safeCyan.opacity(0.15), .clear]), startPoint: .top, endPoint: .bottom))
+                    .frame(height: 150)
+                    .offset(y: glitchEffect ? 600 : -600)
+                    .animation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: glitchEffect)
+                Spacer()
+            }
+            .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 24) {
+                VStack(spacing: 6) {
+                    Text("🏎️ PORSCHE // QUANTUM HUD")
+                        .font(.system(size: 16, weight: .black, design: .monospaced))
+                        .foregroundColor(safeCyan)
+                        .tracking(8)
+                        .shadow(color: safeCyan, radius: 10)
+                    
+                    Text("SECURE TELEMETRY OS v4.8")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(.gray)
                 }
                 
-                if showSubText {
-                    VStack(spacing: 4) {
-                        Text("CYBER-TELEMETRY V4.0 // QUANTUM CORE")
-                            .font(.system(size: 18, weight: .black, design: .monospaced))
-                            .foregroundColor(safeCyan)
-                            .tracking(6)
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(0..<bootSteps.count, id: \.self) { index in
+                        HStack(spacing: 8) {
+                            Image(systemName: index <= currentStepIndex ? "checkmark.square.fill" : "square")
+                                .foregroundColor(index <= currentStepIndex ? safeCyan : .gray)
+                            Text(bootSteps[index])
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .foregroundColor(index <= currentStepIndex ? .white : .gray.opacity(0.5))
+                        }
                     }
                 }
+                .padding(16)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(safeCyan.opacity(0.3), lineWidth: 1))
                 
-                VStack(spacing: 6) {
+                VStack(spacing: 8) {
                     ZStack(alignment: .leading) {
-                        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 300, height: 8).cornerRadius(4)
+                        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 320, height: 10).cornerRadius(5)
                         Rectangle().fill(LinearGradient(gradient: Gradient(colors: [safeCyan, .yellow, .red]), startPoint: .leading, endPoint: .trailing))
-                            .frame(width: 300 * progress, height: 8).cornerRadius(4)
+                            .frame(width: 320 * progress, height: 10).cornerRadius(5)
+                            .shadow(color: safeCyan, radius: 8)
                     }
                     
                     HStack {
-                        Text("LOADING KERNEL...")
+                        Text("SYSTEM INTEGRITY CHECK")
                         Spacer()
-                        Text("\(Int(progress * 100))% [OK]")
+                        Text("\(Int(progress * 100))%")
                             .foregroundColor(safeCyan)
                     }
                     .font(.system(size: 11, weight: .black, design: .monospaced))
-                    .frame(width: 300)
+                    .frame(width: 320)
                     .foregroundColor(.white.opacity(0.7))
                 }
             }
         }
         .onAppear {
             glitchEffect = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { withAnimation { showWarningText = true } }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { withAnimation { showSubText = true } }
-            withAnimation(.easeInOut(duration: 1.8)) { progress = 1.0 }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { withAnimation { isFinished = true } }
+            withAnimation(.easeInOut(duration: 3.5)) {
+                progress = 1.0
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { currentStepIndex = 1 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { currentStepIndex = 2 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.3) { currentStepIndex = 3 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) { currentStepIndex = 4 }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
+                withAnimation { isFinished = true }
+            }
         }
     }
 }
@@ -295,7 +319,7 @@ struct NeonArcFlowView: View {
         ZStack {
             Circle()
                 .trim(from: 0.0, to: 0.5)
-                .stroke(activeColor.opacity(0.2), style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                .stroke(activeColor.opacity(0.2), style: StrokeStyle(lineWidth: 12, lineCap: .round))
                 .rotationEffect(.degrees(180))
             
             Circle()
@@ -306,13 +330,12 @@ struct NeonArcFlowView: View {
                         center: .center,
                         angle: .degrees(isFlowing ? phase : 0)
                     ),
-                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
                 )
                 .rotationEffect(.degrees(180))
-                .shadow(color: activeColor, radius: 12)
+                .shadow(color: activeColor, radius: 15)
         }
-        .frame(width: 280, height: 140)
-        .onTapGesture { withAnimation { isFlowing.toggle() } }
+        .frame(width: 320, height: 160)
         .onAppear {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = 360 }
         }
@@ -324,15 +347,15 @@ struct ShiftLightsView: View {
     var maxSpeed: Double = 160.0
     var body: some View {
         let ratio = min(speed / maxSpeed, 1.0)
-        let totalLights = 12
+        let totalLights = 14
         let activeCount = Int(ratio * Double(totalLights))
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             ForEach(0..<totalLights, id: \.self) { index in
                 let isActive = index < activeCount
-                let isRedZone = index >= 10
+                let isRedZone = index >= 11
                 Rectangle()
-                    .fill(isActive ? (isRedZone ? Color.red : (index >= 7 ? Color.yellow : Color.green)) : Color.white.opacity(0.1))
-                    .frame(height: 5).cornerRadius(2)
+                    .fill(isActive ? (isRedZone ? Color.red : (index >= 8 ? Color.yellow : Color.green)) : Color.white.opacity(0.1))
+                    .frame(height: 6).cornerRadius(3)
             }
         }
         .padding(.horizontal, 20)
@@ -346,23 +369,22 @@ struct GForceView: View {
             Circle().stroke(Color.white.opacity(0.15), lineWidth: 1)
             Circle().stroke(Color.white.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [2])).scaleEffect(0.5)
             Path { path in
-                path.move(to: CGPoint(x: 35, y: 0)); path.addLine(to: CGPoint(x: 35, y: 70))
-                path.move(to: CGPoint(x: 0, y: 35)); path.addLine(to: CGPoint(x: 70, y: 35))
+                path.move(to: CGPoint(x: 40, y: 0)); path.addLine(to: CGPoint(x: 40, y: 80))
+                path.move(to: CGPoint(x: 0, y: 40)); path.addLine(to: CGPoint(x: 80, y: 40))
             }.stroke(Color.white.opacity(0.15), lineWidth: 1)
-            let posX = CGFloat(min(max(gx, -1.0), 1.0)) * 30
-            let posY = CGFloat(min(max(-gy, -1.0), 1.0)) * 30
-            Circle().fill(themeColor).frame(width: 8, height: 8).offset(x: posX, y: posY)
+            let posX = CGFloat(min(max(gx, -1.0), 1.0)) * 35
+            let posY = CGFloat(min(max(-gy, -1.0), 1.0)) * 35
+            Circle().fill(themeColor).frame(width: 9, height: 9).offset(x: posX, y: posY)
             VStack {
                 Spacer()
                 Text(String(format: "MAX %.2fG", maxG)).font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundColor(.white.opacity(0.7))
             }
         }
-        .frame(width: 70, height: 70).background(Color.black.opacity(0.6)).cornerRadius(35)
+        .frame(width: 80, height: 80).background(Color.black.opacity(0.6)).cornerRadius(40)
         .overlay(Circle().stroke(themeColor.opacity(0.4), lineWidth: 1.5))
     }
 }
 
-// 結合導航與使用者位置的 MapView
 struct MapTrackingView: UIViewRepresentable {
     var userLocation: CLLocationCoordinate2D?
     func makeUIView(context: Context) -> MKMapView {
@@ -370,10 +392,7 @@ struct MapTrackingView: UIViewRepresentable {
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .followWithHeading
         mapView.overrideUserInterfaceStyle = .dark
-        mapView.showsTraffic = true // 顯示即時路況
-        mapView.showsCompass = true
-        mapView.isRotateEnabled = true
-        mapView.isPitchEnabled = true
+        mapView.showsTraffic = true
         return mapView
     }
     func updateUIView(_ uiView: MKMapView, context: Context) {
@@ -384,14 +403,15 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 6. 主畫面 (完美與 Apple 地圖導航連動)
+// MARK: - 6. 主畫面 (支援地圖開關切換、滿屏速度表與直橫向切換)
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
     @State private var isBootCompleted = false
     @State private var isHUDMode = false
-    @State private var showMap = true  // 預設開啟地圖模式，與導航完美連動
+    @State private var showMap = false
     @State private var showSettings = false
     @State private var currentTime = Date()
+    @State private var isPortraitForced = false
     
     @AppStorage("savedSpeedLimit") private var speedLimit: Double = 110.0
     @AppStorage("savedThemeRaw") private var savedThemeRaw: String = DashboardTheme.porsche.rawValue
@@ -433,14 +453,14 @@ struct ContentView: View {
                 GeometryReader { geometry in
                     let screenWidth = geometry.size.width
                     let screenHeight = geometry.size.height
-                    let isLandscape = screenWidth > screenHeight
+                    let isPortrait = isPortraitForced || (screenWidth < screenHeight)
                     
                     ZStack {
-                        // 1. 底層：Apple 導航地圖 (永遠滿版呈現，結合即時跟隨)
-                        if let location = speedManager.userLocation {
+                        // 修正：只有當開啟地圖且有定位時顯示地圖；關閉時維持原本暗色背景
+                        if showMap, let location = speedManager.userLocation {
                             MapTrackingView(userLocation: location)
                                 .edgesIgnoringSafeArea(.all)
-                                .overlay(Color.black.opacity(showMap && !isHUDMode ? 0.3 : 0.0)) // 微調遮罩讓畫面有層次
+                                .overlay(Color.black.opacity(0.3))
                         } else {
                             Color(red: 0.02, green: 0.02, blue: 0.04).edgesIgnoringSafeArea(.all)
                         }
@@ -449,12 +469,11 @@ struct ContentView: View {
                             Color.red.opacity(0.3).edgesIgnoringSafeArea(.all)
                         }
                         
-                        // 2. 上層：儀表板資訊與控制項
                         VStack(spacing: 0) {
                             // 頂端工具列
                             HStack(alignment: .center, spacing: 6) {
                                 Text(currentTime, style: .time)
-                                    .font(.system(size: isLandscape ? screenHeight * 0.042 : screenWidth * 0.035, weight: .black, design: .monospaced))
+                                    .font(.system(size: isPortrait ? 14 : 16, weight: .black, design: .monospaced))
                                     .foregroundColor(activePrimaryColor)
                                     .padding(6)
                                     .background(Color.black.opacity(0.6))
@@ -462,27 +481,30 @@ struct ContentView: View {
                                 
                                 Spacer()
                                 
+                                // 直向/橫向切換按鈕
                                 Button(action: {
-                                    speedManager.isOfflineMode.toggle()
-                                    AudioServicesPlaySystemSound(1104)
+                                    withAnimation { isPortraitForced.toggle() }
+                                    AudioServicesPlaySystemSound(1105)
                                 }) {
-                                    HStack(spacing: 3) {
-                                        Image(systemName: speedManager.isOfflineMode ? "wifi.slash" : "wifi")
-                                        Text(speedManager.isOfflineMode ? "OFF" : "ON")
-                                    }
-                                    .font(.system(size: 10, weight: .black, design: .monospaced))
-                                    .padding(.horizontal, 6).padding(.vertical, 5)
-                                    .background(Color.black.opacity(0.6))
-                                    .foregroundColor(speedManager.isOfflineMode ? Color.purple : customCyan)
-                                    .cornerRadius(6)
+                                    Text(isPortraitForced ? "直向" : "橫向")
+                                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                                        .padding(.horizontal, 8).padding(.vertical, 5)
+                                        .background(Color.blue.opacity(0.4))
+                                        .foregroundColor(customCyan)
+                                        .cornerRadius(6)
                                 }
                                 
-                                Button(action: { withAnimation { showMap.toggle() } }) {
-                                    Image(systemName: "map.fill")
-                                        .padding(6)
+                                // 地圖開關按鈕
+                                Button(action: {
+                                    withAnimation { showMap.toggle() }
+                                    AudioServicesPlaySystemSound(1105)
+                                }) {
+                                    Text(showMap ? "地圖:開" : "地圖:關")
+                                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                                        .padding(.horizontal, 8).padding(.vertical, 5)
                                         .background(showMap ? activePrimaryColor : Color.black.opacity(0.6))
                                         .foregroundColor(showMap ? .black : .white)
-                                        .cornerRadius(8)
+                                        .cornerRadius(6)
                                 }
                                 
                                 Button(action: { isHUDMode.toggle() }) {
@@ -502,30 +524,30 @@ struct ContentView: View {
                                         .cornerRadius(8)
                                 }
                             }
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, 20)
                             .padding(.top, geometry.safeAreaInsets.top + 5)
                             
-                            if !isHUDMode && showMap {
+                            if !isHUDMode {
                                 ShiftLightsView(speed: speedManager.speedKMH)
-                                    .padding(.top, 8)
+                                    .padding(.top, 6)
                             }
                             
                             Spacer()
                             
-                            // 中央速度計
-                            let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.60 : screenWidth * 0.65
+                            // 滿屏幕放大版速度計
+                            let gaugeSize = isPortrait ? screenWidth * 0.85 : min(screenWidth, screenHeight) * 0.75
                             let progress = min(speedManager.speedKMH / 160.0, 1.0)
                             
-                            HStack(spacing: 20) {
+                            VStack(spacing: 15) {
                                 ZStack {
                                     if !isHUDMode {
                                         NeonArcFlowView(speed: speedManager.speedKMH, activeColor: activePrimaryColor)
-                                            .offset(y: -10)
+                                            .scaleEffect(isPortrait ? 1.1 : 1.25)
                                     }
                                     
                                     Circle()
                                         .trim(from: 0.125, to: 0.875)
-                                        .stroke(Color.white.opacity(0.12), style: StrokeStyle(lineWidth: 16, lineCap: .butt))
+                                        .stroke(Color.white.opacity(0.12), style: StrokeStyle(lineWidth: 20, lineCap: .butt))
                                         .rotationEffect(.degrees(90))
                                         .frame(width: gaugeSize, height: gaugeSize)
                                     
@@ -533,36 +555,36 @@ struct ContentView: View {
                                         .trim(from: 0.125, to: 0.125 + (0.75 * CGFloat(progress)))
                                         .stroke(
                                             LinearGradient(gradient: Gradient(colors: [selectedTheme.secondaryColor, activePrimaryColor]), startPoint: .leading, endPoint: .trailing),
-                                            style: StrokeStyle(lineWidth: 16, lineCap: .round)
+                                            style: StrokeStyle(lineWidth: 20, lineCap: .round)
                                         )
                                         .rotationEffect(.degrees(90))
                                         .frame(width: gaugeSize, height: gaugeSize)
-                                        .shadow(color: activePrimaryColor.opacity(0.9), radius: 16)
+                                        .shadow(color: activePrimaryColor.opacity(0.9), radius: 20)
                                     
-                                    VStack(spacing: 0) {
+                                    VStack(spacing: 4) {
                                         Text("\(Int(round(speedManager.speedKMH)))")
-                                            .font(.system(size: gaugeSize * 0.38, weight: .black, design: .monospaced))
+                                            .font(.system(size: gaugeSize * 0.36, weight: .black, design: .monospaced))
                                             .foregroundColor(activePrimaryColor)
-                                            .shadow(color: activePrimaryColor.opacity(0.8), radius: 10)
+                                            .shadow(color: activePrimaryColor.opacity(0.8), radius: 12)
                                         
-                                        Text("KM/H // 導航連動")
-                                            .font(.system(size: gaugeSize * 0.07, weight: .heavy, design: .monospaced))
+                                        Text("KM/H // 滿屏速度表")
+                                            .font(.system(size: gaugeSize * 0.065, weight: .heavy, design: .monospaced))
                                             .foregroundColor(.white.opacity(0.9))
-                                            .tracking(4)
+                                            .tracking(6)
                                         
                                         if speedManager.speedKMH > speedLimit {
                                             Text("⚠️ 速度制限オーバー")
-                                                .font(.system(size: gaugeSize * 0.05, weight: .black, design: .monospaced))
+                                                .font(.system(size: gaugeSize * 0.045, weight: .black, design: .monospaced))
                                                 .foregroundColor(.red)
-                                                .padding(.top, 4)
+                                                .padding(.top, 2)
                                         }
                                     }
                                 }
-                                .background(Color.black.opacity(0.5))
+                                .background(Color.black.opacity(0.4))
                                 .clipShape(Circle())
-                                .overlay(Circle().stroke(activePrimaryColor.opacity(0.5), lineWidth: 2))
+                                .overlay(Circle().stroke(activePrimaryColor.opacity(0.4), lineWidth: 2))
                                 
-                                if !isHUDMode && showMap {
+                                if !isHUDMode && !isPortrait {
                                     GForceView(gx: speedManager.gForceX, gy: speedManager.gForceY, maxG: speedManager.maxGForce, themeColor: activePrimaryColor)
                                 }
                             }
@@ -571,7 +593,7 @@ struct ContentView: View {
                             Spacer()
                             
                             // 底部行車數據列
-                            if !isHUDMode && showMap {
+                            if !isHUDMode {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("0-100").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
@@ -596,11 +618,11 @@ struct ContentView: View {
                                         Text(String(format: "%.0fkm/h", speedManager.maxSpeed)).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.orange)
                                     }.frame(maxWidth: .infinity)
                                 }
-                                .padding(.horizontal, 12).padding(.vertical, 8)
+                                .padding(.horizontal, 14).padding(.vertical, 10)
                                 .background(Color.black.opacity(0.85))
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(activePrimaryColor.opacity(0.4), lineWidth: 1))
                                 .cornerRadius(12)
-                                .padding(.horizontal, 24).padding(.bottom, 10)
+                                .padding(.horizontal, 20).padding(.bottom, 10)
                             }
                         }
                     }
@@ -621,22 +643,6 @@ struct ContentView: View {
                             }
                         }
                         .pickerStyle(SegmentedPickerStyle())
-                    }
-                    
-                    Section(header: Text("霓虹燈條背景自定義調色")) {
-                        Toggle("啟用後台自定義調色", isOn: $useCustomColor)
-                        if useCustomColor {
-                            ColorPicker("燈條主色調", selection: Binding(
-                                get: { Color(red: customRed, green: customGreen, blue: customBlue) },
-                                set: { newColor in
-                                    if let components = UIColor(newColor).cgColor.components, components.count >= 3 {
-                                        customRed = Double(components[0])
-                                        customGreen = Double(components[1])
-                                        customBlue = Double(components[2])
-                                    }
-                                }
-                            ))
-                        }
                     }
                     
                     Section(header: Text("安全警報")) {
