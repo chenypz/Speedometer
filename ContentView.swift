@@ -38,7 +38,6 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
         }
     }
     
-    // 豐富的漸層背景，拒絕單調全黑
     var backgroundGradientColors: [Color] {
         switch self {
         case .porsche:
@@ -250,7 +249,6 @@ struct BootLoadingView: View {
     @State private var warningOpacity: Double = 0.0
     @State private var pulseEffect: Bool = false
     @State private var matrixRotation: Double = 0.0
-    @State private var cubeRotations: [Double] = [0, 45, 90]
     
     let steps = [
         "INITIALIZING 3D VORTEX CORE MATRIX...",
@@ -266,41 +264,39 @@ struct BootLoadingView: View {
             
             if !showWarningScreen {
                 VStack(spacing: 35) {
-                    // 立體方塊環繞特效群
                     ZStack {
-                        // 3D 浮動立體方塊群
                         ForEach(0..<4, id: \.self) { i in
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(
-                                    LinearGradient(colors: [.cyan, .purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.6, green: 0.2, blue: 0.9), Color(red: 1.0, green: 0.2, blue: 0.6)], startPoint: .topLeading, endPoint: .bottomTrailing),
                                     lineWidth: 3
                                 )
                                 .frame(width: 80, height: 80)
                                 .rotationEffect(.degrees(matrixRotation * (i % 2 == 0 ? 1 : -1) + Double(i * 45)))
                                 .scaleEffect(pulseEffect ? 1.1 : 0.85)
-                                .shadow(color: .cyan.opacity(0.6), radius: 8)
+                                .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.6), radius: 8)
                         }
                         
                         Circle()
                             .stroke(
-                                AngularGradient(gradient: Gradient(colors: [.cyan, .purple, .pink, .cyan]), center: .center, angle: .degrees(matrixRotation)),
+                                AngularGradient(gradient: Gradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.6, green: 0.2, blue: 0.9), Color(red: 1.0, green: 0.2, blue: 0.6), Color(red: 0.0, green: 0.8, blue: 1.0)]), center: .center, angle: .degrees(matrixRotation)),
                                 lineWidth: 4
                             )
                             .frame(width: 150, height: 150)
-                            .shadow(color: .pink.opacity(0.8), radius: 10)
+                            .shadow(color: Color(red: 1.0, green: 0.2, blue: 0.6).opacity(0.8), radius: 10)
                         
                         Image(systemName: "cube.transparent.fill")
                             .font(.system(size: 42))
-                            .foregroundColor(.cyan)
-                            .shadow(color: .cyan, radius: 12)
+                            .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
+                            .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 12)
                     }
                     .frame(height: 180)
                     
                     Text("VORTEX RACING HUD")
                         .font(.system(size: 24, weight: .black, design: .monospaced))
                         .kerning(6)
-                        .foregroundColor(.cyan)
-                        .shadow(color: .cyan.opacity(0.8), radius: 6)
+                        .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
+                        .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.8), radius: 6)
                     
                     VStack(alignment: .leading, spacing: 10) {
                         ZStack(alignment: .leading) {
@@ -310,15 +306,15 @@ struct BootLoadingView: View {
                                 .cornerRadius(4)
                             
                             Rectangle()
-                                .fill(LinearGradient(colors: [.cyan, .purple, .pink, .orange], startPoint: .leading, endPoint: .trailing))
+                                .fill(LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.6, green: 0.2, blue: 0.9), Color(red: 1.0, green: 0.2, blue: 0.6), .orange], startPoint: .leading, endPoint: .trailing))
                                 .frame(width: 300 * progress, height: 8)
                                 .cornerRadius(4)
-                                .shadow(color: .pink, radius: 6)
+                                .shadow(color: Color(red: 1.0, green: 0.2, blue: 0.6), radius: 6)
                         }
                         
                         Text(steps[min(textStep, steps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.cyan.opacity(0.8))
+                            .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.8))
                     }
                 }
             } else {
@@ -393,11 +389,10 @@ struct BackgroundNeonFlowView: View {
     
     var body: some View {
         ZStack {
-            // 加粗的主外框霓虹流光條 (lineWidth 改為 5)
             RoundedRectangle(cornerRadius: 24)
                 .stroke(
                     AngularGradient(
-                        gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, .purple, primaryColor.opacity(0.2), Color.clear]),
+                        gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, Color(red: 0.6, green: 0.2, blue: 0.9), primaryColor.opacity(0.2), Color.clear]),
                         center: .center,
                         angle: .degrees(isAnimating ? 360 : 0)
                     ),
@@ -406,7 +401,6 @@ struct BackgroundNeonFlowView: View {
                 .padding(4)
                 .shadow(color: primaryColor.opacity(0.8), radius: 12)
             
-            // 雙層動態模糊流光網格，模擬 120Hz 高流暢感
             GeometryReader { geometry in
                 Path { path in
                     let width = geometry.size.width
@@ -602,10 +596,10 @@ struct SciFiParticleAssembleView<Content: View>: View {
                         let angle = Double(i) * (Double.pi * 2 / 25.0)
                         let distance = (1.0 - assembleProgress) * 250.0
                         Circle()
-                            .fill(i % 2 == 0 ? Color.cyan : Color.white)
+                            .fill(i % 2 == 0 ? Color(red: 0.0, green: 0.8, blue: 1.0) : Color.white)
                             .frame(width: 4, height: 4)
                             .offset(x: cos(angle) * distance, y: sin(angle) * distance)
-                            .shadow(color: .cyan, radius: 4)
+                            .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 4)
                     }
                 }
             }
@@ -757,8 +751,6 @@ struct ContentView: View {
     
     @State private var searchText: String = ""
     @State private var isSearchExpanded: Bool = false
-    
-    // 讓地圖最上方的字可以收起來跟放出來的狀態控制
     @State private var isTopBannerCollapsed: Bool = false
     
     var selectedTheme: DashboardTheme {
@@ -780,7 +772,6 @@ struct ContentView: View {
                 } else {
                     SciFiParticleAssembleView {
                         ZStack {
-                            // 主畫面動態主題漸層背景（不再全黑）
                             LinearGradient(
                                 colors: selectedTheme.backgroundGradientColors,
                                 startPoint: .topLeading,
@@ -799,7 +790,6 @@ struct ContentView: View {
                             }
                             
                             VStack(spacing: 0) {
-                                // === 賽道頂部導航路向指引橫幅 (支援收合與展開) ===
                                 VStack(spacing: 0) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "location.north.circle.fill")
@@ -834,7 +824,6 @@ struct ContentView: View {
                                             }
                                         }
                                         
-                                        // 收合/展開切換按鈕
                                         Button(action: {
                                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                                 isTopBannerCollapsed.toggle()
@@ -854,7 +843,6 @@ struct ContentView: View {
                                 
                                 ZStack {
                                     if showMap {
-                                        // === 全螢幕地圖模式 ===
                                         ZStack(alignment: .topLeading) {
                                             InteractiveNavigationMapView(
                                                 coordinate: vehicleManager.currentLocation,
@@ -927,7 +915,6 @@ struct ContentView: View {
                                             .padding(.leading, 12)
                                         }
                                     } else {
-                                        // === 預設賽道儀表模式 ===
                                         HStack(spacing: 15) {
                                             VStack(spacing: 12) {
                                                 Button(action: { showMap.toggle() }) {
