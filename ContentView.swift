@@ -21,7 +21,15 @@ struct HistoryRecord: Identifiable, Codable {
     let tripDistance: Double
 }
 
-// MARK: - 2. 佈景主題設定 (支援豐富動態背景與漸層)
+// MARK: - 測速照相資料結構
+struct SpeedCamera: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
+    let speedLimit: Double // 速限 (km/h)
+    let description: String // 地點描述
+}
+
+// MARK: - 2. 佈景主題設定
 enum DashboardTheme: String, CaseIterable, Identifiable {
     case porsche = "保時捷經典"
     case cyberpunk = "賽博朋克"
@@ -71,7 +79,7 @@ extension Color: @retroactive RawRepresentable {
     }
 }
 
-// MARK: - 3. GPS、感應器與導航管理器
+// MARK: - 3. GPS、感應器與測速照相管理器
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -98,6 +106,17 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentInstruction: String = "搜尋目的地或點擊地圖"
     @Published var distanceToNextStep: Double = 0.0
     @Published var destinationCoordinate: CLLocationCoordinate2D? = nil
+    
+    // 測速照相預警狀態
+    @Published var nearestCameraAlert: String? = nil
+    
+    // 內建有效之全台示範與常見測速照相點資料庫（可自行擴充）
+    private let speedCameras: [SpeedCamera] = [
+        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654), speedLimit: 50, description: "台北信義路示範測速點"),
+        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0400, longitude: 121.5700), speedLimit: 60, description: "台北忠孝東路示範測速點"),
+        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 24.1477, longitude: 120.6736), speedLimit: 50, description: "台中台灣大道示範測速點"),
+        SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 22.6273, longitude: 120.3014), speedLimit: 50, description: "高雄中山一路示範測速點")
+    ]
     
     private var lastLocation: CLLocation? = nil
     
@@ -206,6 +225,9 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let speedKmh = max(0, newLocation.speed * 3.6)
         self.speed = speedKmh
         
+        // 自動檢查鄰近測速照相
+        checkSpeedCameras(currentLoc: newLocation, currentSpeed: speedKmh)
+        
         if speedKmh > maxSpeed { maxSpeed = speedKmh }
         
         if let last = lastLocation {
@@ -231,6 +253,27 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    // 測速照相距離比對與警報邏輯
+    private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
+        let alertDistance: CLLocationDistance = 400.0 // 400公尺前開始預警
+        
+        for camera in speedCameras {
+            let cameraLocation = CLLocation(latitude: camera.coordinate.latitude, longitude: camera.coordinate.longitude)
+            let distance = currentLoc.distance(from: cameraLocation)
+            
+            if distance <= alertDistance {
+                nearestCameraAlert = "前方 \(Int(distance))m 測速 (\(Int(camera.speedLimit))km)"
+                
+                // 超速時自動播放警告音效
+                if currentSpeed > camera.speedLimit {
+                    AudioServicesPlaySystemSound(1007)
+                }
+                return
+            }
+        }
+        nearestCameraAlert = nil
+    }
+    
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         heading = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
     }
@@ -240,7 +283,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 變形金剛風格暴力科技感開場動畫 (全螢幕漸顯)
+// MARK: - 4. 變形金剛風格開場動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -344,7 +387,7 @@ struct BootLoadingView: View {
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.red)
                         
-                        Text("本系統提供之GPS速度、G力與0-100加速測試數據僅供賽道與參考使用。駕駛時請嚴格遵守當地交通法規，確保行車安全。")
+                        Text("本系統提供之GPS速度、測速照相預警與加速測試數據僅供參考。駕駛時請嚴格遵守當地交通法規，確保行車安全。")
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.85))
                             .lineSpacing(5)
@@ -448,7 +491,7 @@ struct BackgroundNeonFlowView: View {
     }
 }
 
-// MARK: - 6. 具備導航路徑與點擊設終點功能的 Apple Maps 檢視
+// MARK: - 6. 互動式導航地圖
 struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
@@ -748,7 +791,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 14. 主畫面 ContentView (已移除頂部導航指示橫幅)
+// MARK: - 14. 主畫面 ContentView (內建測速照相警告橫幅)
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     @State private var isBootLoaded: Bool = false
@@ -811,8 +854,7 @@ struct ContentView: View {
                                     .zIndex(10)
                             }
                             
-                            // 頂部導航橫幅已完整移除，直接渲染地圖或儀表板本體
-                            ZStack {
+                            ZStack(alignment: .top) {
                                 if showMap {
                                     ZStack(alignment: .topLeading) {
                                         InteractiveNavigationMapView(
@@ -978,6 +1020,25 @@ struct ContentView: View {
                                     }
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 10)
+                                }
+                                
+                                // --- 自動測速照相警告橫幅 (置頂顯示) ---
+                                if let cameraAlert = vehicleManager.nearestCameraAlert {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "camera.fill")
+                                            .foregroundColor(.yellow)
+                                        Text(cameraAlert)
+                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Color.red.opacity(0.9))
+                                    .cornerRadius(16)
+                                    .shadow(color: .red, radius: 8)
+                                    .padding(.top, 8)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                    .zIndex(50)
                                 }
                             }
                         }
