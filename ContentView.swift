@@ -3,7 +3,6 @@ import CoreLocation
 import CoreMotion
 import MapKit
 import AVFoundation
-import MediaPlayer
 
 // MARK: - iOS 14 / 15 相容性色彩防護
 extension Color {
@@ -47,6 +46,27 @@ struct CodableCoordinate: Codable {
     }
     var coordinate: CLLocationCoordinate2D {
         return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+}
+
+// 駕駛行為評分資料模型
+struct DrivingScoreRecord: Identifiable, Codable {
+    let id: UUID
+    let date: Date
+    let totalScore: Int // 0 - 100 分
+    let harshAccelerationCount: Int
+    let harshBrakingCount: Int
+    let overspeedSeconds: Double
+    let tripDistance: Double
+    
+    var gradeLevel: String {
+        switch totalScore {
+        case 90...100: return "SSS 級 • 賽道神人"
+        case 80..<90:  return "S 級 • 黃金右腳"
+        case 70..<80:  return "A 級 • 安全駕駛"
+        case 60..<70:  return "B 級 • 普通駕駛"
+        default:       return "C 級 • 狂暴飆風者"
+        }
     }
 }
 
@@ -125,68 +145,7 @@ extension Color: @retroactive RawRepresentable {
     }
 }
 
-// MARK: - 3. 音樂控制管理器 (Music Player Manager)
-class MusicPlayerManager: ObservableObject {
-    private let player = MPMusicPlayerController.systemMusicPlayer
-    
-    @Published var songTitle: String = "未播放音樂"
-    @Published var artistName: String = "點擊控制播放"
-    @Published var isPlaying: Bool = false
-    @Published var artworkImage: UIImage? = nil
-    
-    init() {
-        player.beginGeneratingPlaybackNotifications()
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(updatePlayerState),
-            name: .MPMusicPlayerControllerPlaybackStateDidChange,
-            object: player
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(updatePlayerState),
-            name: .MPMusicPlayerControllerNowPlayingItemDidChange,
-            object: player
-        )
-        updatePlayerState()
-    }
-    
-    @objc func updatePlayerState() {
-        DispatchQueue.main.async {
-            self.isPlaying = (self.player.playbackState == .playing)
-            if let currentItem = self.player.nowPlayingItem {
-                self.songTitle = currentItem.title ?? "未知曲目"
-                self.artistName = currentItem.artist ?? "未知演出者"
-                self.artworkImage = currentItem.artwork?.image(at: CGSize(width: 100, height: 100))
-            } else {
-                self.songTitle = "無播放中音樂"
-                self.artistName = "請從音樂App播放"
-                self.artworkImage = nil
-            }
-        }
-    }
-    
-    func togglePlayPause() {
-        if player.playbackState == .playing {
-            player.pause()
-        } else {
-            player.play()
-        }
-        updatePlayerState()
-    }
-    
-    func skipToNext() {
-        player.skipToNextItem()
-        updatePlayerState()
-    }
-    
-    func skipToPrevious() {
-        player.skipToPreviousItem()
-        updatePlayerState()
-    }
-}
-
-// MARK: - 3.1 語音播報與多國語系管理器 (Speech Manager)
+// MARK: - 3. 語音播報與多國語系管理器 (Speech Manager)
 class SpeechManager: ObservableObject {
     private let synthesizer = AVSpeechSynthesizer()
     
@@ -209,7 +168,7 @@ class SpeechManager: ObservableObject {
         
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: currentLanguage)
-        utterance.rate = 0.52 // 稍微調整語速使其更自然清晰
+        utterance.rate = 0.52
         utterance.pitchMultiplier = 1.0
         
         synthesizer.speak(utterance)
@@ -234,7 +193,7 @@ class SpeechManager: ObservableObject {
     }
 }
 
-// MARK: - 4. GPS、感應器與測速照相管理器 (整合雲端載入與語音播報)
+// MARK: - 4. GPS、感應器與測速照相管理器 (含駕駛行為追蹤)
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -253,6 +212,12 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var accelStartTime: Date? = nil
     private var hasReached100: Bool = false
     
+    // 駕駛行為評分追蹤變數
+    @Published var harshAccelerationCount: Int = 0
+    @Published var harshBrakingCount: Int = 0
+    @Published var overspeedDurationSeconds: Double = 0.0
+    private var lastRecordedSpeed: Double = 0.0
+    
     @Published var currentLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654)
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
     
@@ -265,13 +230,11 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var nearestCameraAlert: String? = nil
     @Published var recordedPath: [CLLocationCoordinate2D] = []
     
-    // 內建與雲端測速點
     @Published var speedCameras: [SpeedCamera] = [
         SpeedCamera(latitude: 25.0330, longitude: 121.5654, speedLimit: 50, description: "台北信義路固定測速"),
         SpeedCamera(latitude: 25.0400, longitude: 121.5700, speedLimit: 60, description: "台北忠孝東路固定測速")
     ]
     
-    // 整合語音管理器
     let speechManager = SpeechManager()
     private var lastSpokenCameraId: UUID? = nil
     private var lastLocation: CLLocation? = nil
@@ -287,10 +250,9 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.startUpdatingHeading()
         
         startMotionUpdates()
-        fetchCamerasFromCloud() // 自動嘗試從雲端同步測速點
+        fetchCamerasFromCloud()
     }
     
-    // 從遠端雲端載入最新測速照相 API
     func fetchCamerasFromCloud() {
         guard let url = URL(string: "https://your-server.com/api/cameras.json") else { return }
         
@@ -328,6 +290,12 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         lastLocation = nil
         recordedPath.removeAll()
         lastSpokenCameraId = nil
+        
+        // 重置駕駛行為指標
+        harshAccelerationCount = 0
+        harshBrakingCount = 0
+        overspeedDurationSeconds = 0.0
+        lastRecordedSpeed = 0.0
     }
     
     func reportMobileSpeedTrap() {
@@ -416,6 +384,15 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let speedKmh = max(0, newLocation.speed * 3.6)
         self.speed = speedKmh
         
+        // 駕駛行為檢測：計算急加速與急煞車
+        let speedDelta = speedKmh - lastRecordedSpeed
+        if speedDelta > 18.0 {
+            harshAccelerationCount += 1
+        } else if speedDelta < -18.0 {
+            harshBrakingCount += 1
+        }
+        lastRecordedSpeed = speedKmh
+        
         checkSpeedCameras(currentLoc: newLocation, currentSpeed: speedKmh)
         if speedKmh > maxSpeed { maxSpeed = speedKmh }
         
@@ -442,7 +419,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    // 結合語音播報的測速照相檢查機制
     private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
         let alertDistance: CLLocationDistance = 400.0
         
@@ -453,7 +429,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             if distance <= alertDistance {
                 nearestCameraAlert = "\(camera.description) 剩 \(Int(distance))m (速限 \(Int(camera.speedLimit))km)"
                 
-                // 接近 300 公尺以內時自動發出語音播報（避免重複念同一支相機）
                 if distance <= 300, lastSpokenCameraId != camera.id {
                     lastSpokenCameraId = camera.id
                     let isOverspeed = currentSpeed > camera.speedLimit
@@ -467,7 +442,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
         
-        // 離開範圍後重置，允許再次提醒
         if let lastId = lastSpokenCameraId,
            let camera = speedCameras.first(where: { $0.id == lastId }) {
             let cameraLocation = CLLocation(latitude: camera.latitude, longitude: camera.longitude)
@@ -490,7 +464,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 三種分類 5 秒開場動畫 + 日本電影警告語 (總計 5 秒)
+// MARK: - 5. 三種分類 5 秒開場動畫 + 日本電影警告語
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -842,71 +816,90 @@ struct MiniMapView: View {
     }
 }
 
-// MARK: - 12. 多媒體音樂控制卡片元件 (Now Playing Widget)
-struct MusicControlWidgetView: View {
-    @ObservedObject var musicManager: MusicPlayerManager
+// MARK: - 12. 駕駛行為結算報告彈窗元件 (Eco/Sport Score Summary)
+struct TripScoreSummaryView: View {
+    let record: DrivingScoreRecord
     var primaryColor: Color
+    var onDismiss: () -> Void
     
     var body: some View {
-        HStack(spacing: 10) {
-            Group {
-                if let uiImage = musicManager.artworkImage {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    ZStack {
-                        Color.black.opacity(0.6)
-                        Image(systemName: "music.note")
-                            .foregroundColor(primaryColor)
-                            .font(.system(size: 18))
-                    }
-                }
-            }
-            .frame(width: 44, height: 44)
-            .cornerRadius(8)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(primaryColor.opacity(0.5), lineWidth: 1))
+        VStack(spacing: 20) {
+            Text("🏁 行程表現結算報告")
+                .font(.system(size: 18, weight: .black, design: .monospaced))
+                .foregroundColor(.white)
             
-            VStack(alignment: .leading, spacing: 2) {
-                Text(musicManager.songTitle)
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                Text(musicManager.artistName)
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundColor(.gray)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            HStack(spacing: 8) {
-                Button(action: { musicManager.skipToPrevious() }) {
-                    Image(systemName: "backward.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white)
-                }
+            ZStack {
+                Circle()
+                    .stroke(primaryColor.opacity(0.3), lineWidth: 10)
+                    .frame(width: 130, height: 130)
                 
-                Button(action: { musicManager.togglePlayPause() }) {
-                    Image(systemName: musicManager.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 14))
+                Circle()
+                    .trim(from: 0.0, to: CGFloat(Double(record.totalScore) / 100.0))
+                    .stroke(primaryColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .frame(width: 130, height: 130)
+                    .rotationEffect(.degrees(-90))
+                
+                VStack(spacing: 2) {
+                    Text("\(record.totalScore)")
+                        .font(.system(size: 44, weight: .black, design: .monospaced))
+                        .foregroundColor(.white)
+                    Text("分")
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(primaryColor)
-                        .frame(width: 26, height: 26)
-                        .background(Color.black.opacity(0.5))
-                        .clipShape(Circle())
                 }
-                
-                Button(action: { musicManager.skipToNext() }) {
-                    Image(systemName: "forward.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white)
-                }
+            }
+            
+            Text(record.gradeLevel)
+                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                .foregroundColor(primaryColor)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(primaryColor.opacity(0.15))
+                .cornerRadius(8)
+            
+            VStack(spacing: 10) {
+                ScoreDetailRow(title: "行車總里程", value: String(format: "%.2f km", record.tripDistance))
+                ScoreDetailRow(title: "急加速次數", value: "\(record.harshAccelerationCount) 次", isWarning: record.harshAccelerationCount > 3)
+                ScoreDetailRow(title: "急煞車次數", value: "\(record.harshBrakingCount) 次", isWarning: record.harshBrakingCount > 3)
+                ScoreDetailRow(title: "超速持續時間", value: String(format: "%.1f 秒", record.overspeedDurationSeconds), isWarning: record.overspeedDurationSeconds > 10)
+            }
+            .padding(.horizontal, 10)
+            
+            Button(action: onDismiss) {
+                Text("確認並存檔")
+                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(primaryColor)
+                    .cornerRadius(12)
             }
         }
-        .padding(8)
-        .background(Color.black.opacity(0.75))
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(primaryColor.opacity(0.4), lineWidth: 1))
-        .shadow(color: primaryColor.opacity(0.2), radius: 5)
+        .padding(24)
+        .background(Color.black.opacity(0.95))
+        .cornerRadius(24)
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(primaryColor, lineWidth: 2))
+        .shadow(color: primaryColor.opacity(0.5), radius: 20)
+        .padding(.horizontal, 30)
+    }
+}
+
+struct ScoreDetailRow: View {
+    let title: String
+    let value: String
+    var isWarning: Bool = false
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.gray)
+            Spacer()
+            Text(value)
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundColor(isWarning ? .red : .white)
+        }
+        .padding(.horizontal, 8)
     }
 }
 
@@ -975,7 +968,7 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 14. 設定選單 (包含語音多國語系切換)
+// MARK: - 14. 設定選單
 struct SettingsView: View {
     @ObservedObject var speechManager: SpeechManager
     @Binding var selectedTheme: DashboardTheme
@@ -1061,7 +1054,6 @@ struct SettingsView: View {
 // MARK: - 15. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
-    @StateObject private var musicManager = MusicPlayerManager()
     @State private var isBootLoaded: Bool = false
     
     @AppStorage("selectedTheme") private var storedThemeRaw: String = DashboardTheme.sakura.rawValue
@@ -1090,6 +1082,9 @@ struct ContentView: View {
     
     @State private var searchText: String = ""
     @State private var isSearchExpanded: Bool = false
+    
+    // 駕駛行為結算彈窗狀態
+    @State private var latestTripScoreRecord: DrivingScoreRecord? = nil
     
     var effectiveSpeed: Double {
         return simulatedSpeed > 0 ? simulatedSpeed : vehicleManager.speed
@@ -1138,6 +1133,19 @@ struct ContentView: View {
                             Color.red.opacity(0.35)
                                 .ignoresSafeArea()
                                 .zIndex(10)
+                        }
+                        
+                        // 駕駛行為結算彈窗
+                        if let scoreRecord = latestTripScoreRecord {
+                            Color.black.opacity(0.85)
+                                .ignoresSafeArea()
+                                .zIndex(100)
+                            
+                            TripScoreSummaryView(record: scoreRecord, primaryColor: currentPrimaryColor) {
+                                latestTripScoreRecord = nil
+                            }
+                            .zIndex(101)
+                            .transition(.scale.combined(with: .opacity))
                         }
                         
                         if showJapaneseOverspeedAlert {
@@ -1302,6 +1310,24 @@ struct ContentView: View {
                                         Spacer()
                                         
                                         Button(action: {
+                                            // 計算評分演算法
+                                            var baseScore = 100
+                                            baseScore -= (vehicleManager.harshAccelerationCount * 5)
+                                            baseScore -= (vehicleManager.harshBrakingCount * 5)
+                                            baseScore -= Int(vehicleManager.overspeedDurationSeconds)
+                                            let finalScore = max(baseScore, 0)
+                                            
+                                            let scoreRecord = DrivingScoreRecord(
+                                                id: UUID(),
+                                                date: Date(),
+                                                totalScore: finalScore,
+                                                harshAccelerationCount: vehicleManager.harshAccelerationCount,
+                                                harshBrakingCount: vehicleManager.harshBrakingCount,
+                                                overspeedDurationSeconds: vehicleManager.overspeedDurationSeconds,
+                                                tripDistance: vehicleManager.tripDistance
+                                            )
+                                            
+                                            // 儲存行車歷史
                                             let history = HistoryRecord(
                                                 id: UUID(),
                                                 date: Date(),
@@ -1312,6 +1338,12 @@ struct ContentView: View {
                                                 routeCoordinates: vehicleManager.recordedPath.map { CodableCoordinate($0) }
                                             )
                                             historyRecords.append(history)
+                                            
+                                            // 彈出評分結算畫面
+                                            withAnimation {
+                                                latestTripScoreRecord = scoreRecord
+                                            }
+                                            
                                             vehicleManager.resetData()
                                             simulatedSpeed = 0.0
                                         }) {
@@ -1348,16 +1380,13 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     
-                                    VStack(spacing: 10) {
+                                    VStack(spacing: 12) {
                                         MiniMapView(
                                             coordinate: vehicleManager.currentLocation,
                                             routePolyline: vehicleManager.routePolyline,
                                             destinationCoordinate: vehicleManager.destinationCoordinate,
                                             primaryColor: currentPrimaryColor
                                         ) { showMap = true }
-                                        
-                                        MusicControlWidgetView(musicManager: musicManager, primaryColor: currentPrimaryColor)
-                                            .frame(width: 135)
                                         
                                         VStack(spacing: 4) {
                                             ShiftLightsView(speed: effectiveSpeed)
@@ -1367,6 +1396,8 @@ struct ContentView: View {
                                         VStack(alignment: .leading, spacing: 4) {
                                             HStack { Text("里程:").foregroundColor(.gray); Spacer(); Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green) }
                                             HStack { Text("極速:").foregroundColor(.gray); Spacer(); Text(String(format: "%.0f km/h", max(vehicleManager.maxSpeed, simulatedSpeed))).foregroundColor(currentPrimaryColor) }
+                                            HStack { Text("急加速:").foregroundColor(.gray); Spacer(); Text("\(vehicleManager.harshAccelerationCount) 次").foregroundColor(.orange) }
+                                            HStack { Text("急煞車:").foregroundColor(.gray); Spacer(); Text("\(vehicleManager.harshBrakingCount) 次").foregroundColor(.red) }
                                         }
                                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                                         .padding(8)
@@ -1414,6 +1445,9 @@ struct ContentView: View {
                     flashWarning = true
                     AudioServicesPlaySystemSound(1005)
                     overspeedLogs.append(OverspeedRecord(id: UUID(), date: Date(), speed: newSpeed, speedLimit: speedLimit))
+                    
+                    // 累計超速秒數（每次觸發 onChange 計算約 1 秒）
+                    vehicleManager.overspeedDurationSeconds += 1.0
                     
                     overspeedTimer?.invalidate()
                     withAnimation {
