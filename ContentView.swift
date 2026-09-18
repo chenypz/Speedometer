@@ -563,7 +563,6 @@ struct ContentView: View {
                                 .padding(.horizontal, 16).padding(.bottom, 10)
                             }
                         }
-                        // 移除 HUD 顛倒效果，改為正常顯示
                     }
                 }
             }
@@ -650,14 +649,14 @@ struct HistoryView: View {
                         HStack {
                             Text("極速: \(Int(record.maxSpeed)) km/h").bold().foregroundColor(.orange)
                             Spacer()
-                            Text("里程: String(format: \"%.2fkm\", record.totalDistance / 1000.0)").bold()
+                            Text(String(format: "里程: %.2fkm", record.totalDistance / 1000.0)).bold()
                         }
                         HStack {
                             if let t100 = record.zeroToHundred {
                                 Text("0-100: \(String(format: "%.2fs", t100))").foregroundColor(.green)
                             }
                             Spacer()
-                            Text("最大G力: \(String(format: "%.2fG", record.maxGForce))").foregroundColor(.cyan)
+                            Text(String(format: "最大G力: %.2fG", record.maxGForce)).foregroundColor(.cyan)
                         }
                     }
                     .padding(.vertical, 4)
@@ -676,13 +675,14 @@ struct OverspeedLogView: View {
             if speedManager.overspeedLogs.isEmpty {
                 Text("太棒了！目前沒有任何超速紀錄。").foregroundColor(.gray)
             } else {
+                // 明確指定識別物件以防型別推導錯誤
                 ForEach(speedManager.overspeedLogs) { log in
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(log.date, style: .date) + Text(" ") + Text(log.date, style: .time)
                                 .font(.caption).bold().foregroundColor(.gray)
                             Text("當前速限: \(Int(log.limit)) km/h")
-                                .font(.subresso ?? .caption)
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
