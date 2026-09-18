@@ -47,6 +47,27 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Color 擴充：支援存入 UserDefaults
+extension Color: RawRepresentable {
+    public init?(rawValue: String) {
+        let components = rawValue.components(separatedBy: ",")
+        guard components.count == 3,
+              let red = Double(components[0]),
+              let green = Double(components[1]),
+              let blue = Double(components[2]) else {
+            return nil
+        }
+        self.init(red: red, green: green, blue: blue)
+    }
+
+    public var rawValue: String {
+        let uiColor = UIColor(self)
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return "\(red),\(green),\(blue)"
+    }
+}
+
 // MARK: - 3. GPS 與感應器管理器
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
@@ -57,18 +78,15 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var tripDistance: Double = 0.0 // km
     @Published var heading: Double = 0.0
     
-    // G 力數據
     @Published var currentGForceX: Double = 0.0
     @Published var currentGForceY: Double = 0.0
     @Published var maxGForce: Double = 0.0
     
-    // 0-100 加速計時
     @Published var zeroToOneHundredTime: Double = 0.0
     @Published var isTesting0_100: Bool = false
     private var accelStartTime: Date? = nil
     private var hasReached100: Bool = false
     
-    // 導航座標
     @Published var currentLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654)
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
     
@@ -87,7 +105,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         startMotionUpdates()
     }
     
-    // 支援網路加速定位模式切換
     func updateLocationAccuracy(isNetworkBoostEnabled: Bool) {
         if isNetworkBoostEnabled {
             locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -143,7 +160,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         lastLocation = newLocation
         
-        // 0-100 加速測試邏輯
         if speedKmh < 5 && !isTesting0_100 && !hasReached100 {
             isTesting0_100 = true
             accelStartTime = Date()
@@ -587,13 +603,16 @@ struct ContentView: View {
     
     @State private var isBootLoaded: Bool = false
     
-    @State private var selectedTheme: DashboardTheme = .cyberpunk
-    @State private var speedLimit: Double = 120.0
-    @State private var isHudMode: Bool = false
-    @State private var showMap: Bool = false // 預設關閉地圖，顯示完整賽道儀表
-    @State private var useCustomColor: Bool = false
-    @State private var customColor: Color = Color(red: 0.0, green: 0.8, blue: 1.0)
-    @State private var isNetworkBoostEnabled: Bool = false
+    @AppStorage("selectedTheme") private var storedThemeRaw: String = DashboardTheme.cyberpunk.rawValue
+    @AppStorage("speedLimit") private var speedLimit: Double = 120.0
+    @AppStorage("isHudMode") private var isHudMode: Bool = false
+    @AppStorage("showMap") private var showMap: Bool = false
+    @AppStorage("useCustomColor") private var useCustomColor: Bool = false
+    @AppStorage("customColor") private var customColor: Color = Color(red: 0.0, green: 0.8, blue: 1.0)
+    @AppStorage("isNetworkBoostEnabled") private var isNetworkBoostEnabled: Bool = false
+    
+    @AppStorage("overspeedLogsData") private var overspeedLogsData: Data = Data()
+    @AppStorage("historyRecordsData") private var historyRecordsData: Data = Data()
     
     @State private var overspeedLogs: [OverspeedRecord] = []
     @State private var historyRecords: [HistoryRecord] = []
@@ -603,6 +622,11 @@ struct ContentView: View {
     @State private var showHistoryRecords: Bool = false
     
     @State private var flashWarning: Bool = false
+    
+    var selectedTheme: DashboardTheme {
+        get { DashboardTheme(rawValue: storedThemeRaw) ?? .cyberpunk }
+        set { storedThemeRaw = newValue.rawValue }
+    }
     
     var currentPrimaryColor: Color {
         selectedTheme.primaryColor(custom: useCustomColor ? customColor : nil)
@@ -618,7 +642,6 @@ struct ContentView: View {
                 } else {
                     selectedTheme.backgroundColor.edgesIgnoringSafeArea(.all)
                     
-                    // 流水長亮霓虹燈條背景特效
                     BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
                         .zIndex(0)
                     
@@ -629,117 +652,49 @@ struct ContentView: View {
                             .zIndex(10)
                     }
                     
-                    // 動態切換版面配置
                     if showMap {
-                        // === 開啟地圖模式：左側全螢幕互動導航，右側保留速度儀表與遙測 ===
-                        HStack(spacing: 12) {
+                        // === 極簡地圖模式：全螢幕 Apple 地圖 + 浮動時速表與返回按鈕 ===
+                        ZStack(alignment: .topLeading) {
                             InteractiveNavigationMapView(coordinate: vehicleManager.currentLocation)
-                                .cornerRadius(14)
-                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .edgesIgnoringSafeArea(.all)
                             
-                            VStack(spacing: 10) {
-                                // 頂部功能列
-                                HStack(spacing: 8) {
-                                    Button(action: { showMap.toggle() }) {
-                                        Image(systemName: "gauge.with.needle")
-                                            .font(.system(size: 14))
-                                            .frame(width: 36, height: 36)
-                                            .background(currentPrimaryColor.opacity(0.3))
-                                            .foregroundColor(currentPrimaryColor)
-                                            .cornerRadius(8)
-                                    }
-                                    
-                                    Button(action: { showSettings = true }) {
-                                        Image(systemName: "gearshape.fill")
-                                            .font(.system(size: 14))
-                                            .frame(width: 36, height: 36)
-                                            .background(Color.white.opacity(0.1))
-                                            .foregroundColor(.white)
-                                            .cornerRadius(8)
-                                    }
-                                    
-                                    Button(action: {
-                                        let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
-                                        historyRecords.append(history)
-                                        vehicleManager.resetData()
-                                    }) {
-                                        Image(systemName: "arrow.counterclockwise.circle.fill")
-                                            .font(.system(size: 14))
-                                            .frame(width: 36, height: 36)
-                                            .background(Color.orange.opacity(0.2))
-                                            .foregroundColor(.orange)
-                                            .cornerRadius(8)
-                                    }
+                            // 左上角浮動控制按鈕與精簡時速表
+                            HStack(alignment: .top, spacing: 12) {
+                                Button(action: { showMap.toggle() }) {
+                                    Image(systemName: "gauge.with.needle")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .frame(width: 44, height: 44)
+                                        .background(Color.black.opacity(0.75))
+                                        .foregroundColor(currentPrimaryColor)
+                                        .cornerRadius(22)
+                                        .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
+                                        .shadow(radius: 4)
                                 }
                                 
-                                // 右側精簡速度儀表板
-                                ZStack {
-                                    NeonArcFlowView(color: currentPrimaryColor, size: 190)
-                                    
-                                    VStack(spacing: 2) {
-                                        Text("GPS SPEED")
-                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                            .foregroundColor(.gray)
-                                            .tracking(1)
-                                        
-                                        Text(String(format: "%.0f", vehicleManager.speed))
-                                            .font(.system(size: 50, weight: .black, design: .monospaced))
-                                            .foregroundColor(.white)
-                                            .shadow(color: currentPrimaryColor.opacity(0.8), radius: 8)
-                                        
-                                        Text("KM/H")
-                                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                            .foregroundColor(currentPrimaryColor)
-                                        
-                                        if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
-                                            HStack(spacing: 3) {
-                                                Text(vehicleManager.isTesting0_100 ? "0-100 測速..." : "0-100:")
-                                                    .font(.system(size: 8, design: .monospaced))
-                                                    .foregroundColor(.gray)
-                                                Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
-                                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                                    .foregroundColor(.orange)
-                                            }
-                                        }
-                                    }
+                                // 浮動高對比時速表
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                    Text(String(format: "%.0f", vehicleManager.speed))
+                                        .font(.system(size: 32, weight: .black, design: .monospaced))
+                                        .foregroundColor(.white)
+                                    Text("KM/H")
+                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                        .foregroundColor(currentPrimaryColor)
                                 }
-                                .frame(width: 190, height: 190)
-                                
-                                // 右側遙測摘要
-                                VStack(alignment: .leading, spacing: 6) {
-                                    ShiftLightsView(speed: vehicleManager.speed)
-                                    
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        HStack {
-                                            Text("里程:").foregroundColor(.gray)
-                                            Spacer()
-                                            Text(String(format: "%.1f km", vehicleManager.tripDistance)).foregroundColor(.green)
-                                        }
-                                        HStack {
-                                            Text("極速:").foregroundColor(.gray)
-                                            Spacer()
-                                            Text(String(format: "%.0f", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor)
-                                        }
-                                    }
-                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                }
-                                .padding(10)
-                                .background(Color.white.opacity(0.05))
-                                .cornerRadius(10)
-                                
-                                Spacer()
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Color.black.opacity(0.75))
+                                .cornerRadius(22)
+                                .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor.opacity(0.5), lineWidth: 1))
+                                .shadow(radius: 4)
                             }
-                            .frame(width: 220)
+                            .padding(.top, 12)
+                            .padding(.leading, 12)
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
                         .transition(.opacity)
                         
                     } else {
-                        // === 預設模式：完整大型賽道儀表版型 ===
+                        // === 預設賽道儀表模式 ===
                         HStack(spacing: 15) {
-                            // 左側控制列
                             VStack(spacing: 12) {
                                 Button(action: { showMap.toggle() }) {
                                     VStack(spacing: 4) {
@@ -772,6 +727,7 @@ struct ContentView: View {
                                 Button(action: {
                                     let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
                                     historyRecords.append(history)
+                                    saveHistoryRecords()
                                     vehicleManager.resetData()
                                 }) {
                                     VStack(spacing: 4) {
@@ -788,7 +744,6 @@ struct ContentView: View {
                             }
                             .frame(width: 60)
                             
-                            // 中間大型即時速度儀表板
                             ZStack {
                                 NeonArcFlowView(color: currentPrimaryColor, size: 260)
                                 
@@ -822,7 +777,6 @@ struct ContentView: View {
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             
-                            // 右側 G力與遙測面板
                             VStack(spacing: 12) {
                                 GForceView(x: vehicleManager.currentGForceX, y: vehicleManager.currentGForceY, maxG: vehicleManager.maxGForce, primaryColor: currentPrimaryColor)
                                 
@@ -862,6 +816,11 @@ struct ContentView: View {
             }
             .navigationBarHidden(true)
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
+            .onAppear {
+                loadOverspeedLogs()
+                loadHistoryRecords()
+                vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
+            }
             .onChange(of: isNetworkBoostEnabled) { newValue in
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: newValue)
             }
@@ -872,19 +831,46 @@ struct ContentView: View {
                         AudioServicesPlaySystemSound(1005)
                         let record = OverspeedRecord(id: UUID(), date: Date(), speed: newSpeed, speedLimit: speedLimit)
                         overspeedLogs.append(record)
+                        saveOverspeedLogs()
                     }
                 } else {
                     flashWarning = false
                 }
             }
+            .onChange(of: overspeedLogs.count) { _ in saveOverspeedLogs() }
+            .onChange(of: historyRecords.count) { _ in saveHistoryRecords() }
             .background(
                 Group {
-                    NavigationLink(destination: SettingsView(selectedTheme: $selectedTheme, speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor, isNetworkBoostEnabled: $isNetworkBoostEnabled), isActive: $showSettings) { EmptyView() }
+                    NavigationLink(destination: SettingsView(selectedTheme: Binding(get: { self.selectedTheme }, set: { self.selectedTheme = $0 }), speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor, isNetworkBoostEnabled: $isNetworkBoostEnabled), isActive: $showSettings) { EmptyView() }
                     NavigationLink(destination: OverspeedLogsView(logs: $overspeedLogs), isActive: $showOverspeedLogs) { EmptyView() }
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
                 }
             )
         }
         .navigationViewStyle(StackNavigationViewStyle())
+    }
+    
+    private func saveOverspeedLogs() {
+        if let encoded = try? JSONEncoder().encode(overspeedLogs) {
+            overspeedLogsData = encoded
+        }
+    }
+    
+    private func loadOverspeedLogs() {
+        if let decoded = try? JSONDecoder().decode([OverspeedRecord].self, from: overspeedLogsData) {
+            overspeedLogs = decoded
+        }
+    }
+    
+    private func saveHistoryRecords() {
+        if let encoded = try? JSONEncoder().encode(historyRecords) {
+            historyRecordsData = encoded
+        }
+    }
+    
+    private func loadHistoryRecords() {
+        if let decoded = try? JSONDecoder().decode([HistoryRecord].self, from: historyRecordsData) {
+            historyRecords = decoded
+        }
     }
 }
