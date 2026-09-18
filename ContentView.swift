@@ -495,7 +495,94 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 三種風格完全獨立的開場動畫（頂級豪華版：閃電落雷、居合拔刀、殘影模糊、浮世繪雷紋框、多重Haptic震動）
+// MARK: - 5. 帥氣白狐面部特寫向量繪圖（霸氣靈狐破屏衝刺專用）
+struct MajesticWhiteFoxFaceView: View {
+    var body: some View {
+        ZStack {
+            // 左耳外廓
+            Path { path in
+                path.move(to: CGPoint(x: 100, y: 150))
+                path.addLine(to: CGPoint(x: 20, y: 10))
+                path.addLine(to: CGPoint(x: 120, y: 80))
+                path.closeSubpath()
+            }
+            .fill(Color.white)
+            .shadow(color: Color.cyan, radius: 10)
+            
+            // 右耳外廓
+            Path { path in
+                path.move(to: CGPoint(x: 200, y: 150))
+                path.addLine(to: CGPoint(x: 280, y: 10))
+                path.addLine(to: CGPoint(x: 180, y: 80))
+                path.closeSubpath()
+            }
+            .fill(Color.white)
+            .shadow(color: Color.cyan, radius: 10)
+            
+            // 左耳內側 (冰藍靈力)
+            Path { path in
+                path.move(to: CGPoint(x: 90, y: 120))
+                path.addLine(to: CGPoint(x: 45, y: 35))
+                path.addLine(to: CGPoint(x: 110, y: 85))
+                path.closeSubpath()
+            }
+            .fill(Color(red: 0.4, green: 0.85, blue: 1.0))
+            
+            // 右耳內側 (冰藍靈力)
+            Path { path in
+                path.move(to: CGPoint(x: 210, y: 120))
+                path.addLine(to: CGPoint(x: 255, y: 35))
+                path.addLine(to: CGPoint(x: 190, y: 85))
+                path.closeSubpath()
+            }
+            .fill(Color(red: 0.4, green: 0.85, blue: 1.0))
+            
+            // 狐狸面部輪廓
+            Path { path in
+                path.move(to: CGPoint(x: 150, y: 320)) // 下巴
+                path.addLine(to: CGPoint(x: 50, y: 140))  // 左頰
+                path.addLine(to: CGPoint(x: 90, y: 120))  // 左額
+                path.addLine(to: CGPoint(x: 150, y: 160)) // 額頭中心
+                path.addLine(to: CGPoint(x: 210, y: 120)) // 右額
+                path.addLine(to: CGPoint(x: 250, y: 140)) // 右頰
+                path.closeSubpath()
+            }
+            .fill(Color(red: 0.95, green: 0.97, blue: 1.0))
+            .shadow(color: .white, radius: 15)
+            
+            // 霸氣冰藍銳眼 (左)
+            Ellipse()
+                .fill(Color(red: 0.0, green: 0.95, blue: 0.9))
+                .frame(width: 45, height: 20)
+                .rotationEffect(.degrees(25))
+                .position(x: 105, y: 170)
+                .shadow(color: .cyan, radius: 12)
+            
+            // 霸氣冰藍銳眼 (右)
+            Ellipse()
+                .fill(Color(red: 0.0, green: 0.95, blue: 0.9))
+                .frame(width: 45, height: 20)
+                .rotationEffect(.degrees(-25))
+                .position(x: 195, y: 170)
+                .shadow(color: .cyan, radius: 12)
+            
+            // 眼神高光點睛
+            Circle().fill(Color.white).frame(width: 8, height: 8).position(x: 112, y: 166)
+            Circle().fill(Color.white).frame(width: 8, height: 8).position(x: 188, y: 166)
+            
+            // 額頭神速靈纹
+            Path { path in
+                path.move(to: CGPoint(x: 150, y: 130))
+                path.addLine(to: CGPoint(x: 150, y: 190))
+            }
+            .stroke(Color(red: 0.2, green: 0.6, blue: 1.0), lineWidth: 4)
+            .shadow(color: .cyan, radius: 6)
+        }
+        .frame(width: 300, height: 320)
+    }
+}
+
+// MARK: - 6. 三種風格完全獨立的開場動畫（加入帥氣白狐衝屏特效）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -509,9 +596,9 @@ struct MultiThemeBootLoadingView: View {
     @State private var warningFlash: Bool = false
     @State private var screenShake: CGFloat = 0.0
     
-    // Sakura specific animation states
+    // Sakura / White Fox specific animation states
     @State private var sakuraPhase: Int = 0 
-    @State private var foxScale: CGFloat = 0.1
+    @State private var foxScale: CGFloat = 0.05
     @State private var warningGlow: CGFloat = 0.0
     @State private var showLightning: Bool = false
     @State private var blurAmount: CGFloat = 0.0
@@ -524,7 +611,6 @@ struct MultiThemeBootLoadingView: View {
         }
     }
     
-    // 觸覺回饋產生器
     private func triggerHaptic(style: UIImpactFeedbackGenerator.FeedbackStyle) {
         let generator = UIImpactFeedbackGenerator(style: style)
         generator.prepare()
@@ -584,14 +670,12 @@ struct MultiThemeBootLoadingView: View {
                     }
                 }
             }
-            // ─── 3. 日本櫻花風（頂級豪華特效：落雷、居合、殘影、浮世繪雷紋框） ───
+            // ─── 3. 日本櫻花風（帥氣白狐極速破屏衝刺特寫） ───
             else {
                 ZStack {
-                    // 全螢幕閃光與落雷效果
                     if flashScreen { Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.85).ignoresSafeArea() }
                     
                     if showLightning {
-                        // 閃電裂紋視覺特效
                         ZStack {
                             Color.white.opacity(0.4).ignoresSafeArea()
                             Path { path in
@@ -615,7 +699,7 @@ struct MultiThemeBootLoadingView: View {
                         .ignoresSafeArea()
                     }
                     
-                    // 階段 1 與 2：櫻花炸開與吸入樹木中
+                    // 階段 0 & 1：櫻花聚集與靈力匯聚
                     if sakuraPhase <= 1 {
                         ZStack {
                             ForEach(0..<6, id: \.self) { i in
@@ -648,22 +732,20 @@ struct MultiThemeBootLoadingView: View {
                         }
                     }
                     
-                    // 階段 2 & 3：白狐召喚衝向螢幕（帶有動態殘影模糊）
+                    // 階段 2：帥氣白狐從正中央極速衝向螢幕（霸氣特寫）
                     if sakuraPhase == 2 {
                         ZStack {
-                            VStack(spacing: 12) {
-                                Image(systemName: "hare.fill")
-                                    .font(.system(size: 120))
-                                    .foregroundColor(.white)
-                                    .shadow(color: Color(red: 1.0, green: 0.4, blue: 0.7), radius: 30)
+                            VStack(spacing: 16) {
+                                MajesticWhiteFoxFaceView()
                                     .scaleEffect(foxScale)
-                                    .blur(radius: blurAmount) // 殘影速度感模糊
-                                    .rotationEffect(.degrees(warningFlash ? 5 : -5))
+                                    .blur(radius: blurAmount) // 殘影速度感動態模糊
+                                    .rotationEffect(.degrees(warningFlash ? 3 : -3))
+                                    .shadow(color: Color(red: 0.0, green: 0.9, blue: 1.0), radius: 35)
                                 
                                 Text("霊狐降臨 • 神速起動")
                                     .font(.system(size: 18, weight: .black, design: .monospaced))
                                     .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.9))
-                                    .shadow(color: .red, radius: 10)
+                                    .shadow(color: .cyan, radius: 10)
                             }
                             .transition(.scale.combined(with: .opacity))
                         }
@@ -674,7 +756,6 @@ struct MultiThemeBootLoadingView: View {
                         ZStack {
                             Color.black.opacity(0.95).ignoresSafeArea()
                             
-                            // 浮世繪風格的日式角落裝飾紋樣
                             VStack {
                                 HStack {
                                     Text("風林火山 卍").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
@@ -731,7 +812,7 @@ struct MultiThemeBootLoadingView: View {
                         }
                     }
                     
-                    // 階段 4：最後櫻花再次炸開進入主畫面
+                    // 階段 4：最後櫻花炸開進入主畫面
                     if sakuraPhase == 4 {
                         ZStack {
                             Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.6).ignoresSafeArea()
@@ -820,7 +901,7 @@ struct MultiThemeBootLoadingView: View {
                 flashScreen = true
                 screenShake = selectedTheme == .skull ? 18.0 : 6.0
             }
-            triggerHaptic(style: .heavy) // 初始炸開震撼震動
+            triggerHaptic(style: .heavy)
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
                 withAnimation(.easeOut(duration: 0.3)) {
@@ -844,21 +925,21 @@ struct MultiThemeBootLoadingView: View {
             }
             
             if selectedTheme == .sakura {
-                // 1. 0.8秒後：樹木聚攏
+                // 1. 0.8秒後：櫻花樹聚集
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                     triggerHaptic(style: .medium)
                     withAnimation(.easeInOut(duration: 0.5)) { sakuraPhase = 1 }
                 }
                 
-                // 2. 1.6秒後：白狐衝擊（結合居合斬拔刀音效、落雷閃電、動態殘影模糊與強烈震動）
+                // 2. 1.6秒後：帥氣白狐從正中央極速衝向螢幕（帶有閃電落雷、居合拔刀音效與殘影模糊）
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
                     AudioServicesPlaySystemSound(1104) // 衝擊音效
-                    AudioServicesPlaySystemSound(1057) // 模擬居合斬銳利金屬聲
+                    AudioServicesPlaySystemSound(1057) // 居合斬拔刀金屬聲
                     triggerHaptic(style: .heavy)
                     
                     withAnimation(.easeInOut(duration: 0.1)) {
                         showLightning = true
-                        blurAmount = 8.0 // 瞬間產生殘影動態模糊
+                        blurAmount = 10.0 // 瞬間產生極速殘影模糊
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -869,11 +950,11 @@ struct MultiThemeBootLoadingView: View {
                     
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
                         sakuraPhase = 2
-                        foxScale = 2.8
+                        foxScale = 3.2 // 瞬間極速放大佔滿螢幕
                     }
                 }
                 
-                // 3. 2.5秒後：黑紅流水發光警告字（帶有風鈴聲或警告震動）
+                // 3. 2.5秒後：黑紅流水發光警告字
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                     AudioServicesPlaySystemSound(1005)
                     triggerHaptic(style: .rigid)
@@ -905,7 +986,7 @@ struct MultiThemeBootLoadingView: View {
     }
 }
 
-// MARK: - 6. 櫻花飄落背景
+// MARK: - 7. 櫻花飄落背景
 struct SakuraFallingView: View {
     var density: Double
     
@@ -946,7 +1027,7 @@ private struct SakuraFallingContentView: View {
     }
 }
 
-// MARK: - 7. 最外框霓虹流光線條
+// MARK: - 8. 最外框霓虹流光線條
 struct BackgroundNeonFlowView: View {
     var primaryColor: Color
     var borderWidth: Double
@@ -976,7 +1057,7 @@ struct BackgroundNeonFlowView: View {
     }
 }
 
-// MARK: - 8. 互動式導航地圖
+// MARK: - 9. 互動式導航地圖
 struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
@@ -1050,7 +1131,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
     }
 }
 
-// MARK: - 9. 動態速度環形儀表板
+// MARK: - 10. 動態速度環形儀表板
 struct NeonSpeedGaugeRing: View {
     var speed: Double
     var maxDisplaySpeed: Double = 220.0
@@ -1109,7 +1190,7 @@ struct NeonSpeedGaugeRing: View {
     }
 }
 
-// MARK: - 10. 轉速燈
+// MARK: - 11. 轉速燈
 struct ShiftLightsView: View {
     let speed: Double
     
@@ -1134,7 +1215,7 @@ struct ShiftLightsView: View {
     }
 }
 
-// MARK: - 11. 內嵌小地圖
+// MARK: - 12. 內嵌小地圖
 struct MiniMapView: View {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
@@ -1169,7 +1250,7 @@ struct MiniMapView: View {
     }
 }
 
-// MARK: - 12. 效能測試檢視
+// MARK: - 13. 效能測試檢視
 struct PerformanceTestDashboardView: View {
     @ObservedObject var vehicleManager: VehicleManager
     var primaryColor: Color
@@ -1244,7 +1325,7 @@ struct PerformanceTestDashboardView: View {
     }
 }
 
-// MARK: - 13. 歷史紀錄
+// MARK: - 14. 歷史紀錄
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     var body: some View {
@@ -1285,7 +1366,7 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 14. 設定頁面
+// MARK: - 15. 設定頁面
 struct SettingsView: View {
     @ObservedObject var vehicleManager: VehicleManager
     @Binding var selectedTheme: DashboardTheme
@@ -1394,7 +1475,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 15. 主畫面 ContentView
+// MARK: - 16. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     @State private var isBootLoaded: Bool = false
