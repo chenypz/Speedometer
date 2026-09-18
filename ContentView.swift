@@ -253,7 +253,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         locationManager.distanceFilter = kCLDistanceFilterNone
-        locationManager.headingFilter = kCLLHeadingFilterNone
+        locationManager.headingFilter = 1.0 // 修正 kCLHeadingFilterNone 找不到的問題
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
         locationManager.startUpdatingHeading()
