@@ -1161,7 +1161,7 @@ struct ContentView: View {
     @AppStorage("isHudMode") private var isHudMode: Bool = false
     @AppStorage("showMap") private var showMap: Bool = false
     @AppStorage("useCustomColor") private var useCustomColor: Bool = false
-    @AppStorage("customColor") private var customColor: Color = Color(red: 1.0, green: 0.6, blue: 0.75)
+    @AppStorage("customColorRaw") private var customColorRaw: String = "1.0,0.6,0.75"
     @AppStorage("isNetworkBoostEnabled") private var isNetworkBoostEnabled: Bool = false
     
     @AppStorage("enableSakuraBackground") private var enableSakuraBackground: Bool = true
@@ -1184,6 +1184,11 @@ struct ContentView: View {
     @State private var isSearchExpanded: Bool = false
     
     @State private var latestTripScoreRecord: DrivingScoreRecord? = nil
+    
+    var customColor: Color {
+        get { Color(rawValue: customColorRaw) ?? Color(red: 1.0, green: 0.6, blue: 0.75) }
+        set { customColorRaw = newValue.rawValue }
+    }
     
     var effectiveSpeed: Double {
         return simulatedSpeed > 0 ? simulatedSpeed : vehicleManager.speed
@@ -1540,7 +1545,7 @@ struct ContentView: View {
                         speedLimit: $speedLimit,
                         isHudMode: $isHudMode,
                         useCustomColor: $useCustomColor,
-                        customColor: $customColor,
+                        customColor: Binding(get: { self.customColor }, set: { self.customColor = $0 }),
                         isNetworkBoostEnabled: $isNetworkBoostEnabled,
                         simulatedSpeed: $simulatedSpeed,
                         enableSakuraBackground: $enableSakuraBackground,
