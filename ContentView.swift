@@ -190,11 +190,13 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 開機動畫
+// MARK: - 4. 開機動畫與日式警告畫面
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
     @State private var textStep = 0
+    @State private var showWarningScreen: Bool = false
+    @State private var warningOpacity: Double = 0.0
     
     let steps = [
         "初始化賽道核心系統...",
@@ -207,49 +209,111 @@ struct BootLoadingView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 25) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.1), lineWidth: 6)
-                        .frame(width: 100, height: 100)
-                    Circle()
-                        .trim(from: 0, to: progress)
-                        .stroke(Color(red: 0.0, green: 0.8, blue: 1.0), style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                        .frame(width: 100, height: 100)
-                        .rotationEffect(.degrees(-90))
-                    Image(systemName: "gauge.with.needle")
-                        .font(.system(size: 40))
-                        .foregroundColor(.white)
-                }
-                
-                Text("VORTEX RACING HUD")
-                    .font(.system(size: 22, weight: .black, design: .monospaced))
-                    .tracking(4)
-                    .foregroundColor(.white)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    ZStack(alignment: .leading) {
-                        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 280, height: 8).cornerRadius(4)
-                        Rectangle().fill(Color(red: 0.0, green: 0.8, blue: 1.0)).frame(width: 280 * progress, height: 8).cornerRadius(4)
+            if !showWarningScreen {
+                // 進度條載入階段
+                VStack(spacing: 25) {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.white.opacity(0.1), lineWidth: 6)
+                            .frame(width: 100, height: 100)
+                        Circle()
+                            .trim(from: 0, to: progress)
+                            .stroke(Color(red: 0.0, green: 0.8, blue: 1.0), style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                            .frame(width: 100, height: 100)
+                            .rotationEffect(.degrees(-90))
+                        Image(systemName: "gauge.with.needle")
+                            .font(.system(size: 40))
+                            .foregroundColor(.white)
                     }
-                    Text(steps[min(textStep, steps.count - 1)])
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundColor(.gray)
+                    
+                    Text("VORTEX RACING HUD")
+                        .font(.system(size: 22, weight: .black, design: .monospaced))
+                        .tracking(4)
+                        .foregroundColor(.white)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        ZStack(alignment: .leading) {
+                            Rectangle().fill(Color.white.opacity(0.1)).frame(width: 280, height: 8).cornerRadius(4)
+                            Rectangle().fill(Color(red: 0.0, green: 0.8, blue: 1.0)).frame(width: 280 * progress, height: 8).cornerRadius(4)
+                        }
+                        Text(steps[min(textStep, steps.count - 1)])
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundColor(.gray)
+                    }
                 }
+            } else {
+                // 仿 FBI 警告風格的日系速度法規警告畫面 (3秒)
+                VStack(spacing: 0) {
+                    // 紅色標題列
+                    HStack {
+                        Text("警告")
+                            .font(.system(size: 24, weight: .black))
+                            .foregroundColor(.white)
+                            .tracking(6)
+                        Spacer()
+                        Text("WARNING / 法律遵守")
+                            .font(.system(size: 16, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .background(Color.red)
+                    
+                    // 內容區
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("道路交通安全法規與極速安全告知")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.red)
+                        
+                        Text("本系統提供之高精度 GPS 速度、G 力及賽道計時數據僅供賽道駕駛與參考使用。請嚴格遵守各地道路速限與交通法規，切勿在公共道路進行危險駕駛或超速行駛。違者須自負相關法律責任。")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.85))
+                            .lineSpacing(4)
+                        
+                        Text("AUTHORIZED RACING HUD SYSTEM - SEC. 501 / 508")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.gray)
+                            .padding(.top, 10)
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.black)
+                }
+                .frame(width: min(UIScreen.main.bounds.width - 40, 500))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.red, lineWidth: 3)
+                )
+                .cornerRadius(8)
+                .opacity(warningOpacity)
             }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 2.2)) {
+            withAnimation(.easeInOut(duration: 2.0)) {
                 progress = 1.0
             }
-            Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { timer in
+            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
                 if textStep < steps.count - 1 {
                     textStep += 1
                 } else {
                     timer.invalidate()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        withAnimation {
-                            isFinished = true
+                    // 進度完成後，切換至 3 秒警告畫面
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        showWarningScreen = true
+                    }
+                    // 漸顯警告畫面
+                    withAnimation(.easeIn(duration: 0.6)) {
+                        warningOpacity = 1.0
+                    }
+                    // 3 秒後結束開機動畫
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        withAnimation(.easeOut(duration: 0.6)) {
+                            warningOpacity = 0.0
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                            withAnimation {
+                                isFinished = true
+                            }
                         }
                     }
                 }
@@ -302,24 +366,25 @@ struct BackgroundNeonFlowView: View {
     }
 }
 
-// MARK: - 6. 具備原生搜尋與導航功能的 Apple Maps 檢視
+// MARK: - 6. 具備原生導航功能的 Apple Maps 檢視
 struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
+    var isInteractive: Bool = true
     
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .followWithHeading
-        mapView.isZoomEnabled = true
-        mapView.isScrollEnabled = true
-        mapView.isRotateEnabled = true
-        mapView.showsCompass = true
-        mapView.showsTraffic = true
+        mapView.isZoomEnabled = isInteractive
+        mapView.isScrollEnabled = isInteractive
+        mapView.isRotateEnabled = isInteractive
+        mapView.showsCompass = false
+        mapView.showsTraffic = false
         return mapView
     }
     
     func updateUIView(_ uiView: MKMapView, context: Context) {
-        if uiView.userTrackingMode != .followWithHeading {
+        if isInteractive && uiView.userTrackingMode != .followWithHeading {
             uiView.setUserTrackingMode(.followWithHeading, animated: true)
         }
     }
@@ -382,45 +447,79 @@ struct ShiftLightsView: View {
     }
 }
 
-// MARK: - 9. G 力感應器圖表
-struct GForceView: View {
-    let x: Double
-    let y: Double
-    let maxG: Double
+// MARK: - 9. 內嵌小地圖元件
+struct MiniMapView: View {
+    let coordinate: CLLocationCoordinate2D
     var primaryColor: Color
+    var onTap: () -> Void
     
     var body: some View {
-        ZStack {
-            Circle().stroke(Color.white.opacity(0.2), lineWidth: 1)
-            Circle().stroke(Color.white.opacity(0.1), lineWidth: 1).frame(width: 60, height: 60)
-            
-            Rectangle().fill(Color.white.opacity(0.2)).frame(width: 1, height: 120)
-            Rectangle().fill(Color.white.opacity(0.2)).frame(width: 120, height: 1)
-            
-            Circle()
-                .fill(primaryColor)
-                .frame(width: 10, height: 10)
-                .offset(x: CGFloat(x * 45), y: CGFloat(y * 45))
-                .shadow(color: primaryColor, radius: 4)
-            
-            VStack {
-                Text("G-FORCE")
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundColor(.gray)
-                Text(String(format: "MAX: %.2fG", maxG))
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+        Button(action: onTap) {
+            ZStack(alignment: .bottomTrailing) {
+                InteractiveNavigationMapView(coordinate: coordinate, isInteractive: false)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(primaryColor.opacity(0.6), lineWidth: 2)
+                    )
+                
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.white)
+                    .padding(6)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Circle())
+                    .padding(6)
             }
-            .offset(y: 42)
         }
         .frame(width: 120, height: 120)
-        .background(Color.black.opacity(0.4))
-        .cornerRadius(60)
-        .overlay(Circle().stroke(primaryColor.opacity(0.5), lineWidth: 2))
+        .shadow(color: primaryColor.opacity(0.3), radius: 4)
     }
 }
 
-// MARK: - 10. 超速違規清單頁面
+// MARK: - 10. 科幻粒子凝聚特效外框 (主畫面進場特效)
+struct SciFiParticleAssembleView<Content: View>: View {
+    let content: Content
+    @State private var assembleProgress: CGFloat = 0.0
+    
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+    
+    var body: some View {
+        ZStack {
+            content
+                .opacity(Double(assembleProgress))
+                .scaleEffect(0.8 + (assembleProgress * 0.2))
+            
+            if assembleProgress < 1.0 {
+                // 模擬小石頭/科幻光點從四面八方聚攏到中央的特效
+                ZStack {
+                    ForEach(0..<30, id: \.self) { i in
+                        let angle = Double(i) * (Double.pi * 2 / 30.0)
+                        let distance = (1.0 - assembleProgress) * 300.0
+                        let x = cos(angle) * distance
+                        let y = sin(angle) * distance
+                        
+                        Circle()
+                            .fill(i % 2 == 0 ? Color.cyan : Color.white)
+                            .frame(width: CGFloat(2 + (i % 4)), height: CGFloat(2 + (i % 4)))
+                            .offset(x: x, y: y)
+                            .shadow(color: .cyan, radius: 4)
+                    }
+                }
+                .edgesIgnoringSafeArea(.all)
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.2)) {
+                assembleProgress = 1.0
+            }
+        }
+    }
+}
+
+// MARK: - 11. 超速違規清單頁面
 struct OverspeedLogsView: View {
     @Binding var logs: [OverspeedRecord]
     
@@ -479,7 +578,7 @@ struct OverspeedLogsView: View {
     }
 }
 
-// MARK: - 11. 行程歷史封存紀錄頁面
+// MARK: - 12. 行程歷史封存紀錄頁面
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     
@@ -548,7 +647,7 @@ struct HistoryRecordsView: View {
     }
 }
 
-// MARK: - 12. 設定選單
+// MARK: - 13. 設定選單
 struct SettingsView: View {
     @Binding var selectedTheme: DashboardTheme
     @Binding var speedLimit: Double
@@ -597,7 +696,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 13. 主畫面 ContentView
+// MARK: - 14. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     
@@ -640,177 +739,182 @@ struct ContentView: View {
                         .transition(.opacity)
                         .zIndex(20)
                 } else {
-                    selectedTheme.backgroundColor.edgesIgnoringSafeArea(.all)
-                    
-                    BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
-                        .zIndex(0)
-                    
-                    if flashWarning {
-                        Color.red.opacity(0.3)
-                            .edgesIgnoringSafeArea(.all)
-                            .animation(Animation.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: flashWarning)
-                            .zIndex(10)
-                    }
-                    
-                    if showMap {
-                        // === 極簡地圖模式：全螢幕 Apple 地圖 + 浮動時速表與返回按鈕 ===
-                        ZStack(alignment: .topLeading) {
-                            InteractiveNavigationMapView(coordinate: vehicleManager.currentLocation)
-                                .edgesIgnoringSafeArea(.all)
+                    // 導入科幻粒子凝聚特效進場
+                    SciFiParticleAssembleView {
+                        ZStack {
+                            selectedTheme.backgroundColor.edgesIgnoringSafeArea(.all)
                             
-                            // 左上角浮動控制按鈕與精簡時速表
-                            HStack(alignment: .top, spacing: 12) {
-                                Button(action: { showMap.toggle() }) {
-                                    Image(systemName: "gauge.with.needle")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .frame(width: 44, height: 44)
-                                        .background(Color.black.opacity(0.75))
-                                        .foregroundColor(currentPrimaryColor)
-                                        .cornerRadius(22)
-                                        .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
-                                        .shadow(radius: 4)
-                                }
-                                
-                                // 浮動高對比時速表
-                                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                    Text(String(format: "%.0f", vehicleManager.speed))
-                                        .font(.system(size: 32, weight: .black, design: .monospaced))
-                                        .foregroundColor(.white)
-                                    Text("KM/H")
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .foregroundColor(currentPrimaryColor)
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(Color.black.opacity(0.75))
-                                .cornerRadius(22)
-                                .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor.opacity(0.5), lineWidth: 1))
-                                .shadow(radius: 4)
-                            }
-                            .padding(.top, 12)
-                            .padding(.leading, 12)
-                        }
-                        .transition(.opacity)
-                        
-                    } else {
-                        // === 預設賽道儀表模式 ===
-                        HStack(spacing: 15) {
-                            VStack(spacing: 12) {
-                                Button(action: { showMap.toggle() }) {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "map.fill")
-                                            .font(.system(size: 14))
-                                        Text("地圖")
-                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                    }
-                                    .frame(width: 52, height: 52)
-                                    .background(Color.white.opacity(0.1))
-                                    .foregroundColor(.white)
-                                    .cornerRadius(12)
-                                }
-                                
-                                Button(action: { showSettings = true }) {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "gearshape.fill")
-                                            .font(.system(size: 14))
-                                        Text("設定")
-                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                    }
-                                    .frame(width: 52, height: 52)
-                                    .background(Color.white.opacity(0.1))
-                                    .foregroundColor(.white)
-                                    .cornerRadius(12)
-                                }
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
-                                    historyRecords.append(history)
-                                    saveHistoryRecords()
-                                    vehicleManager.resetData()
-                                }) {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "arrow.counterclockwise.circle.fill")
-                                            .font(.system(size: 14))
-                                        Text("重置")
-                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                    }
-                                    .frame(width: 52, height: 52)
-                                    .background(Color.orange.opacity(0.2))
-                                    .foregroundColor(.orange)
-                                    .cornerRadius(12)
-                                }
-                            }
-                            .frame(width: 60)
+                            BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
+                                .zIndex(0)
                             
-                            ZStack {
-                                NeonArcFlowView(color: currentPrimaryColor, size: 260)
-                                
-                                VStack(spacing: 4) {
-                                    Text("GPS SPEED")
-                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                        .foregroundColor(.gray)
-                                        .tracking(2)
+                            if flashWarning {
+                                Color.red.opacity(0.3)
+                                    .edgesIgnoringSafeArea(.all)
+                                    .animation(Animation.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: flashWarning)
+                                    .zIndex(10)
+                            }
+                            
+                            if showMap {
+                                // === 全螢幕地圖模式 ===
+                                ZStack(alignment: .topLeading) {
+                                    InteractiveNavigationMapView(coordinate: vehicleManager.currentLocation, isInteractive: true)
+                                        .edgesIgnoringSafeArea(.all)
                                     
-                                    Text(String(format: "%.0f", vehicleManager.speed))
-                                        .font(.system(size: 78, weight: .black, design: .monospaced))
-                                        .foregroundColor(.white)
-                                        .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
-                                    
-                                    Text("KM/H")
-                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                        .foregroundColor(currentPrimaryColor)
-                                    
-                                    if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
-                                        HStack(spacing: 4) {
-                                            Text(vehicleManager.isTesting0_100 ? "0-100 測速中..." : "0-100 紀錄:")
-                                                .font(.system(size: 10, design: .monospaced))
-                                                .foregroundColor(.gray)
-                                            Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
-                                                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                                .foregroundColor(.orange)
+                                    HStack(alignment: .top, spacing: 12) {
+                                        Button(action: { showMap.toggle() }) {
+                                            Image(systemName: "gauge.with.needle")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .frame(width: 44, height: 44)
+                                                .background(Color.black.opacity(0.75))
+                                                .foregroundColor(currentPrimaryColor)
+                                                .cornerRadius(22)
+                                                .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
+                                                .shadow(radius: 4)
                                         }
-                                        .padding(.top, 2)
+                                        
+                                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                            Text(String(format: "%.0f", vehicleManager.speed))
+                                                .font(.system(size: 32, weight: .black, design: .monospaced))
+                                                .foregroundColor(.white)
+                                            Text("KM/H")
+                                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                                .foregroundColor(currentPrimaryColor)
+                                        }
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                        .background(Color.black.opacity(0.75))
+                                        .cornerRadius(22)
+                                        .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor.opacity(0.5), lineWidth: 1))
+                                        .shadow(radius: 4)
                                     }
+                                    .padding(.top, 12)
+                                    .padding(.leading, 12)
                                 }
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            
-                            VStack(spacing: 12) {
-                                GForceView(x: vehicleManager.currentGForceX, y: vehicleManager.currentGForceY, maxG: vehicleManager.maxGForce, primaryColor: currentPrimaryColor)
+                                .transition(.opacity)
                                 
-                                VStack(spacing: 4) {
-                                    ShiftLightsView(speed: vehicleManager.speed)
-                                    Text("RPM LIGHTS")
-                                        .font(.system(size: 8, design: .monospaced))
-                                        .foregroundColor(.gray)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text("里程:").foregroundColor(.gray)
+                            } else {
+                                // === 預設賽道儀表模式 ===
+                                HStack(spacing: 15) {
+                                    VStack(spacing: 12) {
+                                        Button(action: { showMap.toggle() }) {
+                                            VStack(spacing: 4) {
+                                                Image(systemName: "map.fill")
+                                                    .font(.system(size: 14))
+                                                Text("地圖")
+                                                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                            }
+                                            .frame(width: 52, height: 52)
+                                            .background(Color.white.opacity(0.1))
+                                            .foregroundColor(.white)
+                                            .cornerRadius(12)
+                                        }
+                                        
+                                        Button(action: { showSettings = true }) {
+                                            VStack(spacing: 4) {
+                                                Image(systemName: "gearshape.fill")
+                                                    .font(.system(size: 14))
+                                                Text("設定")
+                                                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                            }
+                                            .frame(width: 52, height: 52)
+                                            .background(Color.white.opacity(0.1))
+                                            .foregroundColor(.white)
+                                            .cornerRadius(12)
+                                        }
+                                        
                                         Spacer()
-                                        Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green)
+                                        
+                                        Button(action: {
+                                            let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
+                                            historyRecords.append(history)
+                                            saveHistoryRecords()
+                                            vehicleManager.resetData()
+                                        }) {
+                                            VStack(spacing: 4) {
+                                                Image(systemName: "arrow.counterclockwise.circle.fill")
+                                                    .font(.system(size: 14))
+                                                Text("重置")
+                                                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                            }
+                                            .frame(width: 52, height: 52)
+                                            .background(Color.orange.opacity(0.2))
+                                            .foregroundColor(.orange)
+                                            .cornerRadius(12)
+                                        }
                                     }
-                                    HStack {
-                                        Text("極速:").foregroundColor(.gray)
+                                    .frame(width: 60)
+                                    
+                                    ZStack {
+                                        NeonArcFlowView(color: currentPrimaryColor, size: 260)
+                                        
+                                        VStack(spacing: 4) {
+                                            Text("GPS SPEED")
+                                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                                .foregroundColor(.gray)
+                                                .tracking(2)
+                                            
+                                            Text(String(format: "%.0f", vehicleManager.speed))
+                                                .font(.system(size: 78, weight: .black, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
+                                            
+                                            Text("KM/H")
+                                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                                .foregroundColor(currentPrimaryColor)
+                                            
+                                            if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
+                                                HStack(spacing: 4) {
+                                                    Text(vehicleManager.isTesting0_100 ? "0-100 測速中..." : "0-100 紀錄:")
+                                                        .font(.system(size: 10, design: .monospaced))
+                                                        .foregroundColor(.gray)
+                                                    Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
+                                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                                        .foregroundColor(.orange)
+                                                }
+                                                .padding(.top, 2)
+                                            }
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    
+                                    VStack(spacing: 12) {
+                                        MiniMapView(coordinate: vehicleManager.currentLocation, primaryColor: currentPrimaryColor) {
+                                            showMap = true
+                                        }
+                                        
+                                        VStack(spacing: 4) {
+                                            ShiftLightsView(speed: vehicleManager.speed)
+                                            Text("RPM LIGHTS")
+                                                .font(.system(size: 8, design: .monospaced))
+                                                .foregroundColor(.gray)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            HStack {
+                                                Text("里程:").foregroundColor(.gray)
+                                                Spacer()
+                                                Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green)
+                                            }
+                                            HStack {
+                                                Text("極速:").foregroundColor(.gray)
+                                                Spacer()
+                                                Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor)
+                                            }
+                                        }
+                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                        .padding(10)
+                                        .background(Color.white.opacity(0.05))
+                                        .cornerRadius(10)
+                                        
                                         Spacer()
-                                        Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor)
                                     }
+                                    .frame(width: 140)
                                 }
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .padding(10)
-                                .background(Color.white.opacity(0.05))
-                                .cornerRadius(10)
-                                
-                                Spacer()
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .transition(.opacity)
                             }
-                            .frame(width: 140)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .transition(.opacity)
                     }
                 }
             }
