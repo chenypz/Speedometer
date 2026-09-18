@@ -389,8 +389,8 @@ struct BootLoadingView: View {
                             .cornerRadius(4)
                             .shadow(color: .red, radius: 8)
                     }
-                    .padding(.trailing, 34)
-                    .padding(.bottom, 24)
+                    .padding(.trailing, 24)
+                    .padding(.bottom, 20)
                 }
             }
             .zIndex(30)
@@ -1065,7 +1065,7 @@ struct ContentView: View {
                                             }
                                         }
                                         .padding(.top, 24)
-                                        .padding(.leading, 34)
+                                        .padding(.leading, 24)
                                     }
                                 } else {
                                     HStack(spacing: 12) {
@@ -1189,7 +1189,7 @@ struct ContentView: View {
                                         }
                                         .frame(width: 130)
                                     }
-                                    .padding(.horizontal, 34)
+                                    .padding(.horizontal, 20)
                                     .padding(.vertical, 14)
                                 }
                                 
@@ -1212,6 +1212,7 @@ struct ContentView: View {
                                 }
                             }
                         }
+                        .padding(.horizontal, 16) // 確保主畫面兩側留有安全距離，不再被邊緣切掉
                     }
                 }
             }
