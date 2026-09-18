@@ -41,8 +41,8 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     var backgroundColor: Color {
         switch self {
         case .porsche: return .black
-        case .cyberpunk: return Color(red: 0.05, green: 0.05, blue: 0.1)
-        case .arcade: return Color(red: 0.05, green: 0.0, blue: 0.15)
+        case .cyberpunk: return Color(red: 0.02, green: 0.02, blue: 0.06)
+        case .arcade: return Color(red: 0.03, green: 0.0, blue: 0.08)
         }
     }
 }
@@ -231,7 +231,53 @@ struct BootLoadingView: View {
     }
 }
 
-// MARK: - 5. 地圖導航檢視
+// MARK: - 5. 背景流水長亮霓虹燈條特效
+struct BackgroundNeonFlowView: View {
+    @State private var isAnimating = false
+    var primaryColor: Color
+    
+    var body: some View {
+        ZStack {
+            // 四周邊框流水長亮霓虹燈條
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(colors: [primaryColor.opacity(0.1), primaryColor, primaryColor.opacity(0.1), Color.clear]),
+                        center: .center,
+                        angle: .degrees(isAnimating ? 360 : 0)
+                    ),
+                    lineWidth: 3
+                )
+                .padding(4)
+                .shadow(color: primaryColor.opacity(0.6), radius: 8)
+            
+            // 背景流光斜線條（營造動態速度感）
+            GeometryReader { geometry in
+                Path { path in
+                    let width = geometry.size.width
+                    let height = geometry.size.height
+                    for i in 0..<6 {
+                        let xOffset = CGFloat(i) * 150 + (isAnimating ? width : -100)
+                        path.move(to: CGPoint(x: xOffset, y: 0))
+                        path.addLine(to: CGPoint(x: xOffset - 100, y: height))
+                    }
+                }
+                .stroke(
+                    LinearGradient(gradient: Gradient(colors: [.clear, primaryColor.opacity(0.08), .clear]), startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: 2
+                )
+            }
+        }
+        .onAppear {
+            withAnimation(Animation.linear(duration: 6).repeatForever(autoreverses: false)) {
+                isAnimating = true
+            }
+        }
+        .ignoresSafeArea()
+    }
+}
+
+// MARK: - 6. 地圖導航檢視
 struct MapTrackingView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     let heading: Double
@@ -255,7 +301,7 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 6. 炫光流光線條背景
+// MARK: - 7. 炫光流光圓形線條
 struct NeonArcFlowView: View {
     @State private var animate = false
     var color: Color
@@ -292,7 +338,7 @@ struct NeonArcFlowView: View {
     }
 }
 
-// MARK: - 7. 專業轉速提示燈
+// MARK: - 8. 專業轉速提示燈
 struct ShiftLightsView: View {
     let speed: Double
     
@@ -321,7 +367,7 @@ struct ShiftLightsView: View {
     }
 }
 
-// MARK: - 8. G 力感應器圖表
+// MARK: - 9. G 力感應器圖表
 struct GForceView: View {
     let x: Double
     let y: Double
@@ -359,7 +405,7 @@ struct GForceView: View {
     }
 }
 
-// MARK: - 9. 超速違規清單頁面
+// MARK: - 10. 超速違規清單頁面
 struct OverspeedLogsView: View {
     @Binding var logs: [OverspeedRecord]
     
@@ -418,7 +464,7 @@ struct OverspeedLogsView: View {
     }
 }
 
-// MARK: - 10. 行程歷史封存紀錄頁面
+// MARK: - 11. 行程歷史封存紀錄頁面
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     
@@ -487,7 +533,7 @@ struct HistoryRecordsView: View {
     }
 }
 
-// MARK: - 11. 設定選單
+// MARK: - 12. 設定選單
 struct SettingsView: View {
     @Binding var selectedTheme: DashboardTheme
     @Binding var speedLimit: Double
@@ -537,7 +583,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 12. 主畫面 ContentView (固定橫向賽道排版)
+// MARK: - 13. 主畫面 ContentView (固定橫向賽道排版)
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     
@@ -572,6 +618,10 @@ struct ContentView: View {
                         .zIndex(20)
                 } else {
                     selectedTheme.backgroundColor.edgesIgnoringSafeArea(.all)
+                    
+                    // 流水長亮霓虹燈條背景特效
+                    BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
+                        .zIndex(0)
                     
                     if flashWarning {
                         Color.red.opacity(0.3)
@@ -634,7 +684,7 @@ struct ContentView: View {
         VStack(spacing: 12) {
             Button(action: { showMap.toggle() }) {
                 VStack(spacing: 4) {
-                    Image(systemName: showMap.toggle ? "gauge.with.needle" : "map.fill")
+                    Image(systemName: showMap ? "gauge.with.needle" : "map.fill")
                         .font(.system(size: 14))
                     Text(showMap ? "儀表" : "地圖")
                         .font(.system(size: 8, weight: .bold, design: .monospaced))
