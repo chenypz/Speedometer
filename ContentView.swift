@@ -19,7 +19,7 @@ struct HistoryRecord: Identifiable, Codable {
     let zeroToOneHundredTime: Double
     let maxGForce: Double
     let tripDistance: Double
-    let routeCoordinates: [CodableCoordinate] // 用於行車軌跡回放
+    let routeCoordinates: [CodableCoordinate]
 }
 
 struct CodableCoordinate: Codable {
@@ -42,7 +42,7 @@ struct SpeedCamera: Identifiable {
     let coordinate: CLLocationCoordinate2D
     let speedLimit: Double
     let description: String
-    var isTemporary: BooleanLiteralType = false // 標記是否為社群回報的流動測速
+    var isTemporary: Bool = false
 }
 
 // MARK: - 2. 佈景主題設定
@@ -99,9 +99,9 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
     
-    @Published var speed: Double = 0.0 // km/h
+    @Published var speed: Double = 0.0
     @Published var maxSpeed: Double = 0.0
-    @Published var tripDistance: Double = 0.0 // km
+    @Published var tripDistance: Double = 0.0
     @Published var heading: Double = 0.0
     
     @Published var currentGForceX: Double = 0.0
@@ -122,13 +122,9 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var distanceToNextStep: Double = 0.0
     @Published var destinationCoordinate: CLLocationCoordinate2D? = nil
     
-    // 測速照相預警狀態
     @Published var nearestCameraAlert: String? = nil
-    
-    // 行車軌跡紀錄點
     @Published var recordedPath: [CLLocationCoordinate2D] = []
     
-    // 測速照相資料庫（包含固定與動態社群回報點）
     @Published var speedCameras: [SpeedCamera] = [
         SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654), speedLimit: 50, description: "台北信義路固定測速"),
         SpeedCamera(coordinate: CLLocationCoordinate2D(latitude: 25.0400, longitude: 121.5700), speedLimit: 60, description: "台北忠孝東路固定測速")
@@ -171,17 +167,16 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         recordedPath.removeAll()
     }
     
-    // **新功能：社群回報流動測速**
     func reportMobileSpeedTrap() {
         let newTrap = SpeedCamera(
             coordinate: currentLocation,
-            speedLimit: 50, // 預設速限
+            speedLimit: 50,
             description: "⚠️ 用戶回報流動測速/三腳架",
             isTemporary: true
         )
         speedCameras.append(newTrap)
         nearestCameraAlert = "已成功回報流動測速點！"
-        AudioServicesPlaySystemSound(1016) // 提示音
+        AudioServicesPlaySystemSound(1016)
     }
     
     func searchAndNavigate(query: String) {
@@ -251,15 +246,12 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLocation = locations.last else { return }
         currentLocation = newLocation.coordinate
-        
-        // **記錄行車軌跡點**
         recordedPath.append(newLocation.coordinate)
         
         let speedKmh = max(0, newLocation.speed * 3.6)
         self.speed = speedKmh
         
         checkSpeedCameras(currentLoc: newLocation, currentSpeed: speedKmh)
-        
         if speedKmh > maxSpeed { maxSpeed = speedKmh }
         
         if let last = lastLocation {
@@ -287,7 +279,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
         let alertDistance: CLLocationDistance = 400.0
-        
         for camera in speedCameras {
             let cameraLocation = CLLocation(latitude: camera.coordinate.latitude, longitude: camera.coordinate.longitude)
             let distance = currentLoc.distance(from: cameraLocation)
@@ -314,7 +305,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 變形金剛風格開場動畫
+// MARK: - 4. 擴充 10 秒多階段高科技開場動畫（附右下角 SKIP 按鈕）
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -329,10 +320,12 @@ struct BootLoadingView: View {
     @State private var shockwaveOpacity: Double = 0.0
     
     let steps = [
-        "CYBERTRON CORE ENGAGED...",
-        "ASSEMBLING KINETIC SHIELDS & DUAL-BLADES...",
-        "SYNCHRONIZING QUANTUM SPEED SENSORS...",
-        "ALL SYSTEMS ONLINE. TRANSFORM & ROLL OUT."
+        "CYBERTRON MATRIX CORE INITIALIZING...",
+        "CALIBRATING QUANTUM GPS & SATELLITE UPLINK...",
+        "ASSEMBLING KINETIC SHIELDS & DUAL-BLADE HUD...",
+        "ESTABLISHING SECURE NEURAL OVERDRIVE...",
+        "DIAGNOSTIC COMPLETE. ALL SYSTEMS NOMINAL.",
+        "AUTOBOT PROTOCOL 901 ENGAGED. PREPARE FOR LAUNCH."
     ]
     
     var body: some View {
@@ -340,29 +333,55 @@ struct BootLoadingView: View {
             LinearGradient(colors: [Color(red: 0.02, green: 0.04, blue: 0.08), Color.black, Color(red: 0.06, green: 0.01, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
             
+            // 右下角 SKIP 跳過按鈕
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            isFinished = true
+                        }
+                    }) {
+                        Text("SKIP ❯❯")
+                            .font(.system(size: 12, weight: .black, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemCyan).opacity(0.3))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.systemCyan), lineWidth: 1.5))
+                            .cornerRadius(16)
+                            .shadow(color: Color(.systemCyan), radius: 5)
+                    }
+                    .padding(.trailing, 24)
+                    .padding(.bottom, 24)
+                }
+            }
+            .zIndex(30)
+            
             if !showWarningScreen {
                 VStack(spacing: 30) {
                     ZStack {
                         Circle()
-                            .stroke(Color(red: 0.0, green: 0.8, blue: 1.0), lineWidth: 4)
+                            .stroke(Color(.systemCyan), lineWidth: 4)
                             .frame(width: 180, height: 180)
                             .scaleEffect(shockwaveScale)
                             .opacity(shockwaveOpacity)
                         
                         ForEach(0..<6, id: \.self) { i in
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
+                                .fill(LinearGradient(colors: [Color(.systemCyan), Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
                                 .frame(width: 24, height: 75)
                                 .offset(y: -55)
                                 .rotationEffect(.degrees(Double(i) * 60.0 + armorRotation))
-                                .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 8)
+                                .shadow(color: Color(.systemCyan), radius: 8)
                         }
                         
                         Circle()
-                            .fill(RadialGradient(gradient: Gradient(colors: [.white, Color(red: 0.0, green: 0.8, blue: 1.0), .clear]), center: .center, startRadius: 2, endRadius: 50))
+                            .fill(RadialGradient(gradient: Gradient(colors: [.white, Color(.systemCyan), .clear]), center: .center, startRadius: 2, endRadius: 50))
                             .frame(width: 100, height: 100)
                             .scaleEffect(coreGlow)
-                            .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 20)
+                            .shadow(color: Color(.systemCyan), radius: 20)
                         
                         Image(systemName: "cpu")
                             .font(.system(size: 40, weight: .bold))
@@ -371,30 +390,30 @@ struct BootLoadingView: View {
                     }
                     .frame(height: 180)
                     
-                    Text("AUTOBOT SPEED HUD")
+                    Text("AUTOBOT QUANTUM HUD")
                         .font(.system(size: 22, weight: .black, design: .monospaced))
                         .kerning(8)
-                        .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
-                        .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 10)
+                        .foregroundColor(Color(.systemCyan))
+                        .shadow(color: Color(.systemCyan), radius: 10)
                         .opacity(Double(progress))
                     
                     VStack(alignment: .leading, spacing: 10) {
                         ZStack(alignment: .leading) {
                             Rectangle()
                                 .fill(Color.white.opacity(0.1))
-                                .frame(width: 280, height: 6)
+                                .frame(width: 300, height: 6)
                                 .cornerRadius(3)
                             
                             Rectangle()
-                                .fill(LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.8, green: 0.1, blue: 0.9), .orange], startPoint: .leading, endPoint: .trailing))
-                                .frame(width: 280 * progress, height: 6)
+                                .fill(LinearGradient(colors: [Color(.systemCyan), Color(red: 0.8, green: 0.1, blue: 0.9), .orange], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: 300 * progress, height: 6)
                                 .cornerRadius(3)
-                                .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 8)
+                                .shadow(color: Color(.systemCyan), radius: 8)
                         }
                         
                         Text(steps[min(textStep, steps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.8))
+                            .foregroundColor(Color(.systemCyan).opacity(0.8))
                     }
                 }
                 .transition(.opacity)
@@ -454,11 +473,12 @@ struct BootLoadingView: View {
                 shockwaveOpacity = 0.8
             }
             
-            withAnimation(.easeInOut(duration: 2.4)) {
+            // 總共約 10 秒的流暢進度條
+            withAnimation(.easeInOut(duration: 9.0)) {
                 progress = 1.0
             }
             
-            Timer.scheduledTimer(withTimeInterval: 0.55, repeats: true) { timer in
+            Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { timer in
                 if textStep < steps.count - 1 {
                     textStep += 1
                 } else {
@@ -466,7 +486,7 @@ struct BootLoadingView: View {
                     withAnimation(.easeInOut(duration: 0.4)) { showWarningScreen = true }
                     withAnimation(.easeIn(duration: 0.6)) { warningOpacity = 1.0 }
                     
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                         withAnimation(.easeOut(duration: 0.6)) { warningOpacity = 0.0 }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                             withAnimation(.easeInOut(duration: 0.8)) { isFinished = true }
@@ -496,22 +516,6 @@ struct BackgroundNeonFlowView: View {
                 )
                 .padding(4)
                 .shadow(color: primaryColor.opacity(0.8), radius: 12)
-            
-            GeometryReader { geometry in
-                Path { path in
-                    let width = geometry.size.width
-                    let height = geometry.size.height
-                    for i in 0..<8 {
-                        let xOffset = CGFloat(i) * 120 + (isAnimating ? width : -120)
-                        path.move(to: CGPoint(x: xOffset, y: 0))
-                        path.addLine(to: CGPoint(x: xOffset - 120, y: height))
-                    }
-                }
-                .stroke(
-                    LinearGradient(gradient: Gradient(colors: [.clear, primaryColor.opacity(0.18), .clear]), startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 3
-                )
-            }
         }
         .ignoresSafeArea()
         .onAppear {
@@ -522,12 +526,12 @@ struct BackgroundNeonFlowView: View {
     }
 }
 
-// MARK: - 6. 互動式導航地圖（支援路線回放）
+// MARK: - 6. 互動式導航地圖
 struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
     var destinationCoordinate: CLLocationCoordinate2D?
-    var historyPath: [CLLocationCoordinate2D]? // 用於歷史軌跡回放
+    var historyPath: [CLLocationCoordinate2D]?
     var isInteractive: Bool = true
     var onMapTap: (CLLocationCoordinate2D) -> Void
     
@@ -558,12 +562,10 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         uiView.removeOverlays(uiView.overlays)
         uiView.removeAnnotations(uiView.annotations)
         
-        // 繪製導航藍色路線
         if let polyline = routePolyline {
             uiView.addOverlay(polyline)
         }
         
-        // 繪製歷史行車軌跡回放線條
         if let path = historyPath, !path.isEmpty {
             let polyline = MKPolyline(coordinates: path, count: path.count)
             uiView.addOverlay(polyline)
@@ -595,8 +597,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
-                // 如果是歷史軌跡用橘色，導航用藍色
-                renderer.strokeColor = parent.historyPath != nil ? UIColor.systemOrange : UIColor.cyan
+                renderer.strokeColor = parent.historyPath != nil ? UIColor.systemOrange : UIColor.systemCyan
                 renderer.lineWidth = 6
                 return renderer
             }
@@ -710,10 +711,10 @@ struct SciFiParticleAssembleView<Content: View>: View {
                         let angle = Double(i) * (Double.pi * 2 / 25.0)
                         let distance = (1.0 - assembleProgress) * 250.0
                         Circle()
-                            .fill(i % 2 == 0 ? Color(red: 0.0, green: 0.8, blue: 1.0) : Color.white)
+                            .fill(i % 2 == 0 ? Color(.systemCyan) : Color.white)
                             .frame(width: 4, height: 4)
                             .offset(x: cos(angle) * distance, y: sin(angle) * distance)
-                            .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 4)
+                            .shadow(color: Color(.systemCyan), radius: 4)
                     }
                 }
             }
@@ -784,7 +785,7 @@ struct HistoryRecordsView: View {
                                     Text(record.zeroToOneHundredTime > 0 ? String(format: "%.1fs", record.zeroToOneHundredTime) : "---").font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.orange)
                                 }
                                 Spacer()
-                                Text("點擊回放軌跡 ➔").font(.system(size: 11, weight: .bold)).foregroundColor(.cyan)
+                                Text("點擊回放軌跡 ➔").font(.system(size: 11, weight: .bold)).foregroundColor(Color(.systemCyan))
                             }
                         }
                         .padding(.vertical, 4)
@@ -816,7 +817,7 @@ struct HistoryDetailMapView: View {
             .ignoresSafeArea()
             
             VStack(alignment: .leading, spacing: 6) {
-                Text("行程軌跡回放數據").font(.system(size: 14, weight: .bold)).foregroundColor(.cyan)
+                Text("行程軌跡回放數據").font(.system(size: 14, weight: .bold)).foregroundColor(Color(.systemCyan))
                 HStack {
                     Text("極速: \(Int(record.maxSpeed)) km/h")
                     Spacer()
@@ -953,7 +954,6 @@ struct ContentView: View {
                                         )
                                         .ignoresSafeArea()
                                         
-                                        // 地圖上方的控制按鈕列
                                         HStack(alignment: .top, spacing: 12) {
                                             Button(action: { showMap.toggle() }) {
                                                 Image(systemName: "gauge.with.needle")
@@ -965,7 +965,6 @@ struct ContentView: View {
                                                     .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
                                             }
                                             
-                                            // **新功能：清除導航路線按鈕（當有導航時顯示）**
                                             if vehicleManager.isNavigating {
                                                 Button(action: { vehicleManager.cancelNavigation() }) {
                                                     Image(systemName: "xmark.circle.fill")
@@ -1042,7 +1041,6 @@ struct ContentView: View {
                                                 .cornerRadius(12)
                                             }
                                             
-                                            // **新功能：社群回報流動測速按鈕**
                                             Button(action: { vehicleManager.reportMobileSpeedTrap() }) {
                                                 VStack(spacing: 4) {
                                                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 14))
@@ -1143,7 +1141,6 @@ struct ContentView: View {
                                     .padding(.vertical, 10)
                                 }
                                 
-                                // --- 自動測速照相警告橫幅 ---
                                 if let cameraAlert = vehicleManager.nearestCameraAlert {
                                     HStack(spacing: 8) {
                                         Image(systemName: "camera.fill")
