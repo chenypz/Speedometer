@@ -111,7 +111,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             locationManager.distanceFilter = 1.0
         } else {
             locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-            locationManager.distanceFilter = kCLLocationDistanceNone
+            locationManager.distanceFilter = kCLDistanceFilterNone
         }
     }
     
@@ -841,7 +841,6 @@ struct ContentView: View {
             .onChange(of: historyRecords.count) { _ in saveHistoryRecords() }
             .background(
                 Group {
-                    // 修正：改用區域 Binding 變數，避免直接存取不可變的 self
                     NavigationLink(
                         destination: SettingsView(
                             selectedTheme: Binding(
