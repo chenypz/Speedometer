@@ -482,7 +482,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
-                renderer.strokeColor = UIColor.systemCyan
+                renderer.strokeColor = UIColor.cyan
                 renderer.lineWidth = 6
                 return renderer
             }
