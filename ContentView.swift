@@ -4,17 +4,7 @@ import CoreMotion
 import MapKit
 import AVFoundation
 
-// MARK: - 1. 主程式進入點
-@main
-struct RacingDashboardApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}
-
-// MARK: - 2. 資料模型與歷史紀錄
+// MARK: - 1. 資料模型與歷史紀錄
 struct OverspeedRecord: Identifiable, Codable {
     let id: UUID
     let date: Date
@@ -31,7 +21,7 @@ struct HistoryRecord: Identifiable, Codable {
     let tripDistance: Double
 }
 
-// MARK: - 3. 佈景主題設定
+// MARK: - 2. 佈景主題設定
 enum DashboardTheme: String, CaseIterable, Identifiable {
     case porsche = "保時捷經典"
     case cyberpunk = "賽博朋克"
@@ -57,7 +47,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - 4. GPS 與感應器管理器
+// MARK: - 3. GPS 與感應器管理器
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -173,7 +163,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 開機動畫
+// MARK: - 4. 開機動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -241,7 +231,7 @@ struct BootLoadingView: View {
     }
 }
 
-// MARK: - 6. 地圖導航檢視
+// MARK: - 5. 地圖導航檢視
 struct MapTrackingView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     let heading: Double
@@ -265,7 +255,7 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 7. 炫光流光線條背景
+// MARK: - 6. 炫光流光線條背景
 struct NeonArcFlowView: View {
     @State private var animate = false
     var color: Color
@@ -302,7 +292,7 @@ struct NeonArcFlowView: View {
     }
 }
 
-// MARK: - 8. 專業轉速提示燈
+// MARK: - 7. 專業轉速提示燈
 struct ShiftLightsView: View {
     let speed: Double
     
@@ -331,7 +321,7 @@ struct ShiftLightsView: View {
     }
 }
 
-// MARK: - 9. G 力感應器圖表
+// MARK: - 8. G 力感應器圖表
 struct GForceView: View {
     let x: Double
     let y: Double
@@ -369,7 +359,7 @@ struct GForceView: View {
     }
 }
 
-// MARK: - 10. 超速違規清單頁面
+// MARK: - 9. 超速違規清單頁面
 struct OverspeedLogsView: View {
     @Binding var logs: [OverspeedRecord]
     
@@ -428,7 +418,7 @@ struct OverspeedLogsView: View {
     }
 }
 
-// MARK: - 11. 行程歷史封存紀錄頁面
+// MARK: - 10. 行程歷史封存紀錄頁面
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     
@@ -497,7 +487,7 @@ struct HistoryRecordsView: View {
     }
 }
 
-// MARK: - 12. 設定選單
+// MARK: - 11. 設定選單
 struct SettingsView: View {
     @Binding var selectedTheme: DashboardTheme
     @Binding var speedLimit: Double
@@ -547,7 +537,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 13. 主畫面 ContentView
+// MARK: - 12. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     
