@@ -307,6 +307,58 @@ struct ShiftLightsView: View {
     }
 }
 
+// MARK: - 左右霓虹燈條組件 (Cyberpunk / LED Strip Effect)
+struct NeonSideStripsView: View {
+    var speed: Double
+    var maxSpeed: Double = 160.0
+    var activeColor: Color
+    @State private var glowing = false
+    
+    var body: some View {
+        let ratio = min(speed / maxSpeed, 1.0)
+        let totalSegments = 14
+        let activeCount = Int(ratio * Double(totalSegments))
+        
+        HStack {
+            // 左側垂直燈條
+            VStack(spacing: 4) {
+                ForEach(0..<totalSegments, id: \.self) { index in
+                    let isActive = index < (totalSegments - activeCount) // 速度越快，底部燈條往上填滿
+                    Rectangle()
+                        .fill(isActive ? activeColor.opacity(0.3) : activeColor)
+                        .frame(width: 5)
+                        .shadow(color: activeColor, radius: isActive ? 2 : 8)
+                }
+            }
+            .frame(width: 8)
+            .background(Color.black.opacity(0.4))
+            .cornerRadius(3)
+            .opacity(glowing ? 1.0 : 0.7)
+            .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: glowing)
+            
+            Spacer()
+            
+            // 右側垂直燈條
+            VStack(spacing: 4) {
+                ForEach(0..<totalSegments, id: \.self) { index in
+                    let isActive = index < (totalSegments - activeCount)
+                    Rectangle()
+                        .fill(isActive ? activeColor.opacity(0.3) : activeColor)
+                        .frame(width: 5)
+                        .shadow(color: activeColor, radius: isActive ? 2 : 8)
+                }
+            }
+            .frame(width: 8)
+            .background(Color.black.opacity(0.4))
+            .cornerRadius(3)
+            .opacity(glowing ? 1.0 : 0.7)
+            .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: glowing)
+        }
+        .padding(.horizontal, 4)
+        .onAppear { glowing = true }
+    }
+}
+
 struct GForceView: View {
     var gx: Double, gy: Double, maxG: Double, themeColor: Color
     var body: some View {
@@ -391,8 +443,15 @@ struct ContentView: View {
                             Color.red.opacity(0.3).edgesIgnoringSafeArea(.all)
                         }
                         
+                        // 左右霓虹燈條 (包覆在主畫面兩側邊緣)
+                        if !isHUDMode {
+                            NeonSideStripsView(speed: speedManager.speedKMH, activeColor: activePrimaryColor)
+                                .padding(.vertical, 40)
+                                .edgesIgnoringSafeArea(.vertical)
+                        }
+                        
                         VStack(spacing: 0) {
-                            // 頂部導覽列 (在地圖模式下自動隱藏次要資訊，只留時速與必要按鈕)
+                            // 頂部導覽列
                             HStack(alignment: .center, spacing: 6) {
                                 Text(currentTime, style: .time)
                                     .font(.system(size: isLandscape ? screenHeight * 0.042 : screenWidth * 0.035, weight: .black, design: .monospaced))
@@ -456,7 +515,7 @@ struct ContentView: View {
                                     }
                                 }
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 24)
                             .padding(.top, geometry.safeAreaInsets.top + 5)
                             
                             if !isHUDMode && !showMap {
@@ -466,10 +525,10 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.70 : screenWidth * 0.76
+                            let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.68 : screenWidth * 0.72
                             let progress = min(speedManager.speedKMH / 160.0, 1.0)
                             
-                            // 主儀表與 G力表 (地圖模式下僅保留中央時速，隱藏G力表讓畫面極簡)
+                            // 主儀表與 G力表
                             HStack(spacing: 20) {
                                 ZStack {
                                     Circle()
@@ -519,15 +578,15 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            // 地圖模式或 HUD 模式下隱藏下方多餘數據條，保持乾淨
+                            // 下方多數據條
                             if !isHUDMode && !showMap {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("0-100 KM/H").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
                                         if let t = speedManager.zeroToHundredTime {
-                                            Text(String(format: "%.2fs", t)).font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.green)
+                                            Text(String(format: "%.2fs", t)).font(.system(size: 11, weight: .black, design: .monospaced)).foregroundColor(.green)
                                         } else {
-                                            Text(speedManager.isTimingZeroToHundred ? "TIMING" : "READY").font(.system(size: 11, weight: .bold)).foregroundColor(.yellow)
+                                            Text(speedManager.isTimingZeroToHundred ? "TIMING" : "READY").font(.system(size: 10, weight: .bold)).foregroundColor(.yellow)
                                         }
                                     }.frame(maxWidth: .infinity)
                                     
@@ -536,9 +595,9 @@ struct ContentView: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("0-400M").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
                                         if let t = speedManager.quarterMileTime {
-                                            Text(String(format: "%.1fs@%.0f", t, speedManager.quarterMileTrapSpeed)).font(.system(size: 11, weight: .black, design: .monospaced)).foregroundColor(customCyan)
+                                            Text(String(format: "%.1fs@%.0f", t, speedManager.quarterMileTrapSpeed)).font(.system(size: 10, weight: .black, design: .monospaced)).foregroundColor(customCyan)
                                         } else {
-                                            Text(speedManager.isTimingQuarterMile ? "TIMING" : "READY").font(.system(size: 11, weight: .bold)).foregroundColor(.yellow)
+                                            Text(speedManager.isTimingQuarterMile ? "TIMING" : "READY").font(.system(size: 10, weight: .bold)).foregroundColor(.yellow)
                                         }
                                     }.frame(maxWidth: .infinity)
                                     
@@ -546,21 +605,21 @@ struct ContentView: View {
                                     
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("TRIP").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
-                                        Text(String(format: "%.2fkm", speedManager.totalDistanceMeters / 1000.0)).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(.white)
+                                        Text(String(format: "%.2fkm", speedManager.totalDistanceMeters / 1000.0)).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.white)
                                     }.frame(maxWidth: .infinity)
                                     
                                     Divider().background(Color.white.opacity(0.2)).frame(height: 25)
                                     
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("MAX SPEED").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
-                                        Text(String(format: "%.0fkm/h", speedManager.maxSpeed)).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(.orange)
+                                        Text(String(format: "%.0fkm/h", speedManager.maxSpeed)).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.orange)
                                     }.frame(maxWidth: .infinity)
                                 }
                                 .padding(.horizontal, 12).padding(.vertical, 8)
                                 .background(Color.black.opacity(0.7))
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(activePrimaryColor.opacity(0.3), lineWidth: 1))
                                 .cornerRadius(12)
-                                .padding(.horizontal, 16).padding(.bottom, 10)
+                                .padding(.horizontal, 24).padding(.bottom, 10)
                             }
                         }
                     }
