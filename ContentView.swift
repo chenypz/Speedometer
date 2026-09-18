@@ -23,7 +23,7 @@ struct OverspeedLog: Identifiable, Codable {
     var limit: Double
 }
 
-// MARK: - 2. 主題風格
+// MARK: - 2. 主題風格 (支援背景自定義顏色)
 enum DashboardTheme: String, CaseIterable, Identifiable {
     case porsche = "🏎️ 保時捷經典"
     case cyberpunk = "🌌 賽博朋克"
@@ -79,7 +79,6 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     private var quarterMileStartDistance: Double = 0.0
     private var quarterMileStartTime: Date?
     
-    // 歷史紀錄與超速紀錄
     @Published var historyRecords: [SpeedHistoryRecord] = []
     @Published var overspeedLogs: [OverspeedLog] = []
     
@@ -224,65 +223,125 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 }
 
-// MARK: - 4. 開機動畫畫面
+// MARK: - 4. 極致暴力美學與高科技開機動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
     @State private var showWarningText = false
     @State private var showSubText = false
-    @State private var flashBackground = false
+    @State private var glitchEffect = false
     
-    let safeCyan = Color(red: 0.0, green: 0.8, blue: 1.0)
+    let safeCyan = Color(red: 0.0, green: 0.9, blue: 1.0)
     
     var body: some View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
+            
+            // 掃描線特效背景
             VStack {
                 Rectangle()
-                    .fill(LinearGradient(gradient: Gradient(colors: [.clear, safeCyan.opacity(0.15), .clear]), startPoint: .top, endPoint: .bottom))
-                    .frame(height: 100)
-                    .offset(y: flashBackground ? 400 : -400)
-                    .animation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: flashBackground)
+                    .fill(LinearGradient(gradient: Gradient(colors: [.clear, safeCyan.opacity(0.3), .clear]), startPoint: .top, endPoint: .bottom))
+                    .frame(height: 120)
+                    .offset(y: glitchEffect ? 500 : -500)
+                    .animation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: false), value: glitchEffect)
                 Spacer()
             }
             .edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 25) {
+            VStack(spacing: 20) {
+                // 日本警告字保留與升級
                 if showWarningText {
-                    Text("【 警告：システム異常なし / 接続確立 】")
-                        .font(.system(size: 16, weight: .black, design: .monospaced))
-                        .foregroundColor(safeCyan)
-                        .shadow(color: safeCyan, radius: 8)
+                    Text("⚠️ 【 警告：システム強制起動・バイオメトリック認証完了 】")
+                        .font(.system(size: 14, weight: .black, design: .monospaced))
+                        .foregroundColor(.red)
+                        .shadow(color: .red, radius: 10)
                 }
+                
                 if showSubText {
-                    VStack(spacing: 6) {
-                        Text("LAMBORGHINI V12 TELEMETRY")
-                            .font(.system(size: 22, weight: .black, design: .rounded))
+                    VStack(spacing: 4) {
+                        Text("CYBER-TELEMETRY V4.0 // QUANTUM CORE")
+                            .font(.system(size: 18, weight: .black, design: .monospaced))
+                            .foregroundColor(safeCyan)
+                            .tracking(6)
+                            .shadow(color: safeCyan, radius: 8)
+                        
+                        Text("UNRESTRICTED // OVERCLOCKING ACTIVE")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundColor(.yellow)
-                            .tracking(4)
-                        Text("⚠️ 危険：駆動系システム・セキュア起動中")
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundColor(.red)
                     }
                 }
-                VStack(spacing: 8) {
+                
+                // 暴力數字美學加載條
+                VStack(spacing: 6) {
                     ZStack(alignment: .leading) {
-                        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 280, height: 6).cornerRadius(3)
+                        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 300, height: 8).cornerRadius(4)
                         Rectangle().fill(LinearGradient(gradient: Gradient(colors: [safeCyan, .yellow, .red]), startPoint: .leading, endPoint: .trailing))
-                            .frame(width: 280 * progress, height: 6).cornerRadius(3)
+                            .frame(width: 300 * progress, height: 8).cornerRadius(4)
+                            .shadow(color: safeCyan, radius: 6)
                     }
-                    Text("INITIALIZING: \(Int(progress * 100))%")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.7))
+                    
+                    HStack {
+                        Text("LOADING KERNEL...")
+                        Spacer()
+                        Text("\(Int(progress * 100))% [OK]")
+                            .foregroundColor(safeCyan)
+                    }
+                    .font(.system(size: 11, weight: .black, design: .monospaced))
+                    .frame(width: 300)
+                    .foregroundColor(.white.opacity(0.7))
                 }
             }
         }
         .onAppear {
-            flashBackground = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { withAnimation { showWarningText = true } }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { withAnimation { showSubText = true } }
-            withAnimation(.easeInOut(duration: 2.2)) { progress = 1.0 }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { withAnimation { isFinished = true } }
+            glitchEffect = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { withAnimation { showWarningText = true } }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { withAnimation { showSubText = true } }
+            withAnimation(.easeInOut(duration: 1.8)) { progress = 1.0 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { withAnimation { isFinished = true } }
+        }
+    }
+}
+
+// MARK: - 5. 半圓形流水長亮霓虹條 (支援背景調色與即時流動)
+struct NeonArcFlowView: View {
+    var speed: Double
+    var maxSpeed: Double = 160.0
+    var activeColor: Color
+    
+    @State private var phase: CGFloat = 0.0
+    @State private var isFlowing: Bool = true
+    
+    var body: some View {
+        ZStack {
+            // 半圓形背景底軌
+            Circle()
+                .trim(from: 0.0, to: 0.5)
+                .stroke(activeColor.opacity(0.2), style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                .rotationEffect(.degrees(180))
+            
+            // 半圓形流水長亮發光主體
+            Circle()
+                .trim(from: 0.0, to: 0.5)
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(colors: [activeColor.opacity(0.1), activeColor, .white, activeColor, activeColor.opacity(0.1)]),
+                        center: .center,
+                        angle: .degrees(isFlowing ? phase : 0)
+                    ),
+                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                )
+                .rotationEffect(.degrees(180))
+                .shadow(color: activeColor, radius: 12)
+                .shadow(color: activeColor.opacity(0.6), radius: 4)
+        }
+        .frame(width: 280, height: 140)
+        .onTapGesture {
+            withAnimation { isFlowing.toggle() }
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                phase = 360
+            }
         }
     }
 }
@@ -292,70 +351,19 @@ struct ShiftLightsView: View {
     var maxSpeed: Double = 160.0
     var body: some View {
         let ratio = min(speed / maxSpeed, 1.0)
-        let totalLights = 10
+        let totalLights = 12
         let activeCount = Int(ratio * Double(totalLights))
         HStack(spacing: 4) {
             ForEach(0..<totalLights, id: \.self) { index in
                 let isActive = index < activeCount
-                let isRedZone = index >= 8
+                let isRedZone = index >= 10
                 Rectangle()
-                    .fill(isActive ? (isRedZone ? Color.red : (index >= 6 ? Color.yellow : Color.green)) : Color.white.opacity(0.1))
+                    .fill(isActive ? (isRedZone ? Color.red : (index >= 7 ? Color.yellow : Color.green)) : Color.white.opacity(0.1))
                     .frame(height: 5).cornerRadius(2)
+                    .shadow(color: isActive ? (isRedZone ? Color.red : Color.green) : Color.clear, radius: 4)
             }
         }
-        .padding(.horizontal, 16)
-    }
-}
-
-// MARK: - 左右霓虹燈條組件 (Cyberpunk / LED Strip Effect)
-struct NeonSideStripsView: View {
-    var speed: Double
-    var maxSpeed: Double = 160.0
-    var activeColor: Color
-    @State private var glowing = false
-    
-    var body: some View {
-        let ratio = min(speed / maxSpeed, 1.0)
-        let totalSegments = 14
-        let activeCount = Int(ratio * Double(totalSegments))
-        
-        HStack {
-            // 左側垂直燈條
-            VStack(spacing: 4) {
-                ForEach(0..<totalSegments, id: \.self) { index in
-                    let isActive = index < (totalSegments - activeCount) // 速度越快，底部燈條往上填滿
-                    Rectangle()
-                        .fill(isActive ? activeColor.opacity(0.3) : activeColor)
-                        .frame(width: 5)
-                        .shadow(color: activeColor, radius: isActive ? 2 : 8)
-                }
-            }
-            .frame(width: 8)
-            .background(Color.black.opacity(0.4))
-            .cornerRadius(3)
-            .opacity(glowing ? 1.0 : 0.7)
-            .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: glowing)
-            
-            Spacer()
-            
-            // 右側垂直燈條
-            VStack(spacing: 4) {
-                ForEach(0..<totalSegments, id: \.self) { index in
-                    let isActive = index < (totalSegments - activeCount)
-                    Rectangle()
-                        .fill(isActive ? activeColor.opacity(0.3) : activeColor)
-                        .frame(width: 5)
-                        .shadow(color: activeColor, radius: isActive ? 2 : 8)
-                }
-            }
-            .frame(width: 8)
-            .background(Color.black.opacity(0.4))
-            .cornerRadius(3)
-            .opacity(glowing ? 1.0 : 0.7)
-            .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: glowing)
-        }
-        .padding(.horizontal, 4)
-        .onAppear { glowing = true }
+        .padding(.horizontal, 20)
     }
 }
 
@@ -372,12 +380,13 @@ struct GForceView: View {
             let posX = CGFloat(min(max(gx, -1.0), 1.0)) * 30
             let posY = CGFloat(min(max(-gy, -1.0), 1.0)) * 30
             Circle().fill(themeColor).frame(width: 8, height: 8).offset(x: posX, y: posY)
+                .shadow(color: themeColor, radius: 6)
             VStack {
                 Spacer()
                 Text(String(format: "MAX %.2fG", maxG)).font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundColor(.white.opacity(0.7))
             }
         }
-        .frame(width: 70, height: 70).background(Color.black.opacity(0.5)).cornerRadius(35)
+        .frame(width: 70, height: 70).background(Color.black.opacity(0.6)).cornerRadius(35)
         .overlay(Circle().stroke(themeColor.opacity(0.4), lineWidth: 1.5))
     }
 }
@@ -400,7 +409,7 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 5. 主畫面
+// MARK: - 6. 主畫面 (結合 AppStorage 記憶上次狀態)
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
     @State private var isBootCompleted = false
@@ -409,14 +418,30 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var currentTime = Date()
     
-    @State private var speedLimit: Double = 110.0
-    @State private var selectedTheme: DashboardTheme = .porsche
-    @State private var flashWarning = false
+    // 使用 AppStorage 記住關閉前的狀態
+    @AppStorage("savedSpeedLimit") private var speedLimit: Double = 110.0
+    @AppStorage("savedThemeRaw") private var savedThemeRaw: String = DashboardTheme.porsche.rawValue
+    @AppStorage("customNeonColorRed") private var customRed: Double = 0.0
+    @AppStorage("customNeonColorGreen") private var customGreen: Double = 0.9
+    @AppStorage("customNeonColorBlue") private var customBlue: Double = 1.0
+    @AppStorage("useCustomColor") private var useCustomColor: Bool = false
     
+    @State private var flashWarning = false
     let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
     
-    var isOverspeed: Bool { speedManager.speedKMH > speedLimit }
-    var activePrimaryColor: Color { isOverspeed ? .red : selectedTheme.primaryColor }
+    var selectedTheme: DashboardTheme {
+        get { DashboardTheme(rawValue: savedThemeRaw) ?? .porsche }
+        set { savedThemeRaw = newValue.rawValue }
+    }
+    
+    var activePrimaryColor: Color {
+        if speedManager.speedKMH > speedLimit { return .red }
+        if useCustomColor {
+            return Color(red: customRed, green: customGreen, blue: customBlue)
+        }
+        return selectedTheme.primaryColor
+    }
+    
     let customCyan = Color(red: 0.0, green: 0.8, blue: 1.0)
     
     var body: some View {
@@ -430,24 +455,16 @@ struct ContentView: View {
                     let isLandscape = screenWidth > screenHeight
                     
                     ZStack {
-                        Color(red: 0.03, green: 0.03, blue: 0.05).edgesIgnoringSafeArea(.all)
+                        Color(red: 0.02, green: 0.02, blue: 0.04).edgesIgnoringSafeArea(.all)
                         
-                        // 地圖模式背景
                         if showMap, let location = speedManager.userLocation {
                             MapTrackingView(userLocation: location)
                                 .edgesIgnoringSafeArea(.all)
                                 .overlay(Color.black.opacity(showMap && !isHUDMode ? 0.4 : 0.0))
                         }
                         
-                        if isOverspeed && flashWarning {
+                        if speedManager.speedKMH > speedLimit && flashWarning {
                             Color.red.opacity(0.3).edgesIgnoringSafeArea(.all)
-                        }
-                        
-                        // 左右霓虹燈條 (包覆在主畫面兩側邊緣)
-                        if !isHUDMode {
-                            NeonSideStripsView(speed: speedManager.speedKMH, activeColor: activePrimaryColor)
-                                .padding(.vertical, 40)
-                                .edgesIgnoringSafeArea(.vertical)
                         }
                         
                         VStack(spacing: 0) {
@@ -528,12 +545,18 @@ struct ContentView: View {
                             let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.68 : screenWidth * 0.72
                             let progress = min(speedManager.speedKMH / 160.0, 1.0)
                             
-                            // 主儀表與 G力表
+                            // 主儀表與半圓形流水霓虹燈條結合
                             HStack(spacing: 20) {
                                 ZStack {
+                                    // 半圓形流水長亮霓虹燈條包覆在主儀表外圍上方
+                                    if !isHUDMode {
+                                        NeonArcFlowView(speed: speedManager.speedKMH, activeColor: activePrimaryColor)
+                                            .offset(y: -10)
+                                    }
+                                    
                                     Circle()
                                         .trim(from: 0.125, to: 0.875)
-                                        .stroke(Color.white.opacity(isHUDMode || showMap ? 0.15 : 0.12), style: StrokeStyle(lineWidth: 18, lineCap: .butt))
+                                        .stroke(Color.white.opacity(0.12), style: StrokeStyle(lineWidth: 16, lineCap: .butt))
                                         .rotationEffect(.degrees(90))
                                         .frame(width: gaugeSize, height: gaugeSize)
                                     
@@ -541,26 +564,27 @@ struct ContentView: View {
                                         .trim(from: 0.125, to: 0.125 + (0.75 * CGFloat(progress)))
                                         .stroke(
                                             LinearGradient(gradient: Gradient(colors: [selectedTheme.secondaryColor, activePrimaryColor]), startPoint: .leading, endPoint: .trailing),
-                                            style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                                            style: StrokeStyle(lineWidth: 16, lineCap: .round)
                                         )
                                         .rotationEffect(.degrees(90))
                                         .frame(width: gaugeSize, height: gaugeSize)
                                         .shadow(color: activePrimaryColor.opacity(0.9), radius: 16)
                                     
+                                    // 暴力數字美學字體呈現
                                     VStack(spacing: 0) {
                                         Text("\(Int(round(speedManager.speedKMH)))")
-                                            .font(.system(size: gaugeSize * 0.38, weight: .black, design: .rounded))
+                                            .font(.system(size: gaugeSize * 0.38, weight: .black, design: .monospaced))
                                             .foregroundColor(activePrimaryColor)
                                             .shadow(color: activePrimaryColor.opacity(0.8), radius: 10)
                                         
-                                        Text("KM/H")
-                                            .font(.system(size: gaugeSize * 0.08, weight: .heavy, design: .monospaced))
+                                        Text("KM/H // 速度計")
+                                            .font(.system(size: gaugeSize * 0.07, weight: .heavy, design: .monospaced))
                                             .foregroundColor(.white.opacity(0.9))
-                                            .tracking(6)
+                                            .tracking(4)
                                         
-                                        if isOverspeed {
-                                            Text("⚠️ OVER SPEED")
-                                                .font(.system(size: gaugeSize * 0.055, weight: .black))
+                                        if speedManager.speedKMH > speedLimit {
+                                            Text("⚠️ 速度制限オーバー")
+                                                .font(.system(size: gaugeSize * 0.05, weight: .black, design: .monospaced))
                                                 .foregroundColor(.red)
                                                 .padding(.top, 4)
                                                 .shadow(color: .red, radius: 8)
@@ -578,7 +602,7 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            // 下方多數據條
+                            // 下方多數據暴力美學面板
                             if !isHUDMode && !showMap {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 2) {
@@ -604,7 +628,7 @@ struct ContentView: View {
                                     Divider().background(Color.white.opacity(0.2)).frame(height: 25)
                                     
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("TRIP").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                                        Text("TRIP DIST").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
                                         Text(String(format: "%.2fkm", speedManager.totalDistanceMeters / 1000.0)).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.white)
                                     }.frame(maxWidth: .infinity)
                                     
@@ -616,8 +640,8 @@ struct ContentView: View {
                                     }.frame(maxWidth: .infinity)
                                 }
                                 .padding(.horizontal, 12).padding(.vertical, 8)
-                                .background(Color.black.opacity(0.7))
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(activePrimaryColor.opacity(0.3), lineWidth: 1))
+                                .background(Color.black.opacity(0.8))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(activePrimaryColor.opacity(0.4), lineWidth: 1))
                                 .cornerRadius(12)
                                 .padding(.horizontal, 24).padding(.bottom, 10)
                             }
@@ -640,6 +664,23 @@ struct ContentView: View {
                             }
                         }
                         .pickerStyle(SegmentedPickerStyle())
+                    }
+                    
+                    Section(header: Text("霓虹燈條背景自定義調色")) {
+                        Toggle("啟用後台自定義調色", isOn: $useCustomColor)
+                        if useCustomColor {
+                            ColorPicker("燈條主色調", selection: Binding(
+                                get: { Color(red: customRed, green: customGreen, blue: customBlue) },
+                                set: { newColor in
+                                    // 簡易解析 Color 轉換為 RGB
+                                    if let components = UIColor(newColor).cgColor.components, components.count >= 3 {
+                                        customRed = Double(components[0])
+                                        customGreen = Double(components[1])
+                                        customBlue = Double(components[2])
+                                    }
+                                }
+                            ))
+                        }
                     }
                     
                     Section(header: Text("安全警報")) {
@@ -678,7 +719,7 @@ struct ContentView: View {
         .onReceive(timer) { _ in
             if isBootCompleted {
                 self.currentTime = Date()
-                if isOverspeed {
+                if speedManager.speedKMH > speedLimit {
                     flashWarning.toggle()
                     AudioServicesPlaySystemSound(1005)
                     speedManager.logOverspeed(currentSpeed: speedManager.speedKMH, limit: speedLimit)
@@ -692,7 +733,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - 6. 歷史紀錄列表頁面
+// MARK: - 7. 歷史紀錄列表頁面
 struct HistoryView: View {
     @ObservedObject var speedManager: SpeedometerManager
     var body: some View {
@@ -726,7 +767,7 @@ struct HistoryView: View {
     }
 }
 
-// MARK: - 7. 超速紀錄列表頁面
+// MARK: - 8. 超速紀錄列表頁面
 struct OverspeedLogView: View {
     @ObservedObject var speedManager: SpeedometerManager
     var body: some View {
@@ -739,7 +780,7 @@ struct OverspeedLogView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(log.date, style: .date) + Text(" ") + Text(log.date, style: .time)
                                 .font(.caption).bold().foregroundColor(.gray)
-                            Text("當前速限: \(Int(log.limit)) km/h")
+                            Text("当前速限: \(Int(log.limit)) km/h")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -748,10 +789,10 @@ struct OverspeedLogView: View {
                             Text("\(Int(log.speed)) km/h")
                                 .font(.headline).bold()
                                 .foregroundColor(.red)
-                            Text("超速")
-                                .font(.system(size: 10, weight: .black))
+                            Text("⚠️ 速度制限オーバー")
+                                .font(.system(size: 9, weight: .black, design: .monospaced))
                                 .padding(.horizontal, 4).padding(.vertical, 2)
-                                .background(Color.red.opacity(0.2))
+                               .background(Color.red.opacity(0.2))
                                 .foregroundColor(.red)
                                 .cornerRadius(4)
                         }
