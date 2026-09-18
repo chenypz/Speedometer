@@ -363,7 +363,7 @@ struct BootLoadingView: View {
             VStack(spacing: 12) {
                 ForEach(0..<16, id: \.self) { i in
                     Rectangle()
-                        .fill(i % 2 == 0 ? Color.cyan : Color.white)
+                        .fill(i % 2 == 0 ? Color.safeCyan : Color.white)
                         .frame(height: i % 3 == 0 ? 3 : 1)
                         .opacity(0.6)
                         .offset(x: (i % 2 == 0 ? speedLineOffset : -speedLineOffset) * CGFloat(i + 1))
@@ -417,7 +417,7 @@ struct BootLoadingView: View {
                             Text(String(format: "%.0f", bikeSpeed))
                                 .font(.system(size: 56, weight: .black, design: .monospaced))
                                 .foregroundColor(.white)
-                                .shadow(color: .cyan, radius: 10)
+                                .shadow(color: Color.safeCyan, radius: 10)
                             
                             Text("KM/H (WANTED)")
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
