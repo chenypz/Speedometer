@@ -333,7 +333,6 @@ struct BootLoadingView: View {
             LinearGradient(colors: [Color(red: 0.02, green: 0.04, blue: 0.08), Color.black, Color(red: 0.06, green: 0.01, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
             
-            // 右下角 SKIP 跳過按鈕
             VStack {
                 Spacer()
                 HStack {
@@ -348,8 +347,8 @@ struct BootLoadingView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(.cyan.opacity(0.3))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(.cyan, lineWidth: 1.5))
+                            .background(Color.cyan.opacity(0.3))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.cyan, lineWidth: 1.5))
                             .cornerRadius(16)
                             .shadow(color: .cyan, radius: 5)
                     }
@@ -363,7 +362,7 @@ struct BootLoadingView: View {
                 VStack(spacing: 30) {
                     ZStack {
                         Circle()
-                            .stroke(.cyan, lineWidth: 4)
+                            .stroke(Color.cyan, lineWidth: 4)
                             .frame(width: 180, height: 180)
                             .scaleEffect(shockwaveScale)
                             .opacity(shockwaveOpacity)
@@ -413,7 +412,7 @@ struct BootLoadingView: View {
                         
                         Text(steps[min(textStep, steps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.cyan.opacity(0.8))
+                            .foregroundColor(Color.cyan.opacity(0.8))
                     }
                 }
                 .transition(.opacity)
@@ -596,7 +595,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
-                renderer.strokeColor = parent.historyPath != nil ? UIColor.systemOrange : UIColor.systemCyan
+                renderer.strokeColor = parent.historyPath != nil ? .systemOrange : .systemCyan
                 renderer.lineWidth = 6
                 return renderer
             }
@@ -710,10 +709,10 @@ struct SciFiParticleAssembleView<Content: View>: View {
                         let angle = Double(i) * (Double.pi * 2 / 25.0)
                         let distance = (1.0 - assembleProgress) * 250.0
                         Circle()
-                            .fill(i % 2 == 0 ? .cyan : Color.white)
+                            .fill(i % 2 == 0 ? Color.cyan : Color.white)
                             .frame(width: 4, height: 4)
                             .offset(x: cos(angle) * distance, y: sin(angle) * distance)
-                            .shadow(color: .cyan, radius: 4)
+                            .shadow(color: Color.cyan, radius: 4)
                     }
                 }
             }
