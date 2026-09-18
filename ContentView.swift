@@ -95,7 +95,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     @Published var isNavigating: Bool = false
     @Published var routePolyline: MKPolyline? = nil
-    @Published var currentInstruction: String = "目的地を検索するか、地図をタップしてください"
+    @Published var currentInstruction: String = "搜尋目的地或點擊地圖"
     @Published var distanceToNextStep: Double = 0.0
     @Published var destinationCoordinate: CLLocationCoordinate2D? = nil
     
@@ -144,7 +144,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let search = MKLocalSearch(request: request)
         search.start { [weak self] response, error in
             guard let self = self, let item = response?.mapItems.first else {
-                self?.currentInstruction = "指定の場所が見つかりませんでした"
+                self?.currentInstruction = "找不到指定地點"
                 return
             }
             self.setDestination(item.placemark.coordinate)
@@ -164,7 +164,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let directions = MKDirections(request: request)
         directions.calculate { [weak self] response, error in
             guard let self = self, let route = response?.routes.first else {
-                self?.currentInstruction = "ルートの計算に失敗しました"
+                self?.currentInstruction = "路線計算失敗"
                 return
             }
             
@@ -180,7 +180,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         isNavigating = false
         routePolyline = nil
         destinationCoordinate = nil
-        currentInstruction = "ナビゲーションが終了しました"
+        currentInstruction = "導航已結束"
         distanceToNextStep = 0.0
     }
     
@@ -240,76 +240,87 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 更多立體方塊感與豐富漸層開場動畫
+// MARK: - 4. 變形金剛風格暴力科技感開場動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
     @State private var textStep = 0
     @State private var showWarningScreen: Bool = false
     @State private var warningOpacity: Double = 0.0
-    @State private var pulseEffect: Bool = false
-    @State private var matrixRotation: Double = 0.0
+    
+    // 變形金剛機械裝甲展開數值
+    @State private var armorScale: CGFloat = 0.2
+    @State private var armorRotation: Double = -180.0
+    @State private var coreGlow: CGFloat = 0.0
+    @State private var shockwaveScale: CGFloat = 0.1
+    @State private var shockwaveOpacity: Double = 0.0
     
     let steps = [
-        "INITIALIZING 3D VORTEX CORE MATRIX...",
-        "SYNCHRONIZING HIGH-SPEED 120HZ SHADERS...",
-        "CALIBRATING 6-AXIS GYRO & GNSS SATELLITES...",
-        "SYSTEM ONLINE. READY FOR LAUNCH."
+        "CYBERTRON CORE ENGAGED...",
+        "ASSEMBLING KINETIC SHIELDS & DUAL-BLADES...",
+        "SYNCHRONIZING QUANTUM SPEED SENSORS...",
+        "ALL SYSTEMS ONLINE. TRANSFORM & ROLL OUT."
     ]
     
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(red: 0.05, green: 0.0, blue: 0.15), Color.black, Color(red: 0.0, green: 0.08, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.02, green: 0.04, blue: 0.08), Color.black, Color(red: 0.06, green: 0.01, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .edgesIgnoringSafeArea(.all)
             
             if !showWarningScreen {
-                VStack(spacing: 35) {
+                VStack(spacing: 30) {
                     ZStack {
-                        ForEach(0..<4, id: \.self) { i in
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(
-                                    LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.6, green: 0.2, blue: 0.9), Color(red: 1.0, green: 0.2, blue: 0.6)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                                    lineWidth: 3
-                                )
-                                .frame(width: 80, height: 80)
-                                .rotationEffect(.degrees(matrixRotation * (i % 2 == 0 ? 1 : -1) + Double(i * 45)))
-                                .scaleEffect(pulseEffect ? 1.1 : 0.85)
-                                .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.6), radius: 8)
+                        // 暴力衝擊波擴散環
+                        Circle()
+                            .stroke(Color(red: 0.0, green: 0.8, blue: 1.0), lineWidth: 4)
+                            .frame(width: 180, height: 180)
+                            .scaleEffect(shockwaveScale)
+                            .opacity(shockwaveOpacity)
+                        
+                        // 外層變形機械裝甲瓣膜 (類似變形金剛變形時的開合幾何)
+                        ForEach(0..<6, id: \.self) { i in
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
+                                .frame(width: 24, height: 75)
+                                .offset(y: -55)
+                                .rotationEffect(.degrees(Double(i) * 60.0 + armorRotation))
+                                .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 8)
                         }
                         
+                        // 核心高能反應爐
                         Circle()
-                            .stroke(
-                                AngularGradient(gradient: Gradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.6, green: 0.2, blue: 0.9), Color(red: 1.0, green: 0.2, blue: 0.6), Color(red: 0.0, green: 0.8, blue: 1.0)]), center: .center, angle: .degrees(matrixRotation)),
-                                lineWidth: 4
-                            )
-                            .frame(width: 150, height: 150)
-                            .shadow(color: Color(red: 1.0, green: 0.2, blue: 0.6).opacity(0.8), radius: 10)
+                            .fill(RadialGradient(gradient: Gradient(colors: [.white, Color(red: 0.0, green: 0.8, blue: 1.0), .clear]), center: .center, startRadius: 2, endRadius: 50))
+                            .frame(width: 100, height: 100)
+                            .scaleEffect(coreGlow)
+                            .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 20)
                         
-                        Image(systemName: "cube.transparent.fill")
-                            .font(.system(size: 42))
-                            .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
-                            .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 12)
+                        // 中央科幻徽標
+                        Image(systemName: "cpu")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundColor(.white)
+                            .scaleEffect(armorScale)
                     }
                     .frame(height: 180)
                     
-                    Text("VORTEX RACING HUD")
-                        .font(.system(size: 24, weight: .black, design: .monospaced))
-                        .kerning(6)
+                    Text("AUTOBOT SPEED HUD")
+                        .font(.system(size: 22, weight: .black, design: .monospaced))
+                        .kerning(8)
                         .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0))
-                        .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.8), radius: 6)
+                        .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 10)
+                        .opacity(Double(progress))
                     
                     VStack(alignment: .leading, spacing: 10) {
                         ZStack(alignment: .leading) {
                             Rectangle()
                                 .fill(Color.white.opacity(0.1))
-                                .frame(width: 300, height: 8)
-                                .cornerRadius(4)
+                                .frame(width: 280, height: 6)
+                                .cornerRadius(3)
                             
                             Rectangle()
-                                .fill(LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.6, green: 0.2, blue: 0.9), Color(red: 1.0, green: 0.2, blue: 0.6), .orange], startPoint: .leading, endPoint: .trailing))
-                                .frame(width: 300 * progress, height: 8)
-                                .cornerRadius(4)
-                                .shadow(color: Color(red: 1.0, green: 0.2, blue: 0.6), radius: 6)
+                                .fill(LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.8, green: 0.1, blue: 0.9), .orange], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: 280 * progress, height: 6)
+                                .cornerRadius(3)
+                                .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 8)
                         }
                         
                         Text(steps[min(textStep, steps.count - 1)])
@@ -317,15 +328,17 @@ struct BootLoadingView: View {
                             .foregroundColor(Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.8))
                     }
                 }
+                .transition(.opacity)
             } else {
+                // 安全條款宣告 (漸顯動畫)
                 VStack(spacing: 0) {
                     HStack {
-                        Text("警告")
-                            .font(.system(size: 22, weight: .black))
+                        Text("安全規範")
+                            .font(.system(size: 20, weight: .black))
                             .foregroundColor(.white)
                         Spacer()
-                        Text("警告 / 法律遵守事項")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        Text("CYBERTRON PROTOCOL")
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                     }
                     .padding(.horizontal, 20)
@@ -333,35 +346,49 @@ struct BootLoadingView: View {
                     .background(Color.red)
                     
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("道路交通法規の遵守および極速安全に関するお知らせ")
+                        Text("道路安全與速度測試免責聲明")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.red)
                         
-                        Text("本システムが提供する高精度GPS速度、Gフォース、サーキット計測およびナビゲーションデータは、あくまで運転の参考用です。公道では必ず現地の制限速度および交通法規を厳守し、危険な運転は絶対に避けてください。")
+                        Text("本系統提供之GPS速度、G力與0-100加速測試數據僅供賽道與參考使用。駕駛時請嚴格遵守當地交通法規，確保行車安全。")
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.85))
                             .lineSpacing(5)
                         
-                        Text("SEC. 501 / 508 - VORTEX RACING SYSTEM AUTHENTICATED")
+                        Text("SEC. 901 - MATRIX OF LEADERSHIP VERIFIED")
                             .font(.system(size: 9, design: .monospaced))
                             .foregroundColor(.gray)
-                            .padding(.top, 6)
+                            .padding(.top, 4)
                     }
                     .padding(22)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.black)
                 }
-                .frame(width: min(UIScreen.main.bounds.width - 40, 520))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red, lineWidth: 3))
-                .cornerRadius(10)
-                .shadow(color: .red.opacity(0.5), radius: 15)
+                .frame(width: min(UIScreen.main.bounds.width - 40, 500))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red, lineWidth: 3))
+                .cornerRadius(12)
+                .shadow(color: .red.opacity(0.6), radius: 15)
                 .opacity(warningOpacity)
+                .transition(.opacity)
             }
         }
+        .edgesIgnoringSafeArea(.all)
         .onAppear {
-            withAnimation(.easeInOut(duration: 2.2)) { progress = 1.0 }
-            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) { matrixRotation = 360 }
-            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { pulseEffect = true }
+            // 暴力速度感的彈簧與旋轉變形動畫
+            withAnimation(.spring(response: 0.9, dampingFraction: 0.6)) {
+                armorScale = 1.0
+                armorRotation = 0.0
+                coreGlow = 1.2
+            }
+            
+            withAnimation(.easeOut(duration: 0.8)) {
+                shockwaveScale = 2.2
+                shockwaveOpacity = 0.8
+            }
+            
+            withAnimation(.easeInOut(duration: 2.4)) {
+                progress = 1.0
+            }
             
             Timer.scheduledTimer(withTimeInterval: 0.55, repeats: true) { timer in
                 if textStep < steps.count - 1 {
@@ -369,11 +396,12 @@ struct BootLoadingView: View {
                 } else {
                     timer.invalidate()
                     withAnimation(.easeInOut(duration: 0.4)) { showWarningScreen = true }
-                    withAnimation(.easeIn(duration: 0.5)) { warningOpacity = 1.0 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) {
-                        withAnimation(.easeOut(duration: 0.5)) { warningOpacity = 0.0 }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            withAnimation { isFinished = true }
+                    withAnimation(.easeIn(duration: 0.6)) { warningOpacity = 1.0 }
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        withAnimation(.easeOut(duration: 0.6)) { warningOpacity = 0.0 }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                            withAnimation(.easeInOut(duration: 0.8)) { isFinished = true } // 完美的漸顯切換至主畫面
                         }
                     }
                 }
@@ -382,7 +410,7 @@ struct BootLoadingView: View {
     }
 }
 
-// MARK: - 5. 加粗、具備 120HZ 動態模糊感的流光霓虹燈條特效
+// MARK: - 5. 背景流光霓虹燈條特效
 struct BackgroundNeonFlowView: View {
     @State private var isAnimating = false
     var primaryColor: Color
@@ -392,7 +420,7 @@ struct BackgroundNeonFlowView: View {
             RoundedRectangle(cornerRadius: 24)
                 .stroke(
                     AngularGradient(
-                        gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, Color(red: 0.6, green: 0.2, blue: 0.9), primaryColor.opacity(0.2), Color.clear]),
+                        gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, Color(red: 0.8, green: 0.1, blue: 0.9), primaryColor.opacity(0.2), Color.clear]),
                         center: .center,
                         angle: .degrees(isAnimating ? 360 : 0)
                     ),
@@ -417,12 +445,12 @@ struct BackgroundNeonFlowView: View {
                 )
             }
         }
+        .ignoresSafeArea()
         .onAppear {
             withAnimation(Animation.linear(duration: 3.5).repeatForever(autoreverses: false)) {
                 isAnimating = true
             }
         }
-        .ignoresSafeArea()
     }
 }
 
@@ -588,7 +616,7 @@ struct SciFiParticleAssembleView<Content: View>: View {
         ZStack {
             content
                 .opacity(Double(assembleProgress))
-                .scaleEffect(0.9 + (assembleProgress * 0.1))
+                .scaleEffect(0.92 + (assembleProgress * 0.08))
             
             if assembleProgress < 1.0 {
                 ZStack {
@@ -605,7 +633,7 @@ struct SciFiParticleAssembleView<Content: View>: View {
             }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.9)) { assembleProgress = 1.0 }
+            withAnimation(.easeInOut(duration: 0.8)) { assembleProgress = 1.0 }
         }
     }
 }
@@ -627,7 +655,7 @@ struct OverspeedLogsView: View {
                         Spacer()
                         VStack(alignment: .trailing, spacing: 4) {
                             Text(String(format: "%.0f km/h", log.speed)).font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.red)
-                            Text(String(format: "制限: %.0f", log.speedLimit)).font(.system(size: 11, design: .monospaced)).foregroundColor(.gray)
+                            Text(String(format: "速限: %.0f", log.speedLimit)).font(.system(size: 11, design: .monospaced)).foregroundColor(.gray)
                         }
                     }
                     .listRowBackground(Color.black)
@@ -636,8 +664,8 @@ struct OverspeedLogsView: View {
             }
             .listStyle(PlainListStyle())
         }
-        .navigationTitle("スピード違反記録")
-        .navigationBarItems(trailing: Button("すべて削除") { logs.removeAll() }.foregroundColor(.red))
+        .navigationTitle("超速違規紀錄")
+        .navigationBarItems(trailing: Button("全部刪除") { logs.removeAll() }.foregroundColor(.red))
     }
     private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; return df }
     private var timeFormatter: DateFormatter { let df = DateFormatter(); df.timeStyle = .medium; return df }
@@ -675,8 +703,8 @@ struct HistoryRecordsView: View {
             }
             .listStyle(PlainListStyle())
         }
-        .navigationTitle("走行履歴アーカイブ")
-        .navigationBarItems(trailing: Button("すべて削除") { records.removeAll() }.foregroundColor(.red))
+        .navigationTitle("行車歷史封存")
+        .navigationBarItems(trailing: Button("全部刪除") { records.removeAll() }.foregroundColor(.red))
     }
     private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df }
 }
@@ -692,36 +720,36 @@ struct SettingsView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("ビジュアルテーマ與動態背景")) {
-                Picker("テーマ", selection: $selectedTheme) {
+            Section(header: Text("視覺主題與動態背景")) {
+                Picker("主題", selection: $selectedTheme) {
                     ForEach(DashboardTheme.allCases) { theme in
                         Text(theme.rawValue).tag(theme)
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 
-                Toggle("カスタムネオンカラーを有効化", isOn: $useCustomColor)
+                Toggle("啟用自定義霓虹色", isOn: $useCustomColor)
                 if useCustomColor {
-                    ColorPicker("メインカラー", selection: $customColor)
+                    ColorPicker("主色調", selection: $customColor)
                 }
             }
             
-            Section(header: Text("安全アラート")) {
+            Section(header: Text("安全警示")) {
                 VStack(alignment: .leading) {
-                    Text("制限速度警告: \(Int(speedLimit)) km/h").font(.system(size: 14, weight: .bold, design: .monospaced))
+                    Text("速限警告: \(Int(speedLimit)) km/h").font(.system(size: 14, weight: .bold, design: .monospaced))
                     Slider(value: $speedLimit, in: 40...180, step: 5)
                 }
             }
             
-            Section(header: Text("ナビゲーション & 位置情報")) {
-                Toggle("ネットワーク位置情報ブースト", isOn: $isNetworkBoostEnabled)
+            Section(header: Text("導航與定位")) {
+                Toggle("網路定位增強", isOn: $isNetworkBoostEnabled)
             }
             
-            Section(header: Text("表示モード")) {
-                Toggle("HUD投影モード (ミラー反転)", isOn: $isHudMode)
+            Section(header: Text("顯示模式")) {
+                Toggle("HUD 投影模式 (鏡像反轉)", isOn: $isHudMode)
             }
         }
-        .navigationTitle("サーキット設定")
+        .navigationTitle("儀表板設定")
     }
 }
 
@@ -803,7 +831,7 @@ struct ContentView: View {
                                                     .foregroundColor(.white)
                                                     .lineLimit(1)
                                                 
-                                                Text(vehicleManager.isNavigating ? "ナビゲーション中" : "ヒント: マップで場所を検索またはタップ")
+                                                Text(vehicleManager.isNavigating ? "導航中" : "提示: 點擊地圖或搜尋目的地")
                                                     .font(.system(size: 10, design: .monospaced))
                                                     .foregroundColor(.gray)
                                             }
@@ -814,7 +842,7 @@ struct ContentView: View {
                                         
                                         if vehicleManager.isNavigating && !isTopBannerCollapsed {
                                             Button(action: { vehicleManager.cancelNavigation() }) {
-                                                Text("終了")
+                                                Text("結束")
                                                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                                                     .padding(.horizontal, 8)
                                                     .padding(.vertical, 4)
@@ -881,7 +909,7 @@ struct ContentView: View {
                                                     
                                                     if isSearchExpanded {
                                                         HStack {
-                                                            TextField("目的地を検索", text: $searchText, onCommit: {
+                                                            TextField("搜尋目的地", text: $searchText, onCommit: {
                                                                 vehicleManager.searchAndNavigate(query: searchText)
                                                                 withAnimation { isSearchExpanded = false }
                                                                 searchText = ""
@@ -894,7 +922,7 @@ struct ContentView: View {
                                                                 withAnimation { isSearchExpanded = false }
                                                                 searchText = ""
                                                             }) {
-                                                                Text("移動")
+                                                                Text("前往")
                                                                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                                                                     .padding(.horizontal, 10)
                                                                     .padding(.vertical, 6)
@@ -920,7 +948,7 @@ struct ContentView: View {
                                                 Button(action: { showMap.toggle() }) {
                                                     VStack(spacing: 4) {
                                                         Image(systemName: "map.fill").font(.system(size: 14))
-                                                        Text("マップ").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                        Text("地圖").font(.system(size: 8, weight: .bold, design: .monospaced))
                                                     }
                                                     .frame(width: 52, height: 52)
                                                     .background(Color.white.opacity(0.1))
@@ -948,7 +976,7 @@ struct ContentView: View {
                                                 }) {
                                                     VStack(spacing: 4) {
                                                         Image(systemName: "arrow.counterclockwise.circle.fill").font(.system(size: 14))
-                                                        Text("リセット").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                        Text("重置").font(.system(size: 8, weight: .bold, design: .monospaced))
                                                     }
                                                     .frame(width: 52, height: 52)
                                                     .background(Color.orange.opacity(0.2))
@@ -1015,6 +1043,7 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
+            .edgesIgnoringSafeArea(.all)
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
