@@ -209,7 +209,44 @@ class SpeedometerManager: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 }
 
-// MARK: - 4. 深度升級版開機動畫
+// MARK: - 4. 科技風動態背景元件
+struct CyberpunkAnimatedBackground: View {
+    var activeColor: Color
+    @State private var animateGlow = false
+    
+    var body: some View {
+        ZStack {
+            // 暗色基底
+            Color(red: 0.015, green: 0.015, blue: 0.03).edgesIgnoringSafeArea(.all)
+            
+            // 動態流光掃描線動畫
+            VStack {
+                Rectangle()
+                    .fill(LinearGradient(gradient: Gradient(colors: [.clear, activeColor.opacity(0.12), .clear]), startPoint: .top, endPoint: .bottom))
+                    .frame(height: 200)
+                    .offset(y: animateGlow ? 800 : -800)
+                    .animation(Animation.easeInOut(duration: 4.0).repeatForever(autoreverses: false), value: animateGlow)
+                Spacer()
+            }
+            .edgesIgnoringSafeArea(.all)
+            
+            // 科技格紋裝飾網格
+            VStack(spacing: 40) {
+                ForEach(0..<10, id: \.self) { _ in
+                    Rectangle()
+                        .fill(activeColor.opacity(0.02))
+                        .frame(height: 1)
+                }
+            }
+            .edgesIgnoringSafeArea(.all)
+        }
+        .onAppear {
+            animateGlow = true
+        }
+    }
+}
+
+// MARK: - 5. 開機動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -230,16 +267,6 @@ struct BootLoadingView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            VStack {
-                Rectangle()
-                    .fill(LinearGradient(gradient: Gradient(colors: [.clear, safeCyan.opacity(0.15), .clear]), startPoint: .top, endPoint: .bottom))
-                    .frame(height: 150)
-                    .offset(y: glitchEffect ? 600 : -600)
-                    .animation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: glitchEffect)
-                Spacer()
-            }
-            .edgesIgnoringSafeArea(.all)
-            
             VStack(spacing: 24) {
                 VStack(spacing: 6) {
                     Text("🏎️ PORSCHE // QUANTUM HUD")
@@ -248,7 +275,7 @@ struct BootLoadingView: View {
                         .tracking(8)
                         .shadow(color: safeCyan, radius: 10)
                     
-                    Text("SECURE TELEMETRY OS v4.8")
+                    Text("SECURE TELEMETRY OS v4.9")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundColor(.gray)
                 }
@@ -289,8 +316,8 @@ struct BootLoadingView: View {
                 }
             }
         }
+        .edgesIgnoringSafeArea(.all)
         .onAppear {
-            glitchEffect = true
             withAnimation(.easeInOut(duration: 3.5)) {
                 progress = 1.0
             }
@@ -307,7 +334,7 @@ struct BootLoadingView: View {
     }
 }
 
-// MARK: - 5. 儀表裝飾元件
+// MARK: - 6. 儀表裝飾元件
 struct NeonArcFlowView: View {
     var speed: Double
     var maxSpeed: Double = 160.0
@@ -403,7 +430,7 @@ struct MapTrackingView: UIViewRepresentable {
     }
 }
 
-// MARK: - 6. 主畫面 (支援地圖開關切換、滿屏速度表與直橫向切換)
+// MARK: - 7. 主畫面
 struct ContentView: View {
     @StateObject private var speedManager = SpeedometerManager()
     @State private var isBootCompleted = false
@@ -456,13 +483,14 @@ struct ContentView: View {
                     let isPortrait = isPortraitForced || (screenWidth < screenHeight)
                     
                     ZStack {
-                        // 修正：只有當開啟地圖且有定位時顯示地圖；關閉時維持原本暗色背景
+                        // 地圖或動態科技背景切換
                         if showMap, let location = speedManager.userLocation {
                             MapTrackingView(userLocation: location)
                                 .edgesIgnoringSafeArea(.all)
                                 .overlay(Color.black.opacity(0.3))
                         } else {
-                            Color(red: 0.02, green: 0.02, blue: 0.04).edgesIgnoringSafeArea(.all)
+                            CyberpunkAnimatedBackground(activeColor: activePrimaryColor)
+                                .edgesIgnoringSafeArea(.all)
                         }
                         
                         if speedManager.speedKMH > speedLimit && flashWarning {
@@ -525,7 +553,7 @@ struct ContentView: View {
                                 }
                             }
                             .padding(.horizontal, 20)
-                            .padding(.top, geometry.safeAreaInsets.top + 5)
+                            .padding(.top, max(geometry.safeAreaInsets.top, 15))
                             
                             if !isHUDMode {
                                 ShiftLightsView(speed: speedManager.speedKMH)
@@ -592,7 +620,7 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            // 底部行車數據列
+                            // 保留的底部行車數據列
                             if !isHUDMode {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 2) {
@@ -622,13 +650,15 @@ struct ContentView: View {
                                 .background(Color.black.opacity(0.85))
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(activePrimaryColor.opacity(0.4), lineWidth: 1))
                                 .cornerRadius(12)
-                                .padding(.horizontal, 20).padding(.bottom, 10)
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, max(geometry.safeAreaInsets.bottom, 10))
                             }
                         }
                     }
                 }
             }
         }
+        .ignoresSafeArea()
         .sheet(isPresented: $showSettings) {
             NavigationView {
                 Form {
@@ -695,7 +725,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - 7. 歷史紀錄列表頁面
+// MARK: - 8. 歷史紀錄列表頁面
 struct HistoryView: View {
     @ObservedObject var speedManager: SpeedometerManager
     var body: some View {
@@ -729,7 +759,7 @@ struct HistoryView: View {
     }
 }
 
-// MARK: - 8. 超速紀錄列表頁面
+// MARK: - 9. 超速紀錄列表頁面
 struct OverspeedLogView: View {
     @ObservedObject var speedManager: SpeedometerManager
     var body: some View {
