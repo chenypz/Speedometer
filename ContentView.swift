@@ -1,4 +1,4 @@
-import SwiftUI
+[source: 1]import SwiftUI
 import CoreLocation
 import CoreMotion
 import MapKit
@@ -522,9 +522,7 @@ struct MultiThemeBootLoadingView: View {
         ZStack {
             Color.black.ignoresSafeArea(.all, edges: .all)
             
-            // 100種特效融合層：矩陣光網、環形雷射、多層衝擊波
             ZStack {
-                // 特效 1~25：多重交錯角度雷射光環
                 ForEach(0..<4, id: \.self) { ringIndex in
                     Circle()
                         .stroke(
@@ -539,7 +537,6 @@ struct MultiThemeBootLoadingView: View {
                         .blur(radius: CGFloat(ringIndex * 4))
                 }
                 
-                // 特效 26~50：高能輻射核心發光球體
                 Circle()
                     .fill(
                         RadialGradient(
@@ -559,7 +556,6 @@ struct MultiThemeBootLoadingView: View {
                         .transition(.opacity)
                 }
                 
-                // 特效 51~100：高達 80 顆全螢幕炸裂超跑粒子與矩陣亂數流
                 ForEach(0..<80, id: \.self) { i in
                     Rectangle()
                         .fill(i % 5 == 0 ? .white : (i % 2 == 0 ? themeColor : .yellow))
@@ -575,11 +571,9 @@ struct MultiThemeBootLoadingView: View {
             }
             .allowsHitTesting(false)
             
-            // 三段式震撼分鏡內容
             Group {
                 if bootStep == 0 {
                     ZStack {
-                        // 放射狀幾何光環
                         ForEach(0..<6, id: \.self) { idx in
                             Circle()
                                 .stroke(themeColor.opacity(0.7), lineWidth: CGFloat(2 + idx))
@@ -669,7 +663,6 @@ struct MultiThemeBootLoadingView: View {
             }
             .offset(x: CGFloat.random(in: -screenShake...screenShake), y: CGFloat.random(in: -screenShake...screenShake))
             
-            // 略過按鈕
             VStack {
                 HStack {
                     Spacer()
@@ -692,7 +685,6 @@ struct MultiThemeBootLoadingView: View {
         }
         .ignoresSafeArea(.all, edges: .all)
         .onAppear {
-            // 第一重開場極限閃光與震動特效
             AudioServicesPlaySystemSound(1016)
             withAnimation(.easeIn(duration: 0.05)) {
                 flashScreen = true
@@ -724,7 +716,6 @@ struct MultiThemeBootLoadingView: View {
                 matrixGlitch.toggle()
             }
             
-            // 第二階段特效切換
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 AudioServicesPlaySystemSound(1007)
                 withAnimation(.easeInOut(duration: 0.25)) {
@@ -736,12 +727,10 @@ struct MultiThemeBootLoadingView: View {
                 }
             }
             
-            // 第三階段特效切換
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
                 withAnimation(.easeInOut(duration: 0.3)) { bootStep = 2 }
             }
             
-            // 結束開場動畫進入主畫面
             DispatchQueue.main.asyncAfter(deadline: .now() + 6.8) {
                 withAnimation(.easeOut(duration: 0.4)) { isFinished = true }
             }
@@ -1479,7 +1468,6 @@ struct ContentView: View {
                                     }
                                     .frame(width: 54)
                                     
-                                    // 中央核心時速表 + 霓虹燈圈
                                     ZStack {
                                         NeonSpeedGaugeRing(
                                             speed: effectiveSpeed,
@@ -1506,7 +1494,6 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     
-                                    // 右側數據卡片
                                     VStack(spacing: 10) {
                                         MiniMapView(
                                             coordinate: vehicleManager.currentLocation,
@@ -1588,11 +1575,11 @@ struct ContentView: View {
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
             }
-            .onChange(of: effectiveSpeed) { newSpeed in
-                if newSpeed > speedLimit {
+            .onChange(of: effectiveSpeed) { oldVal, newVal in
+                if newVal > speedLimit {
                     flashWarning = true
                     AudioServicesPlaySystemSound(1005)
-                    overspeedLogs.append(OverspeedRecord(id: UUID(), date: Date(), speed: newSpeed, speedLimit: speedLimit))
+                    overspeedLogs.append(OverspeedRecord(id: UUID(), date: Date(), speed: newVal, speedLimit: speedLimit))
                     vehicleManager.overspeedDurationSeconds += 1.0
                     
                     overspeedTimer?.invalidate()
