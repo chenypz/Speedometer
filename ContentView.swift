@@ -63,7 +63,7 @@ struct DrivingScoreRecord: Identifiable, Codable {
         switch totalScore {
         case 90...100: return "SSS 級 • 賽道神人"
         case 80..<90:  return "S 級 • 黃金右腳"
-        case 70..<80:  return "A 级 • 安全駕駛"
+        case 70..<80:  return "A 級 • 安全駕駛"
         case 60..<70:  return "B 級 • 普通駕駛"
         default:       return "C 級 • 狂暴飆風者"
         }
@@ -193,7 +193,7 @@ class SpeechManager: ObservableObject {
     }
 }
 
-// MARK: - 4. GPS、感應器與測速照相管理器 (含測速點手動加入/移除與 0-100/100m 測試)
+// MARK: - 4. GPS、感應器與測速照相管理器
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
@@ -243,7 +243,9 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         SpeedCamera(latitude: 25.0400, longitude: 121.5700, speedLimit: 60, description: "台北忠孝東路固定測速")
     ]
     
-    let speechManager = SpeechManager()
+    // 修正：改為 var 以支援 SwiftUI 的雙向綁定 (Binding)
+    @Published var speechManager = SpeechManager()
+    
     private var lastSpokenCameraId: UUID? = nil
     private var lastLocation: CLLocation? = nil
     
@@ -296,7 +298,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         lastRecordedSpeed = 0.0
     }
     
-    // 手動加入目前位置為測速點
     func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
         let newCam = SpeedCamera(
             latitude: currentLocation.latitude,
@@ -311,7 +312,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         speechManager.speak("已成功加入目前測速點")
     }
     
-    // 移除最近的測速點
     func removeNearestCamera() {
         guard let currentLoc = lastLocation else {
             speechManager.speak("目前沒有定位資訊")
@@ -425,7 +425,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         lastLocation = newLocation
         
-        // 0-100 加速測試邏輯
         if speedKmh < 5 && !isTesting0_100 && !hasReached100 {
             isTesting0_100 = true
             accelStartTime = Date()
@@ -442,7 +441,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
         
-        // 0-100公尺加速測試邏輯
         if speedKmh < 3 && !isTesting0_100m && !hasReached100m {
             isTesting0_100m = true
             distanceStartTime = Date()
@@ -858,14 +856,13 @@ struct MiniMapView: View {
     }
 }
 
-// MARK: - 12. 效能測試分頁檢視 (新增 0-100 與 0-100公尺分頁)
+// MARK: - 12. 效能測試分頁檢視
 struct PerformanceTestDashboardView: View {
     @ObservedObject var vehicleManager: VehicleManager
     var primaryColor: Color
     
     var body: some View {
         TabView {
-            // 0-100 加速測試分頁
             ZStack {
                 Color.black.ignoresSafeArea()
                 VStack(spacing: 24) {
@@ -897,7 +894,6 @@ struct PerformanceTestDashboardView: View {
                 Label("0-100加速", systemImage: "timer")
             }
             
-            // 0-100 公尺短距加速分頁
             ZStack {
                 Color.black.ignoresSafeArea()
                 VStack(spacing: 24) {
@@ -1061,7 +1057,7 @@ struct HistoryDetailMapView: View {
     }
 }
 
-// MARK: - 15. 設定選單 (包含新增/移除測速點功能)
+// MARK: - 15. 設定選單
 struct SettingsView: View {
     @ObservedObject var vehicleManager: VehicleManager
     @Binding var selectedTheme: DashboardTheme
@@ -1288,7 +1284,6 @@ struct ContentView: View {
                                     )
                                     .ignoresSafeArea(.all, edges: .all)
                                     
-                                    // 地圖檢視模式中的精巧即時時速小方塊與工具按鈕
                                     HStack(alignment: .top, spacing: 12) {
                                         Button(action: { showMap.toggle() }) {
                                             Image(systemName: "gauge.with.needle")
@@ -1300,7 +1295,6 @@ struct ContentView: View {
                                                 .overlay(Circle().stroke(currentPrimaryColor, lineWidth: 2))
                                         }
                                         
-                                        // 時速小方塊
                                         HStack(spacing: 6) {
                                             Text(String(format: "%.0f", effectiveSpeed))
                                                 .font(.system(size: 22, weight: .black, design: .monospaced))
@@ -1330,7 +1324,6 @@ struct ContentView: View {
                                     .padding(.leading, 24)
                                 }
                             } else {
-                                // 標準首頁儀表板
                                 HStack(spacing: 12) {
                                     VStack(spacing: 10) {
                                         Button(action: { showMap.toggle() }) {
