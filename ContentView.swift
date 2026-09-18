@@ -3,6 +3,7 @@ import CoreLocation
 import CoreMotion
 import MapKit
 import AVFoundation
+import UIKit
 
 // MARK: - iOS 14 / 15 相容性色彩防護
 extension Color {
@@ -494,7 +495,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 三種風格完全獨立的開場動畫（櫻花風升級為：櫻花爆發 ➔ 櫻花樹聚攏 ➔ 白狐衝向螢幕 ➔ 黑紅日文警告 ➔ 櫻花炸裂進入主畫面）
+// MARK: - 5. 三種風格完全獨立的開場動畫（頂級豪華版：閃電落雷、居合拔刀、殘影模糊、浮世繪雷紋框、多重Haptic震動）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -508,9 +509,12 @@ struct MultiThemeBootLoadingView: View {
     @State private var warningFlash: Bool = false
     @State private var screenShake: CGFloat = 0.0
     
-    @State private var sakuraPhase: Int = 0
+    // Sakura specific animation states
+    @State private var sakuraPhase: Int = 0 
     @State private var foxScale: CGFloat = 0.1
     @State private var warningGlow: CGFloat = 0.0
+    @State private var showLightning: Bool = false
+    @State private var blurAmount: CGFloat = 0.0
     
     var themeColor: Color {
         switch selectedTheme {
@@ -518,6 +522,13 @@ struct MultiThemeBootLoadingView: View {
         case .cyberpunk: return .safeCyan
         case .sakura: return Color(red: 1.0, green: 0.5, blue: 0.8)
         }
+    }
+    
+    // 觸覺回饋產生器
+    private func triggerHaptic(style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        let generator = UIImpactFeedbackGenerator(style: style)
+        generator.prepare()
+        generator.impactOccurred()
     }
     
     var body: some View {
@@ -573,11 +584,38 @@ struct MultiThemeBootLoadingView: View {
                     }
                 }
             }
-            // ─── 3. 日本櫻花風（自訂順序動畫） ───
+            // ─── 3. 日本櫻花風（頂級豪華特效：落雷、居合、殘影、浮世繪雷紋框） ───
             else {
                 ZStack {
+                    // 全螢幕閃光與落雷效果
                     if flashScreen { Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.85).ignoresSafeArea() }
                     
+                    if showLightning {
+                        // 閃電裂紋視覺特效
+                        ZStack {
+                            Color.white.opacity(0.4).ignoresSafeArea()
+                            Path { path in
+                                path.move(to: CGPoint(x: 50, y: 0))
+                                path.addLine(to: CGPoint(x: 180, y: 300))
+                                path.addLine(to: CGPoint(x: 100, y: 350))
+                                path.addLine(to: CGPoint(x: 320, y: 800))
+                            }
+                            .stroke(Color.cyan, lineWidth: 6)
+                            .shadow(color: .white, radius: 15)
+                            
+                            Path { path in
+                                path.move(to: CGPoint(x: 300, y: 50))
+                                path.addLine(to: CGPoint(x: 200, y: 400))
+                                path.addLine(to: CGPoint(x: 280, y: 450))
+                                path.addLine(to: CGPoint(x: 80, y: 750))
+                            }
+                            .stroke(Color(red: 1.0, green: 0.3, blue: 0.6), lineWidth: 4)
+                            .shadow(color: .yellow, radius: 12)
+                        }
+                        .ignoresSafeArea()
+                    }
+                    
+                    // 階段 1 與 2：櫻花炸開與吸入樹木中
                     if sakuraPhase <= 1 {
                         ZStack {
                             ForEach(0..<6, id: \.self) { i in
@@ -610,6 +648,7 @@ struct MultiThemeBootLoadingView: View {
                         }
                     }
                     
+                    // 階段 2 & 3：白狐召喚衝向螢幕（帶有動態殘影模糊）
                     if sakuraPhase == 2 {
                         ZStack {
                             VStack(spacing: 12) {
@@ -618,6 +657,7 @@ struct MultiThemeBootLoadingView: View {
                                     .foregroundColor(.white)
                                     .shadow(color: Color(red: 1.0, green: 0.4, blue: 0.7), radius: 30)
                                     .scaleEffect(foxScale)
+                                    .blur(radius: blurAmount) // 殘影速度感模糊
                                     .rotationEffect(.degrees(warningFlash ? 5 : -5))
                                 
                                 Text("霊狐降臨 • 神速起動")
@@ -629,9 +669,30 @@ struct MultiThemeBootLoadingView: View {
                         }
                     }
                     
+                    // 階段 3：黑紅流水發光字警告（結合日系浮世繪與雷紋裝飾框）
                     if sakuraPhase >= 3 {
                         ZStack {
                             Color.black.opacity(0.95).ignoresSafeArea()
+                            
+                            // 浮世繪風格的日式角落裝飾紋樣
+                            VStack {
+                                HStack {
+                                    Text("風林火山 卍").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
+                                    Spacer()
+                                    Text("電光石火 ⚡").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
+                                }
+                                .padding(.horizontal, 30)
+                                .padding(.top, 40)
+                                Spacer()
+                                HStack {
+                                    Text("桜吹雪 ⚠️").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
+                                    Spacer()
+                                    Text("神速領域 ⛩️").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
+                                }
+                                .padding(.horizontal, 30)
+                                .padding(.bottom, 40)
+                            }
+                            .ignoresSafeArea()
                             
                             VStack(spacing: 16) {
                                 RoundedRectangle(cornerRadius: 16)
@@ -670,6 +731,7 @@ struct MultiThemeBootLoadingView: View {
                         }
                     }
                     
+                    // 階段 4：最後櫻花再次炸開進入主畫面
                     if sakuraPhase == 4 {
                         ZStack {
                             Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.6).ignoresSafeArea()
@@ -758,6 +820,8 @@ struct MultiThemeBootLoadingView: View {
                 flashScreen = true
                 screenShake = selectedTheme == .skull ? 18.0 : 6.0
             }
+            triggerHaptic(style: .heavy) // 初始炸開震撼震動
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
                 withAnimation(.easeOut(duration: 0.3)) {
                     flashScreen = false
@@ -780,26 +844,52 @@ struct MultiThemeBootLoadingView: View {
             }
             
             if selectedTheme == .sakura {
+                // 1. 0.8秒後：樹木聚攏
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    triggerHaptic(style: .medium)
                     withAnimation(.easeInOut(duration: 0.5)) { sakuraPhase = 1 }
                 }
+                
+                // 2. 1.6秒後：白狐衝擊（結合居合斬拔刀音效、落雷閃電、動態殘影模糊與強烈震動）
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-                    AudioServicesPlaySystemSound(1104)
+                    AudioServicesPlaySystemSound(1104) // 衝擊音效
+                    AudioServicesPlaySystemSound(1057) // 模擬居合斬銳利金屬聲
+                    triggerHaptic(style: .heavy)
+                    
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        showLightning = true
+                        blurAmount = 8.0 // 瞬間產生殘影動態模糊
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showLightning = false
+                            blurAmount = 0.0
+                        }
+                    }
+                    
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
                         sakuraPhase = 2
                         foxScale = 2.8
                     }
                 }
+                
+                // 3. 2.5秒後：黑紅流水發光警告字（帶有風鈴聲或警告震動）
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                     AudioServicesPlaySystemSound(1005)
+                    triggerHaptic(style: .rigid)
                     withAnimation(.easeInOut(duration: 0.3)) {
                         sakuraPhase = 3
                         warningGlow = 1.1
                     }
                 }
+                
+                // 4. 4.0秒後：最終櫻花炸開
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                    triggerHaptic(style: .medium)
                     withAnimation(.easeInOut(duration: 0.4)) { sakuraPhase = 4 }
                 }
+                
+                // 5. 4.6秒後：進入主畫面
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4.6) {
                     withAnimation(.easeOut(duration: 0.3)) { isFinished = true }
                 }
