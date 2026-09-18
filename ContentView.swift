@@ -674,7 +674,7 @@ struct BackgroundNeonFlowView: View {
             .shadow(color: primaryColor, radius: 12)
             .shadow(color: primaryColor.opacity(0.4), radius: 4)
             .allowsHitTesting(false)
-            .ignoresSafeArea(.all)
+            .ignoresSafeArea(.all, edges: .all)
             .onAppear {
                 withAnimation(Animation.linear(duration: 3.0).repeatForever(autoreverses: false)) {
                     isAnimating = true
@@ -1150,6 +1150,7 @@ struct SettingsView: View {
         .navigationTitle("儀表板設定")
     }
 }
+
 // MARK: - 16. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
@@ -1200,6 +1201,10 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
+                // 絕對定位的底色填滿整個 Window 邊緣，徹底解決黑邊
+                selectedTheme.backgroundGradientColors.first?
+                    .ignoresSafeArea(.all, edges: .all)
+                
                 // 1. 滿版漸層背景，強制忽略所有安全區域邊緣
                 LinearGradient(
                     colors: selectedTheme.backgroundGradientColors,
@@ -1501,7 +1506,7 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
-            .ignoresSafeArea(.all, edges: .all) // 確保導航檢視填滿
+            .ignoresSafeArea(.all, edges: .all)
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
@@ -1549,6 +1554,7 @@ struct ContentView: View {
             )
         }
         .navigationViewStyle(StackNavigationViewStyle())
-        .ignoresSafeArea(.all, edges: .all) // 強制整體導航器滿版
+        .ignoresSafeArea(.all, edges: .all)
+        .background(selectedTheme.backgroundGradientColors.first?.ignoresSafeArea(.all))
     }
 }
