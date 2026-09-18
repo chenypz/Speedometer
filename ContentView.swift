@@ -4,6 +4,27 @@ import CoreMotion
 import MapKit
 import AVFoundation
 
+// MARK: - iOS 14 / 15 相容性色彩防護
+extension Color {
+    static var safeCyan: Color {
+        if #available(iOS 15.0, *) {
+            return Color.cyan
+        } else {
+            return Color(red: 0.0, green: 0.75, blue: 1.0)
+        }
+    }
+}
+
+extension UIColor {
+    static var safeSystemCyan: UIColor {
+        if #available(iOS 15.0, *) {
+            return UIColor.systemCyan
+        } else {
+            return UIColor(red: 0.0, green: 0.75, blue: 1.0, alpha: 1.0)
+        }
+    }
+}
+
 // MARK: - 1. 資料模型與歷史紀錄
 struct OverspeedRecord: Identifiable, Codable {
     let id: UUID
@@ -57,7 +78,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
         if let custom = custom { return custom }
         switch self {
         case .porsche: return .orange
-        case .cyberpunk: return Color(red: 0.0, green: 0.8, blue: 1.0)
+        case .cyberpunk: return .safeCyan
         case .arcade: return Color(red: 0.8, green: 0.1, blue: 0.9)
         }
     }
@@ -347,10 +368,10 @@ struct BootLoadingView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(Color.cyan.opacity(0.3))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.cyan, lineWidth: 1.5))
+                            .background(Color.safeCyan.opacity(0.3))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.safeCyan, lineWidth: 1.5))
                             .cornerRadius(16)
-                            .shadow(color: .cyan, radius: 5)
+                            .shadow(color: .safeCyan, radius: 5)
                     }
                     .padding(.trailing, 24)
                     .padding(.bottom, 24)
@@ -362,25 +383,25 @@ struct BootLoadingView: View {
                 VStack(spacing: 30) {
                     ZStack {
                         Circle()
-                            .stroke(Color.cyan, lineWidth: 4)
+                            .stroke(Color.safeCyan, lineWidth: 4)
                             .frame(width: 180, height: 180)
                             .scaleEffect(shockwaveScale)
                             .opacity(shockwaveOpacity)
                         
                         ForEach(0..<6, id: \.self) { i in
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(LinearGradient(colors: [.cyan, Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
+                                .fill(LinearGradient(colors: [.safeCyan, Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
                                 .frame(width: 24, height: 75)
                                 .offset(y: -55)
                                 .rotationEffect(.degrees(Double(i) * 60.0 + armorRotation))
-                                .shadow(color: .cyan, radius: 8)
+                                .shadow(color: .safeCyan, radius: 8)
                         }
                         
                         Circle()
-                            .fill(RadialGradient(gradient: Gradient(colors: [.white, .cyan, .clear]), center: .center, startRadius: 2, endRadius: 50))
+                            .fill(RadialGradient(gradient: Gradient(colors: [.white, .safeCyan, .clear]), center: .center, startRadius: 2, endRadius: 50))
                             .frame(width: 100, height: 100)
                             .scaleEffect(coreGlow)
-                            .shadow(color: .cyan, radius: 20)
+                            .shadow(color: .safeCyan, radius: 20)
                         
                         Image(systemName: "cpu")
                             .font(.system(size: 40, weight: .bold))
@@ -392,8 +413,8 @@ struct BootLoadingView: View {
                     Text("AUTOBOT QUANTUM HUD")
                         .font(.system(size: 22, weight: .black, design: .monospaced))
                         .kerning(8)
-                        .foregroundColor(.cyan)
-                        .shadow(color: .cyan, radius: 10)
+                        .foregroundColor(.safeCyan)
+                        .shadow(color: .safeCyan, radius: 10)
                         .opacity(Double(progress))
                     
                     VStack(alignment: .leading, spacing: 10) {
@@ -404,15 +425,15 @@ struct BootLoadingView: View {
                                 .cornerRadius(3)
                             
                             Rectangle()
-                                .fill(LinearGradient(colors: [.cyan, Color(red: 0.8, green: 0.1, blue: 0.9), .orange], startPoint: .leading, endPoint: .trailing))
+                                .fill(LinearGradient(colors: [.safeCyan, Color(red: 0.8, green: 0.1, blue: 0.9), .orange], startPoint: .leading, endPoint: .trailing))
                                 .frame(width: 300 * progress, height: 6)
                                 .cornerRadius(3)
-                                .shadow(color: .cyan, radius: 8)
+                                .shadow(color: .safeCyan, radius: 8)
                         }
                         
                         Text(steps[min(textStep, steps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(Color.cyan.opacity(0.8))
+                            .foregroundColor(Color.safeCyan.opacity(0.8))
                     }
                 }
                 .transition(.opacity)
@@ -595,7 +616,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
-                renderer.strokeColor = parent.historyPath != nil ? .systemOrange : .systemCyan
+                renderer.strokeColor = parent.historyPath != nil ? .systemOrange : .safeSystemCyan
                 renderer.lineWidth = 6
                 return renderer
             }
@@ -709,10 +730,10 @@ struct SciFiParticleAssembleView<Content: View>: View {
                         let angle = Double(i) * (Double.pi * 2 / 25.0)
                         let distance = (1.0 - assembleProgress) * 250.0
                         Circle()
-                            .fill(i % 2 == 0 ? Color.cyan : Color.white)
+                            .fill(i % 2 == 0 ? Color.safeCyan : Color.white)
                             .frame(width: 4, height: 4)
                             .offset(x: cos(angle) * distance, y: sin(angle) * distance)
-                            .shadow(color: Color.cyan, radius: 4)
+                            .shadow(color: Color.safeCyan, radius: 4)
                     }
                 }
             }
@@ -783,7 +804,7 @@ struct HistoryRecordsView: View {
                                     Text(record.zeroToOneHundredTime > 0 ? String(format: "%.1fs", record.zeroToOneHundredTime) : "---").font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.orange)
                                 }
                                 Spacer()
-                                Text("點擊回放軌跡 ➔").font(.system(size: 11, weight: .bold)).foregroundColor(.cyan)
+                                Text("點擊回放軌跡 ➔").font(.system(size: 11, weight: .bold)).foregroundColor(.safeCyan)
                             }
                         }
                         .padding(.vertical, 4)
@@ -815,7 +836,7 @@ struct HistoryDetailMapView: View {
             .ignoresSafeArea()
             
             VStack(alignment: .leading, spacing: 6) {
-                Text("行程軌跡回放數據").font(.system(size: 14, weight: .bold)).foregroundColor(.cyan)
+                Text("行程軌跡回放數據").font(.system(size: 14, weight: .bold)).foregroundColor(.safeCyan)
                 HStack {
                     Text("極速: \(Int(record.maxSpeed)) km/h")
                     Spacer()
