@@ -47,8 +47,8 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Color 擴充：支援存入 UserDefaults
-extension Color: RawRepresentable {
+// MARK: - Color 擴充：支援存入 UserDefaults (加上 @retroactive 消除警告)
+extension Color: @retroactive RawRepresentable {
     public init?(rawValue: String) {
         let components = rawValue.components(separatedBy: ",")
         guard components.count == 3,
@@ -111,7 +111,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             locationManager.distanceFilter = 1.0
         } else {
             locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-            locationManager.distanceFilter = kCLDistanceFilterNone
+            locationManager.distanceFilter = kCLLocationDistanceNone
         }
     }
     
@@ -841,7 +841,22 @@ struct ContentView: View {
             .onChange(of: historyRecords.count) { _ in saveHistoryRecords() }
             .background(
                 Group {
-                    NavigationLink(destination: SettingsView(selectedTheme: Binding(get: { self.selectedTheme }, set: { self.selectedTheme = $0 }), speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor, isNetworkBoostEnabled: $isNetworkBoostEnabled), isActive: $showSettings) { EmptyView() }
+                    // 修正：改用區域 Binding 變數，避免直接存取不可變的 self
+                    NavigationLink(
+                        destination: SettingsView(
+                            selectedTheme: Binding(
+                                get: { self.selectedTheme },
+                                set: { newTheme in self.storedThemeRaw = newTheme.rawValue }
+                            ),
+                            speedLimit: $speedLimit,
+                            isHudMode: $isHudMode,
+                            useCustomColor: $useCustomColor,
+                            customColor: $customColor,
+                            isNetworkBoostEnabled: $isNetworkBoostEnabled
+                        ),
+                        isActive: $showSettings
+                    ) { EmptyView() }
+                    
                     NavigationLink(destination: OverspeedLogsView(logs: $overspeedLogs), isActive: $showOverspeedLogs) { EmptyView() }
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
                 }
