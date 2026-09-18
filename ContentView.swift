@@ -334,7 +334,6 @@ struct BootLoadingView: View {
     @State private var showWarningScreen: Bool = false
     @State private var warningOpacity: Double = 0.0
     
-    // 紅黑白暴力賽博動態參數
     @State private var glitchOffset: CGFloat = 0.0
     @State private var warningFlash: Bool = false
     @State private var skullScale: CGFloat = 0.2
@@ -351,11 +350,9 @@ struct BootLoadingView: View {
 
     var body: some View {
         ZStack {
-            // 純黑與血紅色底調
             LinearGradient(colors: [Color.black, Color(red: 0.14, green: 0.0, blue: 0.03), Color.black], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
 
-            // 紅、白、黑交織的高速拉線特效
             VStack(spacing: 16) {
                 ForEach(0..<14, id: \.self) { i in
                     Rectangle()
@@ -367,13 +364,11 @@ struct BootLoadingView: View {
             }
             .ignoresSafeArea()
 
-            // 畫面閃爍警告遮罩
             Color.red
                 .opacity(warningFlash ? 0.25 : 0.0)
                 .ignoresSafeArea()
                 .animation(Animation.easeInOut(duration: 0.12).repeatForever(autoreverses: true), value: warningFlash)
 
-            // 右下角 SKIP 按鈕
             VStack {
                 Spacer()
                 HStack {
@@ -400,9 +395,7 @@ struct BootLoadingView: View {
 
             if !showWarningScreen {
                 VStack(spacing: 22) {
-                    // 中央骷髏頭與多重紅黑白拉線環
                     ZStack {
-                        // 外圈血紅高速拉線
                         Circle()
                             .stroke(style: StrokeStyle(lineWidth: 4, dash: [10, 6]))
                             .foregroundColor(.red)
@@ -410,20 +403,17 @@ struct BootLoadingView: View {
                             .rotationEffect(.degrees(ringRotation))
                             .shadow(color: .red, radius: 12)
 
-                        // 中圈白色雷達波拉線
                         Circle()
                             .stroke(Color.white.opacity(0.8), lineWidth: 2)
                             .frame(width: 140, height: 140)
                             .rotationEffect(.degrees(-ringRotation * 1.5))
 
-                        // 內圈黑紅轉動環
                         Circle()
                             .stroke(style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
                             .foregroundColor(Color.gray)
                             .frame(width: 90, height: 90)
                             .rotationEffect(.degrees(ringRotation * 2))
 
-                        // 中央骷髏頭圖標
                         Image(systemName: "skull.fill")
                             .font(.system(size: 55, weight: .black))
                             .foregroundColor(.white)
@@ -433,7 +423,6 @@ struct BootLoadingView: View {
                     }
                     .frame(height: 190)
 
-                    // 動態霓虹標題
                     Text("UNDERGROUND OVERDRIVE")
                         .font(.system(size: 18, weight: .black, design: .monospaced))
                         .kerning(5)
@@ -441,7 +430,6 @@ struct BootLoadingView: View {
                         .shadow(color: .red, radius: 10)
                         .offset(x: -glitchOffset)
 
-                    // 7秒精準進度條與多階段駭客指令
                     VStack(alignment: .leading, spacing: 8) {
                         ZStack(alignment: .leading) {
                             Rectangle()
@@ -463,7 +451,6 @@ struct BootLoadingView: View {
                 }
                 .transition(.opacity)
             } else {
-                // 7秒結束前的最終警告彈窗
                 VStack(spacing: 0) {
                     HStack {
                         Text("⚠️ SYSTEM BREACHED")
@@ -519,12 +506,10 @@ struct BootLoadingView: View {
                 glitchOffset = CGFloat(Int.random(in: -5...5))
             }
 
-            // 總共 7 秒的動畫進度配置
             withAnimation(.easeInOut(duration: 7.0)) {
                 progress = 1.0
             }
 
-            // 7 秒內切換 5 個豐富階段指令
             Timer.scheduledTimer(withTimeInterval: 1.35, repeats: true) { timer in
                 if textStep < brutalSteps.count - 1 {
                     textStep += 1
@@ -688,7 +673,7 @@ struct ShiftLightsView: View {
             ForEach(0..<8, id: \.self) { index in
                 Rectangle()
                     .fill(lightColor(for: index))
-                    .frame(width: 16, height: 5)
+                    .frame(width: 14, height: 5)
                     .cornerRadius(2)
                     .shadow(color: lightColor(for: index).opacity(0.8), radius: isLit(index) ? 4 : 0)
             }
@@ -734,7 +719,7 @@ struct MiniMapView: View {
                     .padding(6)
             }
         }
-        .frame(width: 120, height: 120)
+        .frame(width: 115, height: 115)
         .shadow(color: primaryColor.opacity(0.4), radius: 6)
     }
 }
@@ -1071,30 +1056,30 @@ struct ContentView: View {
                                                 }
                                             }
                                         }
-                                        .padding(.top, 12)
-                                        .padding(.leading, 12)
+                                        .padding(.top, 16)
+                                        .padding(.leading, 20)
                                     }
                                 } else {
-                                    HStack(spacing: 15) {
-                                        VStack(spacing: 12) {
+                                    // 調整整體水平與垂直安全內距，解決卡到邊框的問題
+                                    HStack(spacing: 12) {
+                                        VStack(spacing: 10) {
                                             Button(action: { showMap.toggle() }) {
-                                                VStack(spacing: 4) {
-                                                    Image(systemName: "map.fill").font(.system(size: 14))
+                                                VStack(spacing: 3) {
+                                                    Image(systemName: "map.fill").font(.system(size: 13))
                                                     Text("地圖").font(.system(size: 8, weight: .bold, design: .monospaced))
                                                 }
-                                                .frame(width: 52, height: 52)
+                                                .frame(width: 48, height: 48)
                                                 .background(Color.white.opacity(0.1))
                                                 .foregroundColor(.white)
                                                 .cornerRadius(12)
                                             }
                                             
-                                            // 設定按鍵 (齒輪按鈕)
                                             Button(action: { showSettings = true }) {
-                                                VStack(spacing: 4) {
-                                                    Image(systemName: "gearshape.fill").font(.system(size: 14))
+                                                VStack(spacing: 3) {
+                                                    Image(systemName: "gearshape.fill").font(.system(size: 13))
                                                     Text("設定").font(.system(size: 8, weight: .bold, design: .monospaced))
                                                 }
-                                                .frame(width: 52, height: 52)
+                                                .frame(width: 48, height: 48)
                                                 .background(Color.white.opacity(0.1))
                                                 .foregroundColor(currentPrimaryColor)
                                                 .cornerRadius(12)
@@ -1102,22 +1087,22 @@ struct ContentView: View {
                                             }
                                             
                                             Button(action: { vehicleManager.reportMobileSpeedTrap() }) {
-                                                VStack(spacing: 4) {
-                                                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 14))
-                                                    Text("回報照相").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                VStack(spacing: 3) {
+                                                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 13))
+                                                    Text("回報").font(.system(size: 8, weight: .bold, design: .monospaced))
                                                 }
-                                                .frame(width: 52, height: 52)
+                                                .frame(width: 48, height: 48)
                                                 .background(Color.red.opacity(0.3))
                                                 .foregroundColor(.red)
                                                 .cornerRadius(12)
                                             }
                                             
                                             Button(action: { showHistoryRecords = true }) {
-                                                VStack(spacing: 4) {
-                                                    Image(systemName: "list.bullet.rectangle.portrait.fill").font(.system(size: 14))
+                                                VStack(spacing: 3) {
+                                                    Image(systemName: "list.bullet.rectangle.portrait.fill").font(.system(size: 13))
                                                     Text("紀錄").font(.system(size: 8, weight: .bold, design: .monospaced))
                                                 }
-                                                .frame(width: 52, height: 52)
+                                                .frame(width: 48, height: 48)
                                                 .background(Color.white.opacity(0.1))
                                                 .foregroundColor(.white)
                                                 .cornerRadius(12)
@@ -1138,20 +1123,20 @@ struct ContentView: View {
                                                 historyRecords.append(history)
                                                 vehicleManager.resetData()
                                             }) {
-                                                VStack(spacing: 4) {
-                                                    Image(systemName: "arrow.counterclockwise.circle.fill").font(.system(size: 14))
+                                                VStack(spacing: 3) {
+                                                    Image(systemName: "arrow.counterclockwise.circle.fill").font(.system(size: 13))
                                                     Text("重置").font(.system(size: 8, weight: .bold, design: .monospaced))
                                                 }
-                                                .frame(width: 52, height: 52)
+                                                .frame(width: 48, height: 48)
                                                 .background(Color.orange.opacity(0.2))
                                                 .foregroundColor(.orange)
                                                 .cornerRadius(12)
                                             }
                                         }
-                                        .frame(width: 60)
+                                        .frame(width: 52)
                                         
                                         ZStack {
-                                            NeonArcFlowView(color: currentPrimaryColor, size: 260)
+                                            NeonArcFlowView(color: currentPrimaryColor, size: 240)
                                             
                                             VStack(spacing: 4) {
                                                 Text("GPS SPEED")
@@ -1160,7 +1145,7 @@ struct ContentView: View {
                                                     .kerning(2)
                                                 
                                                 Text(String(format: "%.0f", vehicleManager.speed))
-                                                    .font(.system(size: 78, weight: .black, design: .monospaced))
+                                                    .font(.system(size: 72, weight: .black, design: .monospaced))
                                                     .foregroundColor(.white)
                                                     .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
                                                 
@@ -1171,7 +1156,7 @@ struct ContentView: View {
                                         }
                                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                                         
-                                        VStack(spacing: 12) {
+                                        VStack(spacing: 10) {
                                             MiniMapView(
                                                 coordinate: vehicleManager.currentLocation,
                                                 routePolyline: vehicleManager.routePolyline,
@@ -1179,26 +1164,27 @@ struct ContentView: View {
                                                 primaryColor: currentPrimaryColor
                                             ) { showMap = true }
                                             
-                                            VStack(spacing: 4) {
+                                            VStack(spacing: 3) {
                                                 ShiftLightsView(speed: vehicleManager.speed)
-                                                Text("RPM LIGHTS").font(.system(size: 8, design: .monospaced)).foregroundColor(.gray)
+                                                Text("RPM LIGHTS").font(.system(size: 7, design: .monospaced)).foregroundColor(.gray)
                                             }
                                             
-                                            VStack(alignment: .leading, spacing: 6) {
+                                            VStack(alignment: .leading, spacing: 5) {
                                                 HStack { Text("距離:").foregroundColor(.gray); Spacer(); Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green) }
                                                 HStack { Text("極速:").foregroundColor(.gray); Spacer(); Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor) }
                                             }
-                                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                            .padding(10)
+                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .padding(8)
                                             .background(Color.white.opacity(0.05))
                                             .cornerRadius(10)
                                             
                                             Spacer()
                                         }
-                                        .frame(width: 140)
+                                        .frame(width: 130)
                                     }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 14)
+                                    // 確保內容安全內縮，不貼齊手機兩側與上下圓角邊緣
                                 }
                                 
                                 if let cameraAlert = vehicleManager.nearestCameraAlert {
@@ -1214,7 +1200,7 @@ struct ContentView: View {
                                     .background(Color.red.opacity(0.9))
                                     .cornerRadius(16)
                                     .shadow(color: .red, radius: 8)
-                                    .padding(.top, 8)
+                                    .padding(.top, 12)
                                     .transition(.move(edge: .top).combined(with: .opacity))
                                     .zIndex(50)
                                 }
