@@ -87,6 +87,17 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         startMotionUpdates()
     }
     
+    // 支援網路加速定位模式切換
+    func updateLocationAccuracy(isNetworkBoostEnabled: Bool) {
+        if isNetworkBoostEnabled {
+            locationManager.desiredAccuracy = kCLLocationAccuracyBest
+            locationManager.distanceFilter = 1.0
+        } else {
+            locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+            locationManager.distanceFilter = kCLDistanceFilterNone
+        }
+    }
+    
     func resetData() {
         tripDistance = 0.0
         maxSpeed = 0.0
@@ -238,7 +249,6 @@ struct BackgroundNeonFlowView: View {
     
     var body: some View {
         ZStack {
-            // 四周邊框流水長亮霓虹燈條
             RoundedRectangle(cornerRadius: 20)
                 .stroke(
                     AngularGradient(
@@ -251,7 +261,6 @@ struct BackgroundNeonFlowView: View {
                 .padding(4)
                 .shadow(color: primaryColor.opacity(0.6), radius: 8)
             
-            // 背景流光斜線條（營造動態速度感）
             GeometryReader { geometry in
                 Path { path in
                     let width = geometry.size.width
@@ -277,10 +286,9 @@ struct BackgroundNeonFlowView: View {
     }
 }
 
-// MARK: - 6. 地圖導航檢視
-struct MapTrackingView: UIViewRepresentable {
+// MARK: - 6. 具備原生搜尋與導航功能的 Apple Maps 檢視
+struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
-    let heading: Double
     
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
@@ -289,6 +297,8 @@ struct MapTrackingView: UIViewRepresentable {
         mapView.isZoomEnabled = true
         mapView.isScrollEnabled = true
         mapView.isRotateEnabled = true
+        mapView.showsCompass = true
+        mapView.showsTraffic = true
         return mapView
     }
     
@@ -296,8 +306,6 @@ struct MapTrackingView: UIViewRepresentable {
         if uiView.userTrackingMode != .followWithHeading {
             uiView.setUserTrackingMode(.followWithHeading, animated: true)
         }
-        let region = MKCoordinateRegion(center: coordinate, span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003))
-        uiView.setRegion(region, animated: true)
     }
 }
 
@@ -305,32 +313,23 @@ struct MapTrackingView: UIViewRepresentable {
 struct NeonArcFlowView: View {
     @State private var animate = false
     var color: Color
+    var size: CGFloat = 260
     
     var body: some View {
         ZStack {
             Circle()
                 .stroke(color.opacity(0.15), lineWidth: 2)
-                .frame(width: 280, height: 280)
+                .frame(width: size, height: size)
             
             Circle()
                 .trim(from: 0.0, to: 0.3)
                 .stroke(
                     AngularGradient(gradient: Gradient(colors: [.clear, color]), center: .center),
-                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                    style: StrokeStyle(lineWidth: size > 200 ? 4 : 3, lineCap: .round)
                 )
-                .frame(width: 280, height: 280)
+                .frame(width: size, height: size)
                 .rotationEffect(.degrees(animate ? 360 : 0))
                 .animation(Animation.linear(duration: 4).repeatForever(autoreverses: false), value: animate)
-            
-            Circle()
-                .trim(from: 0.5, to: 0.8)
-                .stroke(
-                    AngularGradient(gradient: Gradient(colors: [.clear, color.opacity(0.8)]), center: .center),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                .frame(width: 250, height: 250)
-                .rotationEffect(.degrees(animate ? -360 : 0))
-                .animation(Animation.linear(duration: 6).repeatForever(autoreverses: false), value: animate)
         }
         .onAppear {
             animate = true
@@ -347,9 +346,9 @@ struct ShiftLightsView: View {
             ForEach(0..<8, id: \.self) { index in
                 Rectangle()
                     .fill(lightColor(for: index))
-                    .frame(width: 18, height: 6)
+                    .frame(width: 16, height: 5)
                     .cornerRadius(2)
-                    .shadow(color: lightColor(for: index).opacity(0.8), radius: isLit(index) ? 4 : 0)
+                    .shadow(color: lightColor(for: index).opacity(0.8), radius: isLit(index) ? 3 : 0)
             }
         }
     }
@@ -540,6 +539,7 @@ struct SettingsView: View {
     @Binding var isHudMode: Bool
     @Binding var useCustomColor: Bool
     @Binding var customColor: Color
+    @Binding var isNetworkBoostEnabled: Bool
     
     var body: some View {
         Form {
@@ -566,24 +566,22 @@ struct SettingsView: View {
                 .padding(.vertical, 4)
             }
             
-            Section(header: Text("顯示模式")) {
-                Toggle("HUD 投影模式 (鏡像翻轉)", isOn: $isHudMode)
+            Section(header: Text("導航與定位")) {
+                Toggle("網路加速定位模式", isOn: $isNetworkBoostEnabled)
+                Text("結合行動網路基地台與 GPS 進行混合式快速定位，提升城市高樓區定位反應。")
+                    .font(.system(size: 11))
+                    .foregroundColor(.gray)
             }
             
-            Section(header: Text("賽道數據紀錄管理")) {
-                NavigationLink(destination: OverspeedLogsView(logs: .constant([]))) {
-                    Text("查看超速違規紀錄")
-                }
-                NavigationLink(destination: HistoryRecordsView(records: .constant([]))) {
-                    Text("查看歷史行程封存")
-                }
+            Section(header: Text("顯示模式")) {
+                Toggle("HUD 投影模式 (鏡像翻轉)", isOn: $isHudMode)
             }
         }
         .navigationTitle("賽道儀表設定")
     }
 }
 
-// MARK: - 13. 主畫面 ContentView (固定橫向賽道排版)
+// MARK: - 13. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     
@@ -592,9 +590,10 @@ struct ContentView: View {
     @State private var selectedTheme: DashboardTheme = .cyberpunk
     @State private var speedLimit: Double = 120.0
     @State private var isHudMode: Bool = false
-    @State private var showMap: Bool = false
+    @State private var showMap: Bool = false // 預設關閉地圖，顯示完整賽道儀表
     @State private var useCustomColor: Bool = false
     @State private var customColor: Color = Color(red: 0.0, green: 0.8, blue: 1.0)
+    @State private var isNetworkBoostEnabled: Bool = false
     
     @State private var overspeedLogs: [OverspeedRecord] = []
     @State private var historyRecords: [HistoryRecord] = []
@@ -630,32 +629,242 @@ struct ContentView: View {
                             .zIndex(10)
                     }
                     
-                    // 固定橫向三欄式賽道 HUD 配置
-                    HStack(spacing: 15) {
-                        leftControlPanel
-                        
-                        ZStack {
-                            if showMap {
-                                MapTrackingView(coordinate: vehicleManager.currentLocation, heading: vehicleManager.heading)
-                                    .cornerRadius(16)
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(currentPrimaryColor, lineWidth: 2))
-                                    .transition(.opacity)
-                            } else {
-                                centerDashboardView
-                                    .transition(.opacity)
+                    // 動態切換版面配置
+                    if showMap {
+                        // === 開啟地圖模式：左側全螢幕互動導航，右側保留速度儀表與遙測 ===
+                        HStack(spacing: 12) {
+                            InteractiveNavigationMapView(coordinate: vehicleManager.currentLocation)
+                                .cornerRadius(14)
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            
+                            VStack(spacing: 10) {
+                                // 頂部功能列
+                                HStack(spacing: 8) {
+                                    Button(action: { showMap.toggle() }) {
+                                        Image(systemName: "gauge.with.needle")
+                                            .font(.system(size: 14))
+                                            .frame(width: 36, height: 36)
+                                            .background(currentPrimaryColor.opacity(0.3))
+                                            .foregroundColor(currentPrimaryColor)
+                                            .cornerRadius(8)
+                                    }
+                                    
+                                    Button(action: { showSettings = true }) {
+                                        Image(systemName: "gearshape.fill")
+                                            .font(.system(size: 14))
+                                            .frame(width: 36, height: 36)
+                                            .background(Color.white.opacity(0.1))
+                                            .foregroundColor(.white)
+                                            .cornerRadius(8)
+                                    }
+                                    
+                                    Button(action: {
+                                        let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
+                                        historyRecords.append(history)
+                                        vehicleManager.resetData()
+                                    }) {
+                                        Image(systemName: "arrow.counterclockwise.circle.fill")
+                                            .font(.system(size: 14))
+                                            .frame(width: 36, height: 36)
+                                            .background(Color.orange.opacity(0.2))
+                                            .foregroundColor(.orange)
+                                            .cornerRadius(8)
+                                    }
+                                }
+                                
+                                // 右側精簡速度儀表板
+                                ZStack {
+                                    NeonArcFlowView(color: currentPrimaryColor, size: 190)
+                                    
+                                    VStack(spacing: 2) {
+                                        Text("GPS SPEED")
+                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.gray)
+                                            .tracking(1)
+                                        
+                                        Text(String(format: "%.0f", vehicleManager.speed))
+                                            .font(.system(size: 50, weight: .black, design: .monospaced))
+                                            .foregroundColor(.white)
+                                            .shadow(color: currentPrimaryColor.opacity(0.8), radius: 8)
+                                        
+                                        Text("KM/H")
+                                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                            .foregroundColor(currentPrimaryColor)
+                                        
+                                        if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
+                                            HStack(spacing: 3) {
+                                                Text(vehicleManager.isTesting0_100 ? "0-100 測速..." : "0-100:")
+                                                    .font(.system(size: 8, design: .monospaced))
+                                                    .foregroundColor(.gray)
+                                                Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
+                                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                                    .foregroundColor(.orange)
+                                            }
+                                        }
+                                    }
+                                }
+                                .frame(width: 190, height: 190)
+                                
+                                // 右側遙測摘要
+                                VStack(alignment: .leading, spacing: 6) {
+                                    ShiftLightsView(speed: vehicleManager.speed)
+                                    
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        HStack {
+                                            Text("里程:").foregroundColor(.gray)
+                                            Spacer()
+                                            Text(String(format: "%.1f km", vehicleManager.tripDistance)).foregroundColor(.green)
+                                        }
+                                        HStack {
+                                            Text("極速:").foregroundColor(.gray)
+                                            Spacer()
+                                            Text(String(format: "%.0f", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor)
+                                        }
+                                    }
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                }
+                                .padding(10)
+                                .background(Color.white.opacity(0.05))
+                                .cornerRadius(10)
+                                
+                                Spacer()
                             }
+                            .frame(width: 220)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .transition(.opacity)
                         
-                        rightTelemetryPanel
+                    } else {
+                        // === 預設模式：完整大型賽道儀表版型 ===
+                        HStack(spacing: 15) {
+                            // 左側控制列
+                            VStack(spacing: 12) {
+                                Button(action: { showMap.toggle() }) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "map.fill")
+                                            .font(.system(size: 14))
+                                        Text("地圖")
+                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                    }
+                                    .frame(width: 52, height: 52)
+                                    .background(Color.white.opacity(0.1))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(12)
+                                }
+                                
+                                Button(action: { showSettings = true }) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "gearshape.fill")
+                                            .font(.system(size: 14))
+                                        Text("設定")
+                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                    }
+                                    .frame(width: 52, height: 52)
+                                    .background(Color.white.opacity(0.1))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(12)
+                                }
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
+                                    historyRecords.append(history)
+                                    vehicleManager.resetData()
+                                }) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "arrow.counterclockwise.circle.fill")
+                                            .font(.system(size: 14))
+                                        Text("重置")
+                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                    }
+                                    .frame(width: 52, height: 52)
+                                    .background(Color.orange.opacity(0.2))
+                                    .foregroundColor(.orange)
+                                    .cornerRadius(12)
+                                }
+                            }
+                            .frame(width: 60)
+                            
+                            // 中間大型即時速度儀表板
+                            ZStack {
+                                NeonArcFlowView(color: currentPrimaryColor, size: 260)
+                                
+                                VStack(spacing: 4) {
+                                    Text("GPS SPEED")
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                        .foregroundColor(.gray)
+                                        .tracking(2)
+                                    
+                                    Text(String(format: "%.0f", vehicleManager.speed))
+                                        .font(.system(size: 78, weight: .black, design: .monospaced))
+                                        .foregroundColor(.white)
+                                        .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
+                                    
+                                    Text("KM/H")
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundColor(currentPrimaryColor)
+                                    
+                                    if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
+                                        HStack(spacing: 4) {
+                                            Text(vehicleManager.isTesting0_100 ? "0-100 測速中..." : "0-100 紀錄:")
+                                                .font(.system(size: 10, design: .monospaced))
+                                                .foregroundColor(.gray)
+                                            Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
+                                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                                .foregroundColor(.orange)
+                                        }
+                                        .padding(.top, 2)
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            
+                            // 右側 G力與遙測面板
+                            VStack(spacing: 12) {
+                                GForceView(x: vehicleManager.currentGForceX, y: vehicleManager.currentGForceY, maxG: vehicleManager.maxGForce, primaryColor: currentPrimaryColor)
+                                
+                                VStack(spacing: 4) {
+                                    ShiftLightsView(speed: vehicleManager.speed)
+                                    Text("RPM LIGHTS")
+                                        .font(.system(size: 8, design: .monospaced))
+                                        .foregroundColor(.gray)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("里程:").foregroundColor(.gray)
+                                        Spacer()
+                                        Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green)
+                                    }
+                                    HStack {
+                                        Text("極速:").foregroundColor(.gray)
+                                        Spacer()
+                                        Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor)
+                                    }
+                                }
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .padding(10)
+                                .background(Color.white.opacity(0.05))
+                                .cornerRadius(10)
+                                
+                                Spacer()
+                            }
+                            .frame(width: 140)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .transition(.opacity)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .zIndex(1)
                 }
             }
             .navigationBarHidden(true)
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
+            .onChange(of: isNetworkBoostEnabled) { newValue in
+                vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: newValue)
+            }
             .onChange(of: vehicleManager.speed) { newSpeed in
                 if newSpeed > speedLimit {
                     if !flashWarning {
@@ -670,133 +879,12 @@ struct ContentView: View {
             }
             .background(
                 Group {
-                    NavigationLink(destination: SettingsView(selectedTheme: $selectedTheme, speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor), isActive: $showSettings) { EmptyView() }
+                    NavigationLink(destination: SettingsView(selectedTheme: $selectedTheme, speedLimit: $speedLimit, isHudMode: $isHudMode, useCustomColor: $useCustomColor, customColor: $customColor, isNetworkBoostEnabled: $isNetworkBoostEnabled), isActive: $showSettings) { EmptyView() }
                     NavigationLink(destination: OverspeedLogsView(logs: $overspeedLogs), isActive: $showOverspeedLogs) { EmptyView() }
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
                 }
             )
         }
         .navigationViewStyle(StackNavigationViewStyle())
-    }
-    
-    // 左側控制與功能面板
-    var leftControlPanel: some View {
-        VStack(spacing: 12) {
-            Button(action: { showMap.toggle() }) {
-                VStack(spacing: 4) {
-                    Image(systemName: showMap ? "gauge.with.needle" : "map.fill")
-                        .font(.system(size: 14))
-                    Text(showMap ? "儀表" : "地圖")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                }
-                .frame(width: 52, height: 52)
-                .background(showMap ? currentPrimaryColor.opacity(0.3) : Color.white.opacity(0.1))
-                .foregroundColor(showMap ? currentPrimaryColor : .white)
-                .cornerRadius(12)
-            }
-            
-            Button(action: { showSettings = true }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 14))
-                    Text("設定")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                }
-                .frame(width: 52, height: 52)
-                .background(Color.white.opacity(0.1))
-                .foregroundColor(.white)
-                .cornerRadius(12)
-            }
-            
-            Spacer()
-            
-            Button(action: {
-                let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
-                historyRecords.append(history)
-                vehicleManager.resetData()
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "arrow.counterclockwise.circle.fill")
-                        .font(.system(size: 14))
-                    Text("重置")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                }
-                .frame(width: 52, height: 52)
-                .background(Color.orange.opacity(0.2))
-                .foregroundColor(.orange)
-                .cornerRadius(12)
-            }
-        }
-        .frame(width: 60)
-    }
-    
-    // 中間核心速度儀表板
-    var centerDashboardView: some View {
-        ZStack {
-            NeonArcFlowView(color: currentPrimaryColor)
-            
-            VStack(spacing: 4) {
-                Text("GPS SPEED")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundColor(.gray)
-                    .tracking(2)
-                
-                Text(String(format: "%.0f", vehicleManager.speed))
-                    .font(.system(size: 68, weight: .black, design: .monospaced))
-                    .foregroundColor(.white)
-                    .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
-                
-                Text("KM/H")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(currentPrimaryColor)
-                
-                if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
-                    HStack(spacing: 4) {
-                        Text(vehicleManager.isTesting0_100 ? "0-100 測速中..." : "0-100 紀錄:")
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.gray)
-                        Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.orange)
-                    }
-                    .padding(.top, 2)
-                }
-            }
-        }
-        .frame(width: 240, height: 240)
-    }
-    
-    // 右側即時遙測與 G 力感應面板
-    var rightTelemetryPanel: some View {
-        VStack(spacing: 12) {
-            GForceView(x: vehicleManager.currentGForceX, y: vehicleManager.currentGForceY, maxG: vehicleManager.maxGForce, primaryColor: currentPrimaryColor)
-            
-            VStack(spacing: 4) {
-                ShiftLightsView(speed: vehicleManager.speed)
-                Text("RPM LIGHTS")
-                    .font(.system(size: 8, design: .monospaced))
-                    .foregroundColor(.gray)
-            }
-            
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("里程:").foregroundColor(.gray)
-                    Spacer()
-                    Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green)
-                }
-                HStack {
-                    Text("極速:").foregroundColor(.gray)
-                    Spacer()
-                    Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor)
-                }
-            }
-            .font(.system(size: 10, weight: .bold, design: .monospaced))
-            .padding(10)
-            .background(Color.white.opacity(0.05))
-            .cornerRadius(10)
-            
-            Spacer()
-        }
-        .frame(width: 140)
     }
 }
