@@ -748,7 +748,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 14. 主畫面 ContentView (已強制完全解禁安全區域與邊距)
+// MARK: - 14. 主畫面 ContentView (已移除頂部導航指示橫幅)
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     @State private var isBootLoaded: Bool = false
@@ -774,7 +774,6 @@ struct ContentView: View {
     
     @State private var searchText: String = ""
     @State private var isSearchExpanded: Bool = false
-    @State private var isTopBannerCollapsed: Bool = false
     
     var selectedTheme: DashboardTheme {
         get { DashboardTheme(rawValue: storedThemeRaw) ?? .cyberpunk }
@@ -788,7 +787,6 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // 背景填滿整個螢幕，忽略所有安全邊距
                 LinearGradient(
                     colors: selectedTheme.backgroundGradientColors,
                     startPoint: .topLeading,
@@ -813,225 +811,173 @@ struct ContentView: View {
                                     .zIndex(10)
                             }
                             
-                            VStack(spacing: 0) {
-                                VStack(spacing: 0) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "location.north.circle.fill")
-                                            .font(.system(size: 24))
-                                            .foregroundColor(currentPrimaryColor)
+                            // 頂部導航橫幅已完整移除，直接渲染地圖或儀表板本體
+                            ZStack {
+                                if showMap {
+                                    ZStack(alignment: .topLeading) {
+                                        InteractiveNavigationMapView(
+                                            coordinate: vehicleManager.currentLocation,
+                                            routePolyline: vehicleManager.routePolyline,
+                                            destinationCoordinate: vehicleManager.destinationCoordinate,
+                                            isInteractive: true,
+                                            onMapTap: { clickedCoord in vehicleManager.setDestination(clickedCoord) }
+                                        )
+                                        .ignoresSafeArea()
                                         
-                                        if !isTopBannerCollapsed {
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(vehicleManager.currentInstruction)
-                                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                                    .foregroundColor(.white)
-                                                    .lineLimit(1)
-                                                
-                                                Text(vehicleManager.isNavigating ? "導航中" : "提示: 點擊地圖或搜尋目的地")
-                                                    .font(.system(size: 10, design: .monospaced))
-                                                    .foregroundColor(.gray)
+                                        HStack(alignment: .top, spacing: 12) {
+                                            Button(action: { showMap.toggle() }) {
+                                                Image(systemName: "gauge.with.needle")
+                                                    .font(.system(size: 16, weight: .bold))
+                                                    .frame(width: 44, height: 44)
+                                                    .background(Color.black.opacity(0.75))
+                                                    .foregroundColor(currentPrimaryColor)
+                                                    .cornerRadius(22)
+                                                    .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
                                             }
-                                            .transition(.opacity)
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        if vehicleManager.isNavigating && !isTopBannerCollapsed {
-                                            Button(action: { vehicleManager.cancelNavigation() }) {
-                                                Text("結束")
-                                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                                    .padding(.horizontal, 8)
-                                                    .padding(.vertical, 4)
-                                                    .background(Color.red.opacity(0.8))
-                                                    .foregroundColor(.white)
-                                                    .cornerRadius(6)
-                                            }
-                                        }
-                                        
-                                        Button(action: {
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                                isTopBannerCollapsed.toggle()
-                                            }
-                                        }) {
-                                            Image(systemName: isTopBannerCollapsed ? "chevron.down.circle.fill" : "chevron.up.circle.fill")
-                                                .font(.system(size: 18))
-                                                .foregroundColor(currentPrimaryColor)
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                }
-                                .background(Color.black.opacity(0.85))
-                                .overlay(Rectangle().frame(height: 1).foregroundColor(currentPrimaryColor.opacity(0.4)), alignment: .bottom)
-                                .zIndex(15)
-                                
-                                ZStack {
-                                    if showMap {
-                                        ZStack(alignment: .topLeading) {
-                                            InteractiveNavigationMapView(
-                                                coordinate: vehicleManager.currentLocation,
-                                                routePolyline: vehicleManager.routePolyline,
-                                                destinationCoordinate: vehicleManager.destinationCoordinate,
-                                                isInteractive: true,
-                                                onMapTap: { clickedCoord in vehicleManager.setDestination(clickedCoord) }
-                                            )
-                                            .ignoresSafeArea()
                                             
-                                            HStack(alignment: .top, spacing: 12) {
-                                                Button(action: { showMap.toggle() }) {
-                                                    Image(systemName: "gauge.with.needle")
+                                            HStack(spacing: 8) {
+                                                Button(action: {
+                                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                        isSearchExpanded.toggle()
+                                                    }
+                                                }) {
+                                                    Image(systemName: "magnifyingglass")
                                                         .font(.system(size: 16, weight: .bold))
+                                                        .foregroundColor(currentPrimaryColor)
                                                         .frame(width: 44, height: 44)
                                                         .background(Color.black.opacity(0.75))
-                                                        .foregroundColor(currentPrimaryColor)
-                                                        .cornerRadius(22)
+                                                        .clipShape(Circle())
                                                         .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
                                                 }
                                                 
-                                                HStack(spacing: 8) {
-                                                    Button(action: {
-                                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                                            isSearchExpanded.toggle()
-                                                        }
-                                                    }) {
-                                                        Image(systemName: "magnifyingglass")
-                                                            .font(.system(size: 16, weight: .bold))
-                                                            .foregroundColor(currentPrimaryColor)
-                                                            .frame(width: 44, height: 44)
-                                                            .background(Color.black.opacity(0.75))
-                                                            .clipShape(Circle())
-                                                            .overlay(Circle().stroke(currentPrimaryColor.opacity(0.8), lineWidth: 2))
-                                                    }
-                                                    
-                                                    if isSearchExpanded {
-                                                        HStack {
-                                                            TextField("搜尋目的地", text: $searchText, onCommit: {
-                                                                vehicleManager.searchAndNavigate(query: searchText)
-                                                                withAnimation { isSearchExpanded = false }
-                                                                searchText = ""
-                                                            })
-                                                            .font(.system(size: 12, design: .monospaced))
-                                                            .foregroundColor(.white)
-                                                            
-                                                            Button(action: {
-                                                                vehicleManager.searchAndNavigate(query: searchText)
-                                                                withAnimation { isSearchExpanded = false }
-                                                                searchText = ""
-                                                            }) {
-                                                                Text("前往")
-                                                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                                                    .padding(.horizontal, 10)
-                                                                    .padding(.vertical, 6)
-                                                                    .background(currentPrimaryColor)
-                                                                    .foregroundColor(.black)
-                                                                    .cornerRadius(8)
-                                                            }
-                                                        }
-                                                        .padding(.horizontal, 12)
-                                                        .frame(width: 210, height: 44)
-                                                        .background(Color.black.opacity(0.85))
-                                                        .cornerRadius(22)
-                                                        .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor.opacity(0.6), lineWidth: 1))
-                                                    }
-                                                }
-                                            }
-                                            .padding(.top, 12)
-                                            .padding(.leading, 12)
-                                        }
-                                    } else {
-                                        HStack(spacing: 15) {
-                                            VStack(spacing: 12) {
-                                                Button(action: { showMap.toggle() }) {
-                                                    VStack(spacing: 4) {
-                                                        Image(systemName: "map.fill").font(.system(size: 14))
-                                                        Text("地圖").font(.system(size: 8, weight: .bold, design: .monospaced))
-                                                    }
-                                                    .frame(width: 52, height: 52)
-                                                    .background(Color.white.opacity(0.1))
-                                                    .foregroundColor(.white)
-                                                    .cornerRadius(12)
-                                                }
-                                                
-                                                Button(action: { showSettings = true }) {
-                                                    VStack(spacing: 4) {
-                                                        Image(systemName: "gearshape.fill").font(.system(size: 14))
-                                                        Text("設定").font(.system(size: 8, weight: .bold, design: .monospaced))
-                                                    }
-                                                    .frame(width: 52, height: 52)
-                                                    .background(Color.white.opacity(0.1))
-                                                    .foregroundColor(.white)
-                                                    .cornerRadius(12)
-                                                }
-                                                
-                                                Spacer()
-                                                
-                                                Button(action: {
-                                                    let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
-                                                    historyRecords.append(history)
-                                                    vehicleManager.resetData()
-                                                }) {
-                                                    VStack(spacing: 4) {
-                                                        Image(systemName: "arrow.counterclockwise.circle.fill").font(.system(size: 14))
-                                                        Text("重置").font(.system(size: 8, weight: .bold, design: .monospaced))
-                                                    }
-                                                    .frame(width: 52, height: 52)
-                                                    .background(Color.orange.opacity(0.2))
-                                                    .foregroundColor(.orange)
-                                                    .cornerRadius(12)
-                                                }
-                                            }
-                                            .frame(width: 60)
-                                            
-                                            ZStack {
-                                                NeonArcFlowView(color: currentPrimaryColor, size: 260)
-                                                
-                                                VStack(spacing: 4) {
-                                                    Text("GPS SPEED")
-                                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                                        .foregroundColor(.gray)
-                                                        .kerning(2)
-                                                    
-                                                    Text(String(format: "%.0f", vehicleManager.speed))
-                                                        .font(.system(size: 78, weight: .black, design: .monospaced))
+                                                if isSearchExpanded {
+                                                    HStack {
+                                                        TextField("搜尋目的地", text: $searchText, onCommit: {
+                                                            vehicleManager.searchAndNavigate(query: searchText)
+                                                            withAnimation { isSearchExpanded = false }
+                                                            searchText = ""
+                                                        })
+                                                        .font(.system(size: 12, design: .monospaced))
                                                         .foregroundColor(.white)
-                                                        .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
-                                                    
-                                                    Text("KM/H")
-                                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                                        .foregroundColor(currentPrimaryColor)
+                                                        
+                                                        Button(action: {
+                                                            vehicleManager.searchAndNavigate(query: searchText)
+                                                            withAnimation { isSearchExpanded = false }
+                                                            searchText = ""
+                                                        }) {
+                                                            Text("前往")
+                                                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                                                .padding(.horizontal, 10)
+                                                                .padding(.vertical, 6)
+                                                                .background(currentPrimaryColor)
+                                                                .foregroundColor(.black)
+                                                                .cornerRadius(8)
+                                                        }
+                                                    }
+                                                    .padding(.horizontal, 12)
+                                                    .frame(width: 210, height: 44)
+                                                    .background(Color.black.opacity(0.85))
+                                                    .cornerRadius(22)
+                                                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor.opacity(0.6), lineWidth: 1))
                                                 }
                                             }
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            
-                                            VStack(spacing: 12) {
-                                                MiniMapView(
-                                                    coordinate: vehicleManager.currentLocation,
-                                                    routePolyline: vehicleManager.routePolyline,
-                                                    destinationCoordinate: vehicleManager.destinationCoordinate,
-                                                    primaryColor: currentPrimaryColor
-                                                ) { showMap = true }
-                                                
-                                                VStack(spacing: 4) {
-                                                    ShiftLightsView(speed: vehicleManager.speed)
-                                                    Text("RPM LIGHTS").font(.system(size: 8, design: .monospaced)).foregroundColor(.gray)
-                                                }
-                                                
-                                                VStack(alignment: .leading, spacing: 6) {
-                                                    HStack { Text("距離:").foregroundColor(.gray); Spacer(); Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green) }
-                                                    HStack { Text("極速:").foregroundColor(.gray); Spacer(); Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor) }
-                                                }
-                                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                                .padding(10)
-                                                .background(Color.white.opacity(0.05))
-                                                .cornerRadius(10)
-                                                
-                                                Spacer()
-                                            }
-                                            .frame(width: 140)
                                         }
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 10)
+                                        .padding(.top, 12)
+                                        .padding(.leading, 12)
                                     }
+                                } else {
+                                    HStack(spacing: 15) {
+                                        VStack(spacing: 12) {
+                                            Button(action: { showMap.toggle() }) {
+                                                VStack(spacing: 4) {
+                                                    Image(systemName: "map.fill").font(.system(size: 14))
+                                                    Text("地圖").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                }
+                                                .frame(width: 52, height: 52)
+                                                .background(Color.white.opacity(0.1))
+                                                .foregroundColor(.white)
+                                                .cornerRadius(12)
+                                            }
+                                            
+                                            Button(action: { showSettings = true }) {
+                                                VStack(spacing: 4) {
+                                                    Image(systemName: "gearshape.fill").font(.system(size: 14))
+                                                    Text("設定").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                }
+                                                .frame(width: 52, height: 52)
+                                                .background(Color.white.opacity(0.1))
+                                                .foregroundColor(.white)
+                                                .cornerRadius(12)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Button(action: {
+                                                let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
+                                                historyRecords.append(history)
+                                                vehicleManager.resetData()
+                                            }) {
+                                                VStack(spacing: 4) {
+                                                    Image(systemName: "arrow.counterclockwise.circle.fill").font(.system(size: 14))
+                                                    Text("重置").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                }
+                                                .frame(width: 52, height: 52)
+                                                .background(Color.orange.opacity(0.2))
+                                                .foregroundColor(.orange)
+                                                .cornerRadius(12)
+                                            }
+                                        }
+                                        .frame(width: 60)
+                                        
+                                        ZStack {
+                                            NeonArcFlowView(color: currentPrimaryColor, size: 260)
+                                            
+                                            VStack(spacing: 4) {
+                                                Text("GPS SPEED")
+                                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                                    .foregroundColor(.gray)
+                                                    .kerning(2)
+                                                
+                                                Text(String(format: "%.0f", vehicleManager.speed))
+                                                    .font(.system(size: 78, weight: .black, design: .monospaced))
+                                                    .foregroundColor(.white)
+                                                    .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
+                                                
+                                                Text("KM/H")
+                                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                                    .foregroundColor(currentPrimaryColor)
+                                            }
+                                        }
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        
+                                        VStack(spacing: 12) {
+                                            MiniMapView(
+                                                coordinate: vehicleManager.currentLocation,
+                                                routePolyline: vehicleManager.routePolyline,
+                                                destinationCoordinate: vehicleManager.destinationCoordinate,
+                                                primaryColor: currentPrimaryColor
+                                            ) { showMap = true }
+                                            
+                                            VStack(spacing: 4) {
+                                                ShiftLightsView(speed: vehicleManager.speed)
+                                                Text("RPM LIGHTS").font(.system(size: 8, design: .monospaced)).foregroundColor(.gray)
+                                            }
+                                            
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                HStack { Text("距離:").foregroundColor(.gray); Spacer(); Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green) }
+                                                HStack { Text("極速:").foregroundColor(.gray); Spacer(); Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor) }
+                                            }
+                                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                            .padding(10)
+                                            .background(Color.white.opacity(0.05))
+                                            .cornerRadius(10)
+                                            
+                                            Spacer()
+                                        }
+                                        .frame(width: 140)
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
                                 }
                             }
                         }
