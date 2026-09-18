@@ -93,7 +93,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     // 導航與路向相關屬性
     @Published var isNavigating: Bool = false
     @Published var routePolyline: MKPolyline? = nil
-    @Published var currentInstruction: String = "點擊地圖任意處設定導航目的地"
+    @Published var currentInstruction: String = "地圖をタップして目的地を設定してください"
     @Published var distanceToNextStep: Double = 0.0
     @Published var destinationCoordinate: CLLocationCoordinate2D? = nil
     
@@ -146,7 +146,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let directions = MKDirections(request: request)
         directions.calculate { [weak self] response, error in
             guard let self = self, let route = response?.routes.first else {
-                self?.currentInstruction = "無法計算導航路線"
+                self?.currentInstruction = "ルートの計算に失敗しました"
                 return
             }
             
@@ -162,7 +162,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         isNavigating = false
         routePolyline = nil
         destinationCoordinate = nil
-        currentInstruction = "導航已結束"
+        currentInstruction = "ナビゲーションが終了しました"
         distanceToNextStep = 0.0
     }
     
@@ -230,103 +230,139 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 開機動畫與日式警告畫面
+// MARK: - 4. 炫彩科技感開場動畫 (日文警告)
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
     @State private var textStep = 0
     @State private var showWarningScreen: Bool = false
     @State private var warningOpacity: Double = 0.0
+    @State private var pulseEffect: Bool = false
+    @State private var matrixRotation: Double = 0.0
     
     let steps = [
-        "初始化賽道核心系統...",
-        "載入 GPS 高精度衛星定位...",
-        "校準陀螺儀與 G 力感應器...",
-        "系統就緒，準備出發！"
+        "INITIALIZING VORTEX CORE MATRIX...",
+        "CONNECTING TO HIGH-PRECISION GNSS SATELLITES...",
+        "CALIBRATING 6-AXIS GYRO & G-FORCE SENSORS...",
+        "SYSTEM ONLINE. READY FOR LAUNCH."
     ]
     
     var body: some View {
         ZStack {
-            Color.black.edgesIgnoringSafeArea(.all)
+            LinearGradient(colors: [Color.black, Color(red: 0.05, green: 0.0, blue: 0.15), Color.black], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .edgesIgnoringSafeArea(.all)
             
             if !showWarningScreen {
-                VStack(spacing: 25) {
+                VStack(spacing: 30) {
                     ZStack {
                         Circle()
-                            .stroke(Color.white.opacity(0.1), lineWidth: 6)
-                            .frame(width: 100, height: 100)
+                            .stroke(
+                                AngularGradient(gradient: Gradient(colors: [.cyan, .purple, .pink, .cyan]), center: .center, angle: .degrees(matrixRotation)),
+                                lineWidth: 2
+                            )
+                            .frame(width: 140, height: 140)
+                            .scaleEffect(pulseEffect ? 1.05 : 0.95)
+                        
+                        Circle()
+                            .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                            .frame(width: 110, height: 110)
+                        
                         Circle()
                             .trim(from: 0, to: progress)
-                            .stroke(Color(red: 0.0, green: 0.8, blue: 1.0), style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                            .frame(width: 100, height: 100)
+                            .stroke(
+                                LinearGradient(colors: [.cyan, .purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                            )
+                            .frame(width: 110, height: 110)
                             .rotationEffect(.degrees(-90))
-                        Image(systemName: "gauge.with.needle")
-                            .font(.system(size: 40))
-                            .foregroundColor(.white)
+                            .shadow(color: .purple, radius: 10)
+                        
+                        Image(systemName: "waveform.path.ecg")
+                            .font(.system(size: 38))
+                            .foregroundColor(.cyan)
+                            .shadow(color: .cyan, radius: 8)
                     }
                     
                     Text("VORTEX RACING HUD")
-                        .font(.system(size: 22, weight: .black, design: .monospaced))
-                        .tracking(4)
-                        .foregroundColor(.white)
+                        .font(.system(size: 24, weight: .black, design: .monospaced))
+                        .tracking(6)
+                        .foregroundStyle(
+                            LinearGradient(colors: [.cyan, .white, .pink], startPoint: .leading, endPoint: .trailing)
+                        )
+                        .shadow(color: .cyan.opacity(0.8), radius: 6)
                     
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         ZStack(alignment: .leading) {
-                            Rectangle().fill(Color.white.opacity(0.1)).frame(width: 280, height: 8).cornerRadius(4)
-                            Rectangle().fill(Color(red: 0.0, green: 0.8, blue: 1.0)).frame(width: 280 * progress, height: 8).cornerRadius(4)
+                            Rectangle()
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 300, height: 8)
+                                .cornerRadius(4)
+                            
+                            Rectangle()
+                                .fill(LinearGradient(colors: [.cyan, .purple, .pink], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: 300 * progress, height: 8)
+                                .cornerRadius(4)
+                                .shadow(color: .pink, radius: 4)
                         }
+                        
                         Text(steps[min(textStep, steps.count - 1)])
-                            .font(.system(size: 13, design: .monospaced))
-                            .foregroundColor(.gray)
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundColor(.cyan.opacity(0.8))
                     }
                 }
             } else {
-                // 日系速度法規警告畫面 (3秒)
                 VStack(spacing: 0) {
                     HStack {
                         Text("警告")
-                            .font(.system(size: 24, weight: .black))
+                            .font(.system(size: 22, weight: .black))
                             .foregroundColor(.white)
                             .tracking(6)
                         Spacer()
-                        Text("WARNING / 法律遵守")
-                            .font(.system(size: 16, weight: .bold, design: .monospaced))
+                        Text("警告 / 法律遵守事項")
+                            .font(.system(size: 14, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 20)
                     .padding(.vertical, 14)
                     .background(Color.red)
                     
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("道路交通安全法規與極速安全告知")
-                            .font(.system(size: 16, weight: .bold))
+                        Text("道路交通法規の遵守および極速安全に関するお知らせ")
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.red)
                         
-                        Text("本系統提供之高精度 GPS 速度、G 力及賽道計時與導航數據僅供駕駛參考。請嚴格遵守各地道路速限與交通法規，切勿在公共道路進行危險駕駛。違者須自負相關法律責任。")
-                            .font(.system(size: 13))
+                        Text("本システムが提供する高精度GPS速度、Gフォース、サーキット計測およびナビゲーションデータは、あくまで運転の参考用です。公道では必ず現地の制限速度および交通法規を厳守し、危険な運転は絶対に避けてください。万が一の事故や違反について、開発者は一切の責任を負いません。")
+                            .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.85))
-                            .lineSpacing(4)
+                            .lineSpacing(5)
                         
-                        Text("AUTHORIZED RACING HUD SYSTEM - SEC. 501 / 508")
-                            .font(.system(size: 10, design: .monospaced))
+                        Text("SEC. 501 / 508 - VORTEX RACING SYSTEM AUTHENTICATED")
+                            .font(.system(size: 9, design: .monospaced))
                             .foregroundColor(.gray)
-                            .padding(.top, 10)
+                            .padding(.top, 6)
                     }
-                    .padding(24)
+                    .padding(22)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.black)
                 }
-                .frame(width: min(UIScreen.main.bounds.width - 40, 500))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red, lineWidth: 3))
-                .cornerRadius(8)
+                .frame(width: min(UIScreen.main.bounds.width - 40, 520))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red, lineWidth: 3))
+                .cornerRadius(10)
+                .shadow(color: .red.opacity(0.5), radius: 15)
                 .opacity(warningOpacity)
             }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 2.0)) {
+            withAnimation(.easeInOut(duration: 2.2)) {
                 progress = 1.0
             }
-            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
+                matrixRotation = 360
+            }
+            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                pulseEffect = true
+            }
+            Timer.scheduledTimer(withTimeInterval: 0.55, repeats: true) { timer in
                 if textStep < steps.count - 1 {
                     textStep += 1
                 } else {
@@ -334,14 +370,14 @@ struct BootLoadingView: View {
                     withAnimation(.easeInOut(duration: 0.4)) {
                         showWarningScreen = true
                     }
-                    withAnimation(.easeIn(duration: 0.6)) {
+                    withAnimation(.easeIn(duration: 0.5)) {
                         warningOpacity = 1.0
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                        withAnimation(.easeOut(duration: 0.6)) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) {
+                        withAnimation(.easeOut(duration: 0.5)) {
                             warningOpacity = 0.0
                         }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             withAnimation {
                                 isFinished = true
                             }
@@ -431,7 +467,6 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
             uiView.setUserTrackingMode(.followWithHeading, animated: true)
         }
         
-        // 更新路線與圖釘
         uiView.removeOverlays(uiView.overlays)
         uiView.removeAnnotations(uiView.annotations)
         
@@ -442,7 +477,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         if let dest = destinationCoordinate {
             let annotation = MKPointAnnotation()
             annotation.coordinate = dest
-            annotation.title = "導航目的地"
+            annotation.title = "目的地"
             uiView.addAnnotation(annotation)
         }
     }
@@ -568,7 +603,7 @@ struct MiniMapView: View {
     }
 }
 
-// MARK: - 10. 科幻粒子凝聚特效外框 (主畫面進場特效)
+// MARK: - 10. 科幻粒子凝聚特效外框
 struct SciFiParticleAssembleView<Content: View>: View {
     let content: Content
     @State private var assembleProgress: CGFloat = 0.0
@@ -633,7 +668,7 @@ struct OverspeedLogsView: View {
                             Text(String(format: "%.0f km/h", log.speed))
                                 .font(.system(size: 16, weight: .black, design: .monospaced))
                                 .foregroundColor(.red)
-                            Text(String(format: "速限: %.0f", log.speedLimit))
+                            Text(String(format: "制限: %.0f", log.speedLimit))
                                 .font(.system(size: 11, design: .monospaced))
                                 .foregroundColor(.gray)
                         }
@@ -647,8 +682,8 @@ struct OverspeedLogsView: View {
             }
             .listStyle(PlainListStyle())
         }
-        .navigationTitle("超速違規紀錄")
-        .navigationBarItems(trailing: Button("清除全部") {
+        .navigationTitle("スピード違反記録")
+        .navigationBarItems(trailing: Button("すべて削除") {
             logs.removeAll()
         }.foregroundColor(.red))
     }
@@ -694,7 +729,7 @@ struct HistoryRecordsView: View {
                         
                         HStack(spacing: 20) {
                             VStack(alignment: .leading) {
-                                Text("極速").font(.system(size: 10)).foregroundColor(.gray)
+                                Text("最高速度").font(.system(size: 10)).foregroundColor(.gray)
                                 Text(String(format: "%.0f", record.maxSpeed)).font(.system(size: 16, weight: .black, design: .monospaced)).foregroundColor(.white)
                             }
                             VStack(alignment: .leading) {
@@ -716,8 +751,8 @@ struct HistoryRecordsView: View {
             }
             .listStyle(PlainListStyle())
         }
-        .navigationTitle("行程歷史封存")
-        .navigationBarItems(trailing: Button("清除全部") {
+        .navigationTitle("走行履歴アーカイブ")
+        .navigationBarItems(trailing: Button("すべて削除") {
             records.removeAll()
         }.foregroundColor(.red))
     }
@@ -748,48 +783,47 @@ struct SettingsView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("視覺佈景主題")) {
-                Picker("佈景主題", selection: $selectedTheme) {
+            Section(header: Text("ビジュアルテーマ")) {
+                Picker("テーマ", selection: $selectedTheme) {
                     ForEach(DashboardTheme.allCases) { theme in
                         Text(theme.rawValue).tag(theme)
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 
-                Toggle("啟用自訂霓虹燈光色彩", isOn: $useCustomColor)
+                Toggle("カスタムネオンカラーを有効化", isOn: $useCustomColor)
                 if useCustomColor {
-                    ColorPicker("主色調", selection: $customColor)
+                    ColorPicker("メインカラー", selection: $customColor)
                 }
             }
             
-            Section(header: Text("行車安全警報")) {
+            Section(header: Text("安全アラート")) {
                 VStack(alignment: .leading) {
-                    Text("安全速限警報: \(Int(speedLimit)) km/h")
+                    Text("制限速度警告: \(Int(speedLimit)) km/h")
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                     Slider(value: $speedLimit, in: 40...180, step: 5)
                 }
                 .padding(.vertical, 4)
             }
             
-            Section(header: Text("導航與定位")) {
-                Toggle("網路加速定位模式", isOn: $isNetworkBoostEnabled)
-                Text("結合行動網路基地台與 GPS 進行混合式快速定位，提升城市高樓區定位反應。")
+            Section(header: Text("ナビゲーション & 位置情報")) {
+                Toggle("ネットワーク位置情報ブースト", isOn: $isNetworkBoostEnabled)
+                Text("基地局とGPSを組み合わせて都市部の測位精度を向上させます。")
                     .font(.system(size: 11))
                     .foregroundColor(.gray)
             }
             
-            Section(header: Text("顯示模式")) {
-                Toggle("HUD 投影模式 (鏡像翻轉)", isOn: $isHudMode)
+            Section(header: Text("表示モード")) {
+                Toggle("HUD投影モード (ミラー反転)", isOn: $isHudMode)
             }
         }
-        .navigationTitle("賽道儀表設定")
+        .navigationTitle("サーキット設定")
     }
 }
 
 // MARK: - 14. 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
-    
     @State private var isBootLoaded: Bool = false
     
     @AppStorage("selectedTheme") private var storedThemeRaw: String = DashboardTheme.cyberpunk.rawValue
@@ -856,7 +890,7 @@ struct ContentView: View {
                                             .foregroundColor(.white)
                                             .lineLimit(1)
                                         
-                                        Text(vehicleManager.isNavigating ? "導航中 (點擊地圖可重新設點)" : "提示：進入地圖模式點擊任意處可開始導航")
+                                        Text(vehicleManager.isNavigating ? "ナビゲーション中 (地図タップで再設定)" : "ヒント: マップモードで任意の場所をタップしてナビを開始")
                                             .font(.system(size: 10, design: .monospaced))
                                             .foregroundColor(.gray)
                                     }
@@ -867,7 +901,7 @@ struct ContentView: View {
                                         Button(action: {
                                             vehicleManager.cancelNavigation()
                                         }) {
-                                            Text("結束")
+                                            Text("終了")
                                                 .font(.system(size: 11, weight: .bold, design: .monospaced))
                                                 .padding(.horizontal, 10)
                                                 .padding(.vertical, 5)
@@ -938,7 +972,7 @@ struct ContentView: View {
                                                     VStack(spacing: 4) {
                                                         Image(systemName: "map.fill")
                                                             .font(.system(size: 14))
-                                                        Text("地圖")
+                                                        Text("マップ")
                                                             .font(.system(size: 8, weight: .bold, design: .monospaced))
                                                     }
                                                     .frame(width: 52, height: 52)
@@ -971,7 +1005,7 @@ struct ContentView: View {
                                                     VStack(spacing: 4) {
                                                         Image(systemName: "arrow.counterclockwise.circle.fill")
                                                             .font(.system(size: 14))
-                                                        Text("重置")
+                                                        Text("リセット")
                                                             .font(.system(size: 8, weight: .bold, design: .monospaced))
                                                     }
                                                     .frame(width: 52, height: 52)
@@ -1002,7 +1036,7 @@ struct ContentView: View {
                                                     
                                                     if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
                                                         HStack(spacing: 4) {
-                                                            Text(vehicleManager.isTesting0_100 ? "0-100 測速中..." : "0-100 紀錄:")
+                                                            Text(vehicleManager.isTesting0_100 ? "0-100 計測中..." : "0-100 記録:")
                                                                 .font(.system(size: 10, design: .monospaced))
                                                                 .foregroundColor(.gray)
                                                             Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
@@ -1034,7 +1068,7 @@ struct ContentView: View {
                                                 
                                                 VStack(alignment: .leading, spacing: 6) {
                                                     HStack {
-                                                        Text("里程:").foregroundColor(.gray)
+                                                        Text("距離:").foregroundColor(.gray)
                                                         Spacer()
                                                         Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green)
                                                     }
