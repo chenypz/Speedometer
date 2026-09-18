@@ -412,7 +412,7 @@ struct ContentView: View {
                                         .font(.system(size: 10, weight: .black, design: .monospaced))
                                         .padding(.horizontal, 6).padding(.vertical, 5)
                                         .background(speedManager.isOfflineMode ? Color.purple.opacity(0.4) : Color.blue.opacity(0.4))
-                                        .foregroundColor(speedManager.isOfflineMode ? Color.purple : Color.cyan)
+                                        .foregroundColor(speedManager.isOfflineMode ? Color.purple : customCyan)
                                         .cornerRadius(6)
                                     }
                                 }
@@ -656,7 +656,7 @@ struct HistoryView: View {
                                 Text("0-100: \(String(format: "%.2fs", t100))").foregroundColor(.green)
                             }
                             Spacer()
-                            Text(String(format: "最大G力: %.2fG", record.maxGForce)).foregroundColor(.cyan)
+                            Text(String(format: "最大G力: %.2fG", record.maxGForce)).foregroundColor(.blue)
                         }
                     }
                     .padding(.vertical, 4)
@@ -675,7 +675,6 @@ struct OverspeedLogView: View {
             if speedManager.overspeedLogs.isEmpty {
                 Text("太棒了！目前沒有任何超速紀錄。").foregroundColor(.gray)
             } else {
-                // 明確指定識別物件以防型別推導錯誤
                 ForEach(speedManager.overspeedLogs) { log in
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
