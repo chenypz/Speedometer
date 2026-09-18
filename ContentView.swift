@@ -325,72 +325,32 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 【地平線風格】頂級擬真開場動畫
+// MARK: - 4. 【4K 真車渲染風格】頂級擬真開場動畫
 struct HorizonBootLoadingView: View {
     @Binding var isFinished: Bool
-    @State private var sunGlowScale: CGFloat = 0.8
-    @State private var carOffset: CGFloat = -350
-    @State private var horizonLinesOffset: CGFloat = 0.0
+    @State private var zoomScale: CGFloat = 1.0
     @State private var textFadeIn: Bool = false
     @State private var bootTextIndex: Int = 0
+    @State private var lightSweep: CGFloat = -1.0
     
     let bootSequenceTexts = [
-        "FORZA HORIZON 6 OPENING SEQUENCE...",
-        "SYNCHRONIZING WORLD LIGHTING & SKYBOX...",
-        "GET READY TO DRIVE."
+        "4K PHOTOREALISTIC ENGINE INITIALIZING...",
+        "LOADING GLOBAL ILLUMINATION & RAY TRACING...",
+        "READY FOR ACCELERATION."
     ]
 
     var body: some View {
         ZStack {
+            // 真車 4K 渲染質感背景（擬真超跑車頭碳纖維與流光折射感）
             LinearGradient(
                 colors: [
-                    Color(red: 0.03, green: 0.01, blue: 0.08),
-                    Color(red: 0.18, green: 0.05, blue: 0.25),
-                    Color(red: 0.40, green: 0.12, blue: 0.15),
-                    Color(red: 0.02, green: 0.01, blue: 0.05)
+                    Color(red: 0.05, green: 0.05, blue: 0.06),
+                    Color(red: 0.15, green: 0.02, blue: 0.02),
+                    Color(red: 0.02, green: 0.02, blue: 0.03)
                 ],
-                startPoint: .top,
-                endPoint: .bottom
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .ignoresSafeArea()
-
-            VStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [Color.orange.opacity(0.85), Color.pink.opacity(0.4), Color.clear]),
-                            center: .center,
-                            startRadius: 5,
-                            endRadius: 280
-                        )
-                    )
-                    .frame(width: 450, height: 450)
-                    .scaleEffect(sunGlowScale)
-                    .blur(radius: 25)
-                    .offset(y: -40)
-                Spacer()
-            }
-            .ignoresSafeArea()
-
-            VStack {
-                Spacer()
-                ZStack {
-                    LinearGradient(
-                        colors: [Color.clear, Color.safeCyan.opacity(0.4), Color.orange.opacity(0.9)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 140)
-                    .mask(
-                        VStack(spacing: 5) {
-                            ForEach(0..<10, id: \.self) { _ in
-                                Rectangle().frame(height: 2)
-                            }
-                        }
-                        .offset(y: horizonLinesOffset)
-                    )
-                }
-            }
             .ignoresSafeArea()
 
             VStack {
@@ -415,54 +375,65 @@ struct HorizonBootLoadingView: View {
             }
             .zIndex(30)
 
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
                 Spacer()
                 
+                // 真車視覺圖標取代醜圖：以超跑流線與精準光影展現 4K 渲染感
                 ZStack {
-                    VStack(spacing: 14) {
-                        Image(systemName: "car.side.fill")
-                            .font(.system(size: 90))
-                            .foregroundColor(.white)
-                            .shadow(color: Color.orange.opacity(0.9), radius: 25)
-                            .offset(x: carOffset)
-                        
-                        Text("FORZA HORIZON 6")
-                            .font(.system(size: 18, weight: .black, design: .monospaced))
-                            .kerning(8)
-                            .foregroundColor(.orange)
-                            .shadow(color: .pink, radius: 12)
-                    }
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(red: 0.12, green: 0.12, blue: 0.15), Color(red: 0.03, green: 0.03, blue: 0.04)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: 140, height: 140)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24)
+                                .stroke(
+                                    LinearGradient(colors: [.orange, .red, .safeCyan], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    lineWidth: 2
+                                )
+                        )
+                        .shadow(color: .orange.opacity(0.5), radius: 20)
+
+                    Image(systemName: "car.rear.and.tire.marks")
+                        .font(.system(size: 60, weight: .bold))
+                        .foregroundColor(.white)
+                        .shadow(color: .orange, radius: 10)
                 }
-                
-                Text(bootSequenceTexts[bootTextIndex])
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .kerning(2)
-                    .foregroundColor(.white.opacity(0.85))
-                    .frame(height: 25)
-                    .opacity(textFadeIn ? 1.0 : 0.2)
+                .scaleEffect(zoomScale)
+
+                VStack(spacing: 8) {
+                    Text("ULTRA 4K REALISTIC V8")
+                        .font(.system(size: 20, weight: .black, design: .monospaced))
+                        .kerning(6)
+                        .foregroundColor(.white)
+                        .shadow(color: .orange, radius: 8)
+                    
+                    Text(bootSequenceTexts[bootTextIndex])
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .kerning(2)
+                        .foregroundColor(.orange.opacity(0.9))
+                        .frame(height: 25)
+                        .opacity(textFadeIn ? 1.0 : 0.3)
+                }
 
                 Spacer()
             }
         }
         .ignoresSafeArea()
         .onAppear {
-            withAnimation(Animation.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                horizonLinesOffset = 60.0
+            withAnimation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                zoomScale = 1.08
             }
 
-            withAnimation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                sunGlowScale = 1.12
-            }
-
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.6)) {
-                carOffset = 0
-            }
-
-            withAnimation(Animation.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
+            withAnimation(Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
                 textFadeIn.toggle()
             }
 
-            Timer.scheduledTimer(withTimeInterval: 1.3, repeats: true) { timer in
+            Timer.scheduledTimer(withTimeInterval: 1.4, repeats: true) { timer in
                 if bootTextIndex < bootSequenceTexts.count - 1 {
                     bootTextIndex += 1
                 } else {
@@ -923,7 +894,7 @@ struct ContentView: View {
                                     .zIndex(10)
                             }
                             
-                            // 【地平線風格：日語超速警告橫幅 (7秒自動消散)】
+                            // 【日語超速警告橫幅 (7秒自動消散)】
                             if showJapaneseOverspeedAlert {
                                 VStack {
                                     Spacer()
