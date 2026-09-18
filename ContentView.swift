@@ -326,7 +326,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 擴充 10 秒多階段高科技開場動畫（附右下角 SKIP 按鈕）
+// MARK: - 4. 暴力狂野、犯罪感與極速賽博風格 10 秒開場動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -334,212 +334,207 @@ struct BootLoadingView: View {
     @State private var showWarningScreen: Bool = false
     @State private var warningOpacity: Double = 0.0
     
-    // 多階段高科技動畫動態參數
-    @State private var armorScale: CGFloat = 0.1
-    @State private var armorRotation: Double = -360.0
-    @State private var coreGlow: CGFloat = 0.0
-    @State private var shockwaveScale: CGFloat = 0.1
-    @State private var shockwaveOpacity: Double = 0.0
-    @State private var radarRotation: Double = 0.0
-    @State private var matrixGridOpacity: Double = 0.2
-    
-    let steps = [
-        "PHASE 1: CYBERTRON MATRIX CORE INITIALIZING...",
-        "PHASE 2: CALIBRATING QUANTUM GPS & SATELLITE UPLINK...",
-        "PHASE 3: ASSEMBLING KINETIC SHIELDS & DUAL-BLADE HUD...",
-        "PHASE 4: ESTABLISHING SECURE NEURAL OVERDRIVE...",
-        "PHASE 5: DIAGNOSTIC COMPLETE. ALL SYSTEMS NOMINAL.",
-        "FINAL: AUTOBOT PROTOCOL 901 ENGAGED. PREPARE FOR LAUNCH."
+    // 暴力賽博動態參數
+    @State private var glitchOffset: CGFloat = 0.0
+    @State private var warningFlash: Bool = false
+    @State private var skullScale: CGFloat = 0.2
+    @State private var ringRotation: Double = 0.0
+    @State private var speedLineOffset: CGFloat = 0.0
+
+    let brutalSteps = [
+        "⚠️ [CRITICAL] BYPASSING POLICE FIREWALL...",
+        "⚡ [OVERDRIVE] INJECTING ILLEGAL NITROUS MATRIX...",
+        "💀 [BLACK_MARKET] SYNDICATE PROTOCOL 666 ENGAGED...",
+        "🔥 [WARNING] SATELLITE TRACKING JAMMED BY USER...",
+        "🚨 [BREACH] SPEED LIMITERS PERMANENTLY DELETED...",
+        "☠️ WELCOME TO THE UNDERGROUND. NO RULES. JUST SPEED."
     ]
-    
+
     var body: some View {
         ZStack {
-            // 背景高科技網格
-            LinearGradient(colors: [Color(red: 0.02, green: 0.04, blue: 0.08), Color.black, Color(red: 0.06, green: 0.01, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            // 極黑底色與血紅/暗紫賽博動態背景
+            LinearGradient(colors: [Color.black, Color(red: 0.15, green: 0.0, blue: 0.02), Color.black], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
-            
-            // 動態雷達掃描線條裝飾
-            Circle()
-                .stroke(Color.safeCyan.opacity(0.15), lineWidth: 1)
-                .frame(width: 320, height: 320)
-                .scaleEffect(shockwaveScale * 0.8)
-            
-            Circle()
-                .trim(from: 0.0, to: 0.25)
-                .stroke(Color.safeCyan, lineWidth: 2)
-                .frame(width: 240, height: 240)
-                .rotationEffect(.degrees(radarRotation))
-            
-            // 右下角 SKIP 按鈕
+
+            // 暴力高速流動線條（製造極速感）
+            VStack(spacing: 20) {
+                ForEach(0..<10, id: \.self) { i in
+                    Rectangle()
+                        .fill(i % 2 == 0 ? Color.red : Color.safeCyan)
+                        .frame(height: 2)
+                        .opacity(0.3)
+                        .offset(x: (i % 2 == 0 ? speedLineOffset : -speedLineOffset) * CGFloat(i + 1))
+                }
+            }
+            .ignoresSafeArea()
+
+            // 畫面震動與紅色警告閃爍遮罩
+            Color.red
+                .opacity(warningFlash ? 0.25 : 0.0)
+                .ignoresSafeArea()
+                .animation(Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true), value: warningFlash)
+
+            // 右下角殘酷風格 SKIP 按鈕
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.5)) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
                             isFinished = true
                         }
                     }) {
-                        Text("SKIP ❯❯")
-                            .font(.system(size: 12, weight: .black, design: .monospaced))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
+                        Text("FORCED SKIP ❯❯")
+                            .font(.system(size: 11, weight: .black, design: .monospaced))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                            .background(Color.safeCyan.opacity(0.3))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.safeCyan, lineWidth: 1.5))
-                            .cornerRadius(16)
-                            .shadow(color: .safeCyan, radius: 5)
+                            .background(Color.red)
+                            .cornerRadius(4)
+                            .shadow(color: .red, radius: 8)
                     }
                     .padding(.trailing, 24)
                     .padding(.bottom, 24)
                 }
             }
             .zIndex(30)
-            
+
             if !showWarningScreen {
-                VStack(spacing: 30) {
+                VStack(spacing: 25) {
+                    // 暴力賽博核心圖示（火焰與血紅雷達波）
                     ZStack {
-                        // 脈衝衝擊波
+                        // 狂暴旋轉環
                         Circle()
-                            .stroke(Color.safeCyan, lineWidth: 4)
-                            .frame(width: 180, height: 180)
-                            .scaleEffect(shockwaveScale)
-                            .opacity(shockwaveOpacity)
-                        
-                        // 多段科技裝甲外環旋轉
-                        ForEach(0..<6, id: \.self) { i in
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(LinearGradient(colors: [.safeCyan, Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
-                                .frame(width: 24, height: 75)
-                                .offset(y: -55)
-                                .rotationEffect(.degrees(Double(i) * 60.0 + armorRotation))
-                                .shadow(color: .safeCyan, radius: 8)
-                        }
-                        
-                        // 核心發光體
+                            .stroke(style: StrokeStyle(lineWidth: 4, dash: [15, 10]))
+                            .foregroundColor(.red)
+                            .frame(width: 190, height: 190)
+                            .rotationEffect(.degrees(ringRotation))
+                            .shadow(color: .red, radius: 10)
+
                         Circle()
-                            .fill(RadialGradient(gradient: Gradient(colors: [.white, .safeCyan, .clear]), center: .center, startRadius: 2, endRadius: 50))
-                            .frame(width: 100, height: 100)
-                            .scaleEffect(coreGlow)
-                            .shadow(color: .safeCyan, radius: 20)
-                        
-                        // 中央高科技晶片圖示
-                        Image(systemName: "cpu")
-                            .font(.system(size: 40, weight: .bold))
-                            .foregroundColor(.white)
-                            .scaleEffect(armorScale)
+                            .stroke(Color.safeCyan.opacity(0.6), lineWidth: 2)
+                            .frame(width: 140, height: 140)
+                            .rotationEffect(.degrees(-ringRotation * 1.5))
+
+                        // 中央犯罪/極速象徵圖示
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 60, weight: .black))
+                            .foregroundColor(.red)
+                            .shadow(color: .orange, radius: 15)
+                            .scaleEffect(skullScale)
+                            // 霓虹失真錯位效果 (Glitch Effect)
+                            .offset(x: glitchOffset)
                     }
-                    .frame(height: 180)
-                    
-                    Text("AUTOBOT QUANTUM HUD")
-                        .font(.system(size: 22, weight: .black, design: .monospaced))
-                        .kerning(8)
-                        .foregroundColor(.safeCyan)
-                        .shadow(color: .safeCyan, radius: 10)
-                        .opacity(Double(progress))
-                    
-                    VStack(alignment: .leading, spacing: 10) {
+                    .frame(height: 200)
+
+                    // 狂氣標題
+                    Text("UNDERGROUND OVERDRIVE")
+                        .font(.system(size: 20, weight: .black, design: .monospaced))
+                        .kerning(6)
+                        .foregroundColor(.white)
+                        .shadow(color: .red, radius: 8)
+                        .offset(x: -glitchOffset)
+
+                    // 進度條與駭客指令
+                    VStack(alignment: .leading, spacing: 8) {
                         ZStack(alignment: .leading) {
                             Rectangle()
                                 .fill(Color.white.opacity(0.1))
-                                .frame(width: 300, height: 6)
-                                .cornerRadius(3)
-                            
+                                .frame(width: 320, height: 8)
+                                .cornerRadius(2)
+
                             Rectangle()
-                                .fill(LinearGradient(colors: [.safeCyan, Color(red: 0.8, green: 0.1, blue: 0.9), .orange], startPoint: .leading, endPoint: .trailing))
-                                .frame(width: 300 * progress, height: 6)
-                                .cornerRadius(3)
-                                .shadow(color: .safeCyan, radius: 8)
+                                .fill(LinearGradient(colors: [.red, .orange, .safeCyan], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: 320 * progress, height: 8)
+                                .cornerRadius(2)
+                                .shadow(color: .red, radius: 10)
                         }
-                        
-                        Text(steps[min(textStep, steps.count - 1)])
+
+                        Text(brutalSteps[min(textStep, brutalSteps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(Color.safeCyan.opacity(0.8))
+                            .foregroundColor(.red)
                     }
                 }
                 .transition(.opacity)
             } else {
-                // 安全警示畫面
+                // 極惡警告畫面
                 VStack(spacing: 0) {
                     HStack {
-                        Text("安全規範")
-                            .font(.system(size: 20, weight: .black))
-                            .foregroundColor(.white)
+                        Text("⚠️ CRIMINAL OFFENSE WARNING")
+                            .font(.system(size: 14, weight: .black, design: .monospaced))
+                            .foregroundColor(.black)
                         Spacer()
-                        Text("CYBERTRON PROTOCOL")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
+                        Text("ILLEGAL OS")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(.black)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 14)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                     .background(Color.red)
-                    
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("道路安全與速度測試免責聲明")
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("超速、非法改裝與街頭競速協議")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.red)
-                        
-                        Text("本系統提供之GPS速度、測速照相預警與加速測試數據僅供參考。駕駛時請嚴格遵守當地交通法規，確保行車安全。")
+
+                        Text("您正在載入非官方、高度危險之地下賽博競速與測速略過核心。本系統不承擔任何警方追捕、超速罰單與物理撞擊之法律責任。踩下油門，生死自負。")
                             .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.85))
-                            .lineSpacing(5)
-                        
-                        Text("SEC. 901 - MATRIX OF LEADERSHIP VERIFIED")
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.white.opacity(0.8))
+                            .lineSpacing(4)
+
+                        Text("STATUS: WANTED LEVEL MAXED OUT.")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(.safeCyan)
                             .padding(.top, 4)
                     }
-                    .padding(22)
+                    .padding(20)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.black)
                 }
-                .frame(width: min(UIScreen.main.bounds.width - 40, 500))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red, lineWidth: 3))
-                .cornerRadius(12)
-                .shadow(color: .red.opacity(0.6), radius: 15)
+                .frame(width: min(UIScreen.main.bounds.width - 40, 480))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red, lineWidth: 3))
+                .cornerRadius(8)
+                .shadow(color: .red.opacity(0.8), radius: 20)
                 .opacity(warningOpacity)
-                .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
         .onAppear {
-            // 啟動 10 秒多階段高科技動畫流程
-            withAnimation(.spring(response: 0.9, dampingFraction: 0.6)) {
-                armorScale = 1.0
-                armorRotation = 0.0
-                coreGlow = 1.2
+            warningFlash = true
+
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.4)) {
+                skullScale = 1.1
             }
-            
-            withAnimation(.easeOut(duration: 1.2)) {
-                shockwaveScale = 2.5
-                shockwaveOpacity = 0.8
+
+            withAnimation(Animation.linear(duration: 2.5).repeatForever(autoreverses: false)) {
+                ringRotation = 360.0
             }
-            
-            // 持續旋轉雷達
-            withAnimation(Animation.linear(duration: 4.0).repeatForever(autoreverses: false)) {
-                radarRotation = 360.0
+
+            withAnimation(Animation.linear(duration: 1.0).repeatForever(autoreverses: false)) {
+                speedLineOffset = 150.0
             }
-            
-            // 10秒進度條
+
+            withAnimation(Animation.easeInOut(duration: 0.1).repeatForever(autoreverses: true)) {
+                glitchOffset = CGFloat(Int.random(in: -4...4))
+            }
+
             withAnimation(.easeInOut(duration: 10.0)) {
                 progress = 1.0
             }
-            
-            // 文字階段計時器 (共 6 個階段，總計 10 秒)
+
             Timer.scheduledTimer(withTimeInterval: 1.6, repeats: true) { timer in
-                if textStep < steps.count - 1 {
+                if textStep < brutalSteps.count - 1 {
                     textStep += 1
                 } else {
                     timer.invalidate()
-                    withAnimation(.easeInOut(duration: 0.4)) { showWarningScreen = true }
-                    withAnimation(.easeIn(duration: 0.6)) { warningOpacity = 1.0 }
-                    
-                    // 顯示警示 2.5 秒後進入主畫面
+                    withAnimation(.easeInOut(duration: 0.3)) { showWarningScreen = true }
+                    withAnimation(.easeIn(duration: 0.4)) { warningOpacity = 1.0 }
+
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                        withAnimation(.easeOut(duration: 0.6)) { warningOpacity = 0.0 }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                            withAnimation(.easeInOut(duration: 0.8)) { isFinished = true }
+                        withAnimation(.easeOut(duration: 0.4)) { warningOpacity = 0.0 }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            withAnimation(.easeInOut(duration: 0.5)) { isFinished = true }
                         }
                     }
                 }
@@ -852,7 +847,7 @@ struct HistoryRecordsView: View {
     private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df }
 }
 
-// MARK: - 行車軌跡詳細回放畫面
+// MARK: - 行程軌跡詳細回放畫面
 struct HistoryDetailMapView: View {
     let record: HistoryRecord
     
