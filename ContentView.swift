@@ -1506,18 +1506,16 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
-            // ▼ iOS 16+ 解鎖導覽列隱形安全區的關鍵
-            .navigationTitle("")
+            // ▼ 關鍵修正：相容 iOS 16/17/18 徹底隱藏導航列與狀態列
+            .toolbar(.hidden, for: .navigationBar)
             .navigationBarHidden(true)
-            .toolbar(.hidden, for: .navigationBar) // ★ 強制隱藏 Toolbar 佔位
-            .ignoresSafeArea(.all, edges: .all) 
-            
+            .statusBarHidden(true)
+            .ignoresSafeArea(.all, edges: .all)
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
             }
-            .onChange(of: effectiveSpeed) { newSpeed in
+            .onChange(of: effectiveSpeed) { oldVal, newSpeed in
                 if newSpeed > speedLimit {
                     flashWarning = true
                     AudioServicesPlaySystemSound(1005)
@@ -1564,9 +1562,7 @@ struct ContentView: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // ▼ 雙重確保：隱藏頂部狀態列與底部 Home 橫條
         .statusBarHidden(true)
-        .persistentSystemOverlays(.hidden) // ★ 隱藏底部 Home Indicator (iOS 16+)
         .ignoresSafeArea(.all, edges: .all)
     }
 }
