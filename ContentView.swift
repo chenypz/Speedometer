@@ -264,7 +264,7 @@ struct NeonArcFlowView: View {
         ZStack {
             Circle()
                 .stroke(color.opacity(0.15), lineWidth: 2)
-                .frame(width: 320, height: 320)
+                .frame(width: 280, height: 280)
             
             Circle()
                 .trim(from: 0.0, to: 0.3)
@@ -272,7 +272,7 @@ struct NeonArcFlowView: View {
                     AngularGradient(gradient: Gradient(colors: [.clear, color]), center: .center),
                     style: StrokeStyle(lineWidth: 4, lineCap: .round)
                 )
-                .frame(width: 320, height: 320)
+                .frame(width: 280, height: 280)
                 .rotationEffect(.degrees(animate ? 360 : 0))
                 .animation(Animation.linear(duration: 4).repeatForever(autoreverses: false), value: animate)
             
@@ -282,7 +282,7 @@ struct NeonArcFlowView: View {
                     AngularGradient(gradient: Gradient(colors: [.clear, color.opacity(0.8)]), center: .center),
                     style: StrokeStyle(lineWidth: 3, lineCap: .round)
                 )
-                .frame(width: 290, height: 290)
+                .frame(width: 250, height: 250)
                 .rotationEffect(.degrees(animate ? -360 : 0))
                 .animation(Animation.linear(duration: 6).repeatForever(autoreverses: false), value: animate)
         }
@@ -297,13 +297,13 @@ struct ShiftLightsView: View {
     let speed: Double
     
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             ForEach(0..<8, id: \.self) { index in
                 Rectangle()
                     .fill(lightColor(for: index))
-                    .frame(width: 22, height: 8)
+                    .frame(width: 18, height: 6)
                     .cornerRadius(2)
-                    .shadow(color: lightColor(for: index).opacity(0.8), radius: isLit(index) ? 6 : 0)
+                    .shadow(color: lightColor(for: index).opacity(0.8), radius: isLit(index) ? 4 : 0)
             }
         }
     }
@@ -331,30 +331,30 @@ struct GForceView: View {
     var body: some View {
         ZStack {
             Circle().stroke(Color.white.opacity(0.2), lineWidth: 1)
-            Circle().stroke(Color.white.opacity(0.1), lineWidth: 1).frame(width: 80, height: 80)
+            Circle().stroke(Color.white.opacity(0.1), lineWidth: 1).frame(width: 60, height: 60)
             
-            Rectangle().fill(Color.white.opacity(0.2)).frame(width: 1, height: 160)
-            Rectangle().fill(Color.white.opacity(0.2)).frame(width: 160, height: 1)
+            Rectangle().fill(Color.white.opacity(0.2)).frame(width: 1, height: 120)
+            Rectangle().fill(Color.white.opacity(0.2)).frame(width: 120, height: 1)
             
             Circle()
                 .fill(primaryColor)
-                .frame(width: 12, height: 12)
-                .offset(x: CGFloat(x * 60), y: CGFloat(y * 60))
-                .shadow(color: primaryColor, radius: 6)
+                .frame(width: 10, height: 10)
+                .offset(x: CGFloat(x * 45), y: CGFloat(y * 45))
+                .shadow(color: primaryColor, radius: 4)
             
             VStack {
                 Text("G-FORCE")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
                     .foregroundColor(.gray)
                 Text(String(format: "MAX: %.2fG", maxG))
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
             }
-            .offset(y: 55)
+            .offset(y: 42)
         }
-        .frame(width: 160, height: 160)
+        .frame(width: 120, height: 120)
         .background(Color.black.opacity(0.4))
-        .cornerRadius(80)
+        .cornerRadius(60)
         .overlay(Circle().stroke(primaryColor.opacity(0.5), lineWidth: 2))
     }
 }
@@ -537,7 +537,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 12. 主畫面 ContentView
+// MARK: - 12. 主畫面 ContentView (固定橫向賽道排版)
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     
@@ -558,7 +558,6 @@ struct ContentView: View {
     @State private var showHistoryRecords: Bool = false
     
     @State private var flashWarning: Bool = false
-    @State private var isLandscapeMode: Bool = false
     
     var currentPrimaryColor: Color {
         selectedTheme.primaryColor(custom: useCustomColor ? customColor : nil)
@@ -581,51 +580,28 @@ struct ContentView: View {
                             .zIndex(10)
                     }
                     
-                    if isLandscapeMode {
-                        HStack(spacing: 20) {
-                            leftControlPanel
-                            centerDashboardView
-                            rightTelemetryPanel
-                        }
-                        .padding()
-                        .zIndex(1)
-                    } else {
-                        VStack(spacing: 12) {
-                            topStatusBar
-                            
-                            ZStack {
-                                if showMap {
-                                    MapTrackingView(coordinate: vehicleManager.currentLocation, heading: vehicleManager.heading)
-                                        .cornerRadius(20)
-                                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(currentPrimaryColor, lineWidth: 2))
-                                        .transition(.opacity)
-                                } else {
-                                    centerDashboardView
-                                        .transition(.opacity)
-                                }
+                    // 固定橫向三欄式賽道 HUD 配置
+                    HStack(spacing: 15) {
+                        leftControlPanel
+                        
+                        ZStack {
+                            if showMap {
+                                MapTrackingView(coordinate: vehicleManager.currentLocation, heading: vehicleManager.heading)
+                                    .cornerRadius(16)
+                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(currentPrimaryColor, lineWidth: 2))
+                                    .transition(.opacity)
+                            } else {
+                                centerDashboardView
+                                    .transition(.opacity)
                             }
-                            .frame(maxHeight: .infinity)
-                            
-                            HStack(spacing: 15) {
-                                GForceView(x: vehicleManager.currentGForceX, y: vehicleManager.currentGForceY, maxG: vehicleManager.maxGForce, primaryColor: currentPrimaryColor)
-                                    .scaleEffect(0.65)
-                                    .frame(width: 100, height: 100)
-                                
-                                VStack(spacing: 6) {
-                                    ShiftLightsView(speed: vehicleManager.speed)
-                                    Text("RPM SHIFT LIGHTS")
-                                        .font(.system(size: 9, design: .monospaced))
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                            .frame(height: 100)
-                            
-                            bottomStatsRow
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .zIndex(1)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        rightTelemetryPanel
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .zIndex(1)
                 }
             }
             .navigationBarHidden(true)
@@ -653,18 +629,30 @@ struct ContentView: View {
         .navigationViewStyle(StackNavigationViewStyle())
     }
     
-    var topStatusBar: some View {
-        HStack {
-            Button(action: {
-                withAnimation { isLandscapeMode.toggle() }
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: isLandscapeMode ? "rectangle.portrait" : "rectangle.landscape")
-                    Text(isLandscapeMode ? "直向" : "橫向")
+    // 左側控制與功能面板
+    var leftControlPanel: some View {
+        VStack(spacing: 12) {
+            Button(action: { showMap.toggle() }) {
+                VStack(spacing: 4) {
+                    Image(systemName: showMap.toggle ? "gauge.with.needle" : "map.fill")
+                        .font(.system(size: 14))
+                    Text(showMap ? "儀表" : "地圖")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
                 }
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .frame(width: 52, height: 52)
+                .background(showMap ? currentPrimaryColor.opacity(0.3) : Color.white.opacity(0.1))
+                .foregroundColor(showMap ? currentPrimaryColor : .white)
+                .cornerRadius(12)
+            }
+            
+            Button(action: { showSettings = true }) {
+                VStack(spacing: 4) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 14))
+                    Text("設定")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                }
+                .frame(width: 52, height: 52)
                 .background(Color.white.opacity(0.1))
                 .foregroundColor(.white)
                 .cornerRadius(12)
@@ -672,150 +660,93 @@ struct ContentView: View {
             
             Spacer()
             
-            Button(action: { showMap.toggle() }) {
-                Text(showMap ? "地圖: 關" : "地圖: 開")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(showMap ? currentPrimaryColor.opacity(0.3) : Color.white.opacity(0.1))
-                    .foregroundColor(showMap ? currentPrimaryColor : .white)
-                    .cornerRadius(12)
-            }
-            
-            Button(action: { showSettings = true }) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 16))
-                    .padding(8)
-                    .background(Color.white.opacity(0.1))
-                    .foregroundColor(.white)
-                    .clipShape(Circle())
-            }
-        }
-    }
-    
-    var centerDashboardView: some View {
-        ZStack {
-            NeonArcFlowView(color: currentPrimaryColor)
-            
-            VStack(spacing: 6) {
-                Text("GPS SPEED")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(.gray)
-                    .tracking(2)
-                
-                Text(String(format: "%.0f", vehicleManager.speed))
-                    .font(.system(size: 72, weight: .black, design: .monospaced))
-                    .foregroundColor(.white)
-                    .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
-                
-                Text("KM/H")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .foregroundColor(currentPrimaryColor)
-                
-                if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
-                    HStack(spacing: 4) {
-                        Text(vehicleManager.isTesting0_100 ? "0-100 測速中..." : "0-100 紀錄:")
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundColor(.gray)
-                        Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundColor(.orange)
-                    }
-                    .padding(.top, 4)
-                }
-            }
-        }
-        .frame(width: 260, height: 260)
-    }
-    
-    var bottomStatsRow: some View {
-        HStack(spacing: 12) {
-            VStack(spacing: 4) {
-                Text("0-100 ACCEL")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(.gray)
-                Text(vehicleManager.zeroToOneHundredTime > 0 ? String(format: "%.1fs", vehicleManager.zeroToOneHundredTime) : "--.-s")
-                    .font(.system(size: 15, weight: .black, design: .monospaced))
-                    .foregroundColor(.orange)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.white.opacity(0.05))
-            .cornerRadius(12)
-            
-            VStack(spacing: 4) {
-                Text("TRIP DIST")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(.gray)
-                Text(String(format: "%.2f km", vehicleManager.tripDistance))
-                    .font(.system(size: 15, weight: .black, design: .monospaced))
-                    .foregroundColor(.green)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.white.opacity(0.05))
-            .cornerRadius(12)
-            
-            VStack(spacing: 4) {
-                Text("MAX SPEED")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(.gray)
-                Text(String(format: "%.0f", vehicleManager.maxSpeed))
-                    .font(.system(size: 15, weight: .black, design: .monospaced))
-                    .foregroundColor(currentPrimaryColor)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.white.opacity(0.05))
-            .cornerRadius(12)
-        }
-    }
-    
-    var leftControlPanel: some View {
-        VStack(spacing: 15) {
-            Button(action: { withAnimation { isLandscapeMode.toggle() } }) {
-                Image(systemName: "rectangle.portrait")
-                    .font(.system(size: 16))
-                    .padding(12)
-                    .background(Color.white.opacity(0.1))
-                    .foregroundColor(.white)
-                    .clipShape(Circle())
-            }
-            Button(action: { showSettings = true }) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 16))
-                    .padding(12)
-                    .background(Color.white.opacity(0.1))
-                    .foregroundColor(.white)
-                    .clipShape(Circle())
-            }
-            Spacer()
             Button(action: {
                 let history = HistoryRecord(id: UUID(), date: Date(), maxSpeed: vehicleManager.maxSpeed, zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime, maxGForce: vehicleManager.maxGForce, tripDistance: vehicleManager.tripDistance)
                 historyRecords.append(history)
                 vehicleManager.resetData()
             }) {
-                Text("重置並封存")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .padding(8)
-                    .background(Color.orange.opacity(0.2))
-                    .foregroundColor(.orange)
-                    .cornerRadius(8)
+                VStack(spacing: 4) {
+                    Image(systemName: "arrow.counterclockwise.circle.fill")
+                        .font(.system(size: 14))
+                    Text("重置")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                }
+                .frame(width: 52, height: 52)
+                .background(Color.orange.opacity(0.2))
+                .foregroundColor(.orange)
+                .cornerRadius(12)
             }
         }
+        .frame(width: 60)
     }
     
+    // 中間核心速度儀表板
+    var centerDashboardView: some View {
+        ZStack {
+            NeonArcFlowView(color: currentPrimaryColor)
+            
+            VStack(spacing: 4) {
+                Text("GPS SPEED")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.gray)
+                    .tracking(2)
+                
+                Text(String(format: "%.0f", vehicleManager.speed))
+                    .font(.system(size: 68, weight: .black, design: .monospaced))
+                    .foregroundColor(.white)
+                    .shadow(color: currentPrimaryColor.opacity(0.8), radius: 10)
+                
+                Text("KM/H")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(currentPrimaryColor)
+                
+                if vehicleManager.isTesting0_100 || vehicleManager.zeroToOneHundredTime > 0 {
+                    HStack(spacing: 4) {
+                        Text(vehicleManager.isTesting0_100 ? "0-100 測速中..." : "0-100 紀錄:")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(.gray)
+                        Text(String(format: "%.2f s", vehicleManager.zeroToOneHundredTime))
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.top, 2)
+                }
+            }
+        }
+        .frame(width: 240, height: 240)
+    }
+    
+    // 右側即時遙測與 G 力感應面板
     var rightTelemetryPanel: some View {
-        VStack(spacing: 15) {
+        VStack(spacing: 12) {
             GForceView(x: vehicleManager.currentGForceX, y: vehicleManager.currentGForceY, maxG: vehicleManager.maxGForce, primaryColor: currentPrimaryColor)
-                .scaleEffect(0.7)
-            ShiftLightsView(speed: vehicleManager.speed)
+            
+            VStack(spacing: 4) {
+                ShiftLightsView(speed: vehicleManager.speed)
+                Text("RPM LIGHTS")
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundColor(.gray)
+            }
             
             VStack(alignment: .leading, spacing: 6) {
-                Text(String(format: "里程: %.2f km", vehicleManager.tripDistance)).font(.system(size: 12, design: .monospaced)).foregroundColor(.green)
-                Text(String(format: "極速: %.0f km/h", vehicleManager.maxSpeed)).font(.system(size: 12, design: .monospaced)).foregroundColor(currentPrimaryColor)
+                HStack {
+                    Text("里程:").foregroundColor(.gray)
+                    Spacer()
+                    Text(String(format: "%.2f km", vehicleManager.tripDistance)).foregroundColor(.green)
+                }
+                HStack {
+                    Text("極速:").foregroundColor(.gray)
+                    Spacer()
+                    Text(String(format: "%.0f km/h", vehicleManager.maxSpeed)).foregroundColor(currentPrimaryColor)
+                }
             }
+            .font(.system(size: 10, weight: .bold, design: .monospaced))
+            .padding(10)
+            .background(Color.white.opacity(0.05))
+            .cornerRadius(10)
+            
             Spacer()
         }
+        .frame(width: 140)
     }
 }
