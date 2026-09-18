@@ -57,7 +57,6 @@ struct CodableCoordinate: Codable {
     }
 }
 
-// MARK: - 測速照相資料結構
 struct SpeedCamera: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
@@ -343,7 +342,6 @@ struct HorizonBootLoadingView: View {
 
     var body: some View {
         ZStack {
-            // 史詩感日落/曙光大氣漸層背景
             LinearGradient(
                 colors: [
                     Color(red: 0.03, green: 0.01, blue: 0.08),
@@ -356,7 +354,6 @@ struct HorizonBootLoadingView: View {
             )
             .ignoresSafeArea()
 
-            // 擬真光暈日輪背景
             VStack {
                 Circle()
                     .fill(
@@ -375,7 +372,6 @@ struct HorizonBootLoadingView: View {
             }
             .ignoresSafeArea()
 
-            // 地面高速流動光柵 (速度感)
             VStack {
                 Spacer()
                 ZStack {
@@ -397,7 +393,6 @@ struct HorizonBootLoadingView: View {
             }
             .ignoresSafeArea()
 
-            // 右上角略過按鈕
             VStack {
                 HStack {
                     Spacer()
@@ -420,7 +415,6 @@ struct HorizonBootLoadingView: View {
             }
             .zIndex(30)
 
-            // 中央核心：超跑剪影與地平線字體
             VStack(spacing: 20) {
                 Spacer()
                 
@@ -440,7 +434,6 @@ struct HorizonBootLoadingView: View {
                     }
                 }
                 
-                // 動態狀態加載文字
                 Text(bootSequenceTexts[bootTextIndex])
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
                     .kerning(2)
@@ -787,7 +780,6 @@ struct HistoryRecordsView: View {
     private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df }
 }
 
-// MARK: - 行程軌跡詳細回放畫面
 struct HistoryDetailMapView: View {
     let record: HistoryRecord
     
@@ -888,6 +880,10 @@ struct ContentView: View {
     @State private var showHistoryRecords: Bool = false
     @State private var flashWarning: Bool = false
     
+    // 【地平線日語超速警告控制】維持 7 秒機制
+    @State private var showJapaneseOverspeedAlert: Bool = false
+    @State private var overspeedTimer: Timer? = nil
+    
     @State private var searchText: String = ""
     @State private var isSearchExpanded: Bool = false
     
@@ -925,6 +921,35 @@ struct ContentView: View {
                                     .ignoresSafeArea()
                                     .animation(Animation.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: flashWarning)
                                     .zIndex(10)
+                            }
+                            
+                            // 【地平線風格：日語超速警告橫幅 (7秒自動消散)】
+                            if showJapaneseOverspeedAlert {
+                                VStack {
+                                    Spacer()
+                                    VStack(spacing: 6) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "exclamationmark.triangle.fill")
+                                                .foregroundColor(.yellow)
+                                                .font(.system(size: 20))
+                                            Text("オービス警報発動")
+                                                .font(.system(size: 16, weight: .black, design: .monospaced))
+                                                .foregroundColor(.white)
+                                        }
+                                        Text("速度超過です！減速してください！")
+                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.orange)
+                                    }
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 14)
+                                    .background(Color.black.opacity(0.9))
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red, lineWidth: 2))
+                                    .cornerRadius(12)
+                                    .shadow(color: .red.opacity(0.8), radius: 10)
+                                    .padding(.bottom, 60)
+                                    .transition(.scale.combined(with: .opacity))
+                                }
+                                .zIndex(60)
                             }
                             
                             ZStack(alignment: .top) {
@@ -1173,6 +1198,17 @@ struct ContentView: View {
                         flashWarning = true
                         AudioServicesPlaySystemSound(1005)
                         overspeedLogs.append(OverspeedRecord(id: UUID(), date: Date(), speed: newSpeed, speedLimit: speedLimit))
+                        
+                        // 觸發日語超速警告，精確控制維持 7 秒
+                        withAnimation {
+                            showJapaneseOverspeedAlert = true
+                        }
+                        overspeedTimer?.invalidate()
+                        overspeedTimer = Timer.scheduledTimer(withTimeInterval: 7.0, repeats: false) { _ in
+                            withAnimation {
+                                showJapaneseOverspeedAlert = false
+                            }
+                        }
                     }
                 } else {
                     flashWarning = false
