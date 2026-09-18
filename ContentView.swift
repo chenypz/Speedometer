@@ -240,7 +240,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 變形金剛風格暴力科技感開場動畫
+// MARK: - 4. 變形金剛風格暴力科技感開場動畫 (全螢幕漸顯)
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -248,7 +248,6 @@ struct BootLoadingView: View {
     @State private var showWarningScreen: Bool = false
     @State private var warningOpacity: Double = 0.0
     
-    // 變形金剛機械裝甲展開數值
     @State private var armorScale: CGFloat = 0.2
     @State private var armorRotation: Double = -180.0
     @State private var coreGlow: CGFloat = 0.0
@@ -270,14 +269,12 @@ struct BootLoadingView: View {
             if !showWarningScreen {
                 VStack(spacing: 30) {
                     ZStack {
-                        // 暴力衝擊波擴散環
                         Circle()
                             .stroke(Color(red: 0.0, green: 0.8, blue: 1.0), lineWidth: 4)
                             .frame(width: 180, height: 180)
                             .scaleEffect(shockwaveScale)
                             .opacity(shockwaveOpacity)
                         
-                        // 外層變形機械裝甲瓣膜 (類似變形金剛變形時的開合幾何)
                         ForEach(0..<6, id: \.self) { i in
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 1.0), Color(red: 0.8, green: 0.1, blue: 0.9)], startPoint: .top, endPoint: .bottom))
@@ -287,14 +284,12 @@ struct BootLoadingView: View {
                                 .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 8)
                         }
                         
-                        // 核心高能反應爐
                         Circle()
                             .fill(RadialGradient(gradient: Gradient(colors: [.white, Color(red: 0.0, green: 0.8, blue: 1.0), .clear]), center: .center, startRadius: 2, endRadius: 50))
                             .frame(width: 100, height: 100)
                             .scaleEffect(coreGlow)
                             .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 20)
                         
-                        // 中央科幻徽標
                         Image(systemName: "cpu")
                             .font(.system(size: 40, weight: .bold))
                             .foregroundColor(.white)
@@ -330,7 +325,6 @@ struct BootLoadingView: View {
                 }
                 .transition(.opacity)
             } else {
-                // 安全條款宣告 (漸顯動畫)
                 VStack(spacing: 0) {
                     HStack {
                         Text("安全規範")
@@ -372,9 +366,9 @@ struct BootLoadingView: View {
                 .transition(.opacity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .edgesIgnoringSafeArea(.all)
         .onAppear {
-            // 暴力速度感的彈簧與旋轉變形動畫
             withAnimation(.spring(response: 0.9, dampingFraction: 0.6)) {
                 armorScale = 1.0
                 armorRotation = 0.0
@@ -401,7 +395,7 @@ struct BootLoadingView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                         withAnimation(.easeOut(duration: 0.6)) { warningOpacity = 0.0 }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                            withAnimation(.easeInOut(duration: 0.8)) { isFinished = true } // 完美的漸顯切換至主畫面
+                            withAnimation(.easeInOut(duration: 0.8)) { isFinished = true }
                         }
                     }
                 }
@@ -632,6 +626,7 @@ struct SciFiParticleAssembleView<Content: View>: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             withAnimation(.easeInOut(duration: 0.8)) { assembleProgress = 1.0 }
         }
@@ -793,6 +788,14 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
+                // 背景填滿整個螢幕
+                LinearGradient(
+                    colors: selectedTheme.backgroundGradientColors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .edgesIgnoringSafeArea(.all)
+                
                 if !isBootLoaded {
                     BootLoadingView(isFinished: $isBootLoaded)
                         .transition(.opacity)
@@ -800,13 +803,6 @@ struct ContentView: View {
                 } else {
                     SciFiParticleAssembleView {
                         ZStack {
-                            LinearGradient(
-                                colors: selectedTheme.backgroundGradientColors,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                            .edgesIgnoringSafeArea(.all)
-                            
                             BackgroundNeonFlowView(primaryColor: currentPrimaryColor)
                                 .zIndex(0)
                             
@@ -1068,5 +1064,6 @@ struct ContentView: View {
             )
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .edgesIgnoringSafeArea(.all)
     }
 }
