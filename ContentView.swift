@@ -494,18 +494,20 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 多段式滿屏爆炸動態開場動畫
+// MARK: - 5. 頂級震撼滿屏爆炸動態開場動畫（Ultimate Hyper-Shock Boot）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
     
     @State private var bootStep: Int = 0
     @State private var animVal: CGFloat = 0.0
-    @State private var shockwaveScale: CGFloat = 0.1
+    @State private var shockwaveScale: CGFloat = 0.05
     @State private var particleExplode: Bool = false
     @State private var flashScreen: Bool = false
     @State private var rotateAngle: Double = 0.0
     @State private var warningFlash: Bool = false
+    @State private var screenShake: CGFloat = 0.0
+    @State private var laserBeamWidth: CGFloat = 0.0
     
     var themeColor: Color {
         switch selectedTheme {
@@ -519,179 +521,164 @@ struct MultiThemeBootLoadingView: View {
         ZStack {
             Color.black.ignoresSafeArea(.all, edges: .all)
             
+            // 震撼衝擊波與雷射光環
             ZStack {
+                Circle()
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(colors: [.clear, themeColor, .white, themeColor, .clear]),
+                            center: .center,
+                            angle: .degrees(rotateAngle * 2)
+                        ),
+                        lineWidth: CGFloat(laserBeamWidth)
+                    )
+                    .scaleEffect(shockwaveScale * 1.5)
+                    .blur(radius: 10)
+                
                 Circle()
                     .fill(
                         RadialGradient(
-                            gradient: Gradient(colors: [themeColor.opacity(0.8), themeColor.opacity(0.3), .clear]),
+                            gradient: Gradient(colors: [themeColor.opacity(0.9), themeColor.opacity(0.4), .clear]),
                             center: .center,
-                            startRadius: 10,
-                            endRadius: 350
+                            startRadius: 5,
+                            endRadius: 400
                         )
                     )
-                    .scaleEffect(shockwaveScale * 2.0)
-                    .blur(radius: 20)
+                    .scaleEffect(shockwaveScale)
+                    .blur(radius: 25)
                 
                 if flashScreen {
-                    Color.white.opacity(0.9)
+                    Color.white
+                        .opacity(0.95)
                         .ignoresSafeArea(.all, edges: .all)
                         .transition(.opacity)
                 }
                 
-                ForEach(0..<30, id: \.self) { i in
-                    Circle()
-                        .fill(i % 3 == 0 ? .white : themeColor)
-                        .frame(width: CGFloat.random(in: 5...14), height: CGFloat.random(in: 5...14))
-                        .shadow(color: themeColor, radius: 8)
+                // 45 顆全螢幕炸裂粒子
+                ForEach(0..<45, id: \.self) { i in
+                    Rectangle()
+                        .fill(i % 4 == 0 ? .white : (i % 2 == 0 ? themeColor : .yellow))
+                        .frame(width: CGFloat.random(in: 4...18), height: CGFloat.random(in: 4...18))
+                        .shadow(color: themeColor, radius: 12)
                         .offset(
-                            x: particleExplode ? CGFloat(cos(Double(i) * 12.0 * .pi / 180.0) * CGFloat.random(in: 250...420)) : 0,
-                            y: particleExplode ? CGFloat(sin(Double(i) * 12.0 * .pi / 180.0) * CGFloat.random(in: 180...300)) : 0
+                            x: particleExplode ? CGFloat(cos(Double(i) * 8.0 * .pi / 180.0) * CGFloat.random(in: 300...550)) : 0,
+                            y: particleExplode ? CGFloat(sin(Double(i) * 8.0 * .pi / 180.0) * CGFloat.random(in: 200...420)) : 0
                         )
+                        .scaleEffect(particleExplode ? 1.5 : 0.2)
                         .opacity(particleExplode ? 0.0 : 1.0)
                 }
             }
             .allowsHitTesting(false)
             
+            // 三段式震撼分鏡內容
             Group {
                 if bootStep == 0 {
                     ZStack {
-                        if selectedTheme == .skull {
-                            VStack(spacing: 16) {
-                                Image(systemName: "skull.fill")
-                                    .font(.system(size: 110))
-                                    .foregroundColor(.red)
-                                    .shadow(color: .red, radius: 40)
-                                    .scaleEffect(animVal)
-                                    .rotationEffect(.degrees(sin(rotateAngle) * 8.0))
-                                
-                                Text("CRIME & SPEED SYNDICATE")
-                                    .font(.system(size: 20, weight: .black, design: .monospaced))
-                                    .foregroundColor(.white)
-                                    .kerning(6)
-                                    .shadow(color: .red, radius: 15)
-                                    .scaleEffect(animVal)
-                            }
-                        } else if selectedTheme == .cyberpunk {
-                            ZStack {
-                                ForEach(0..<4, id: \.self) { idx in
-                                    Circle()
-                                        .stroke(Color.safeCyan.opacity(0.5), lineWidth: 2.5)
-                                        .frame(width: CGFloat(130 + idx * 70), height: CGFloat(130 + idx * 70))
-                                        .rotationEffect(.degrees(rotateAngle * (idx % 2 == 0 ? 1.5 : -1.5)))
-                                }
-                                Image(systemName: "cpu")
-                                    .font(.system(size: 100))
-                                    .foregroundColor(.safeCyan)
-                                    .shadow(color: .safeCyan, radius: 35)
-                                    .scaleEffect(animVal)
-                            }
-                            VStack {
-                                Spacer().frame(height: 220)
-                                Text("CYBERNETIC WARFARE V.4")
-                                    .font(.system(size: 20, weight: .black, design: .monospaced))
-                                    .foregroundColor(.safeCyan)
-                                    .kerning(6)
-                                    .shadow(color: .safeCyan, radius: 15)
-                            }
-                        } else {
-                            ZStack {
-                                Circle()
-                                    .stroke(Color.pink.opacity(0.6), lineWidth: 3)
-                                    .frame(width: 240, height: 240)
-                                    .scaleEffect(shockwaveScale)
-                                
-                                Image(systemName: "flower.tulip.fill")
-                                    .font(.system(size: 105))
-                                    .foregroundColor(Color(red: 1.0, green: 0.6, blue: 0.8))
-                                    .shadow(color: .pink, radius: 30)
-                                    .scaleEffect(animVal)
-                                    .rotationEffect(.degrees(rotateAngle * 0.6))
-                            }
-                            VStack {
-                                Spacer().frame(height: 220)
-                                Text("桜吹雪 • 疾走御意見番")
-                                    .font(.system(size: 24, weight: .black, design: .serif))
-                                    .foregroundColor(.white)
-                                    .kerning(7)
-                                    .shadow(color: .pink, radius: 15)
-                            }
+                        // 放射狀幾何光環
+                        ForEach(0..<5, id: \.self) { idx in
+                            Circle()
+                                .stroke(themeColor.opacity(0.6), lineWidth: CGFloat(2 + idx))
+                                .frame(width: CGFloat(150 + idx * 75), height: CGFloat(150 + idx * 75))
+                                .rotationEffect(.degrees(rotateAngle * (idx % 2 == 0 ? 2.0 : -2.0)))
+                                .scaleEffect(animVal)
+                        }
+                        
+                        VStack(spacing: 18) {
+                            Image(systemName: selectedTheme == .skull ? "skull.fill" : (selectedTheme == .cyberpunk ? "cpu" : "flower.tulip.fill"))
+                                .font(.system(size: 125))
+                                .foregroundColor(themeColor)
+                                .shadow(color: themeColor, radius: 45)
+                                .scaleEffect(animVal)
+                                .rotationEffect(.degrees(sin(rotateAngle * 0.1) * 12.0))
+                            
+                            Text(selectedTheme == .skull ? "CRIME & SPEED SYNDICATE" : (selectedTheme == .cyberpunk ? "CYBERNETIC WARFARE V.4" : "桜吹雪 • 疾走御意見番"))
+                                .font(.system(size: selectedTheme == .sakura ? 24 : 19, weight: .black, design: selectedTheme == .sakura ? .serif : .monospaced))
+                                .foregroundColor(.white)
+                                .kerning(6)
+                                .shadow(color: themeColor, radius: 20)
+                                .scaleEffect(animVal)
                         }
                     }
-                    .transition(.opacity.combined(with: .scale(scale: 0.7)))
+                    .transition(.opacity.combined(with: .scale(scale: 0.5)))
                     
                 } else if bootStep == 1 {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 22) {
                         Image(systemName: "gauge.with.needle.fill")
-                            .font(.system(size: 90))
+                            .font(.system(size: 105))
                             .foregroundColor(.yellow)
-                            .shadow(color: .red, radius: 25)
-                            .rotationEffect(.degrees(warningFlash ? 15 : -15))
+                            .shadow(color: .red, radius: 35)
+                            .rotationEffect(.degrees(warningFlash ? 25 : -25))
+                            .scaleEffect(animVal)
                         
                         Text("SYSTEM OVERDRIVE ENGAGED")
-                            .font(.system(size: 22, weight: .black, design: .monospaced))
+                            .font(.system(size: 24, weight: .black, design: .monospaced))
                             .foregroundColor(.white)
-                            .kerning(5)
+                            .kerning(6)
+                            .shadow(color: .yellow, radius: 15)
                         
-                        Text("⚡ 引擎全開 • 數據鏈同步中 ⚡")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        Text("⚡ 引擎極限超頻 • 核心數據鏈全開 ⚡")
+                            .font(.system(size: 15, weight: .bold, design: .monospaced))
                             .foregroundColor(themeColor)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(themeColor.opacity(0.2))
-                            .cornerRadius(10)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(themeColor.opacity(0.3))
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(themeColor, lineWidth: 2))
                     }
                     .transition(.scale.combined(with: .opacity))
                     
                 } else {
-                    VStack(spacing: 22) {
+                    VStack(spacing: 24) {
                         Rectangle()
-                            .fill(LinearGradient(colors: [.clear, .red, .clear], startPoint: .leading, endPoint: .trailing))
-                            .frame(height: 4)
-                            .padding(.horizontal, 30)
+                            .fill(LinearGradient(colors: [.clear, themeColor, .clear], startPoint: .leading, endPoint: .trailing))
+                            .frame(height: 5)
+                            .padding(.horizontal, 25)
                         
-                        HStack(spacing: 8) {
+                        HStack(spacing: 10) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.yellow)
-                                .font(.system(size: 22))
+                                .font(.system(size: 24))
                             Text("【 警告：劇場型狂暴運転注意 】")
-                                .font(.system(size: 20, weight: .black, design: .serif))
+                                .font(.system(size: 21, weight: .black, design: .serif))
                                 .foregroundColor(.yellow)
                                 .kerning(4)
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.yellow)
-                                .font(.system(size: 22))
+                                .font(.system(size: 24))
                         }
                         
                         Text("本作品はフィクションであり、実際の公道における\n極端な速度超過や危険運転は法律で厳禁されています。\n安全第一で理性的なドライビングをお楽しみください。")
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.95))
+                            .foregroundColor(.white.opacity(0.98))
                             .multilineTextAlignment(.center)
-                            .lineSpacing(6)
-                            .padding(.horizontal, 30)
+                            .lineSpacing(7)
+                            .padding(.horizontal, 25)
                         
                         Rectangle()
-                            .fill(LinearGradient(colors: [.clear, .red, .clear], startPoint: .leading, endPoint: .trailing))
-                            .frame(height: 4)
-                            .padding(.horizontal, 30)
+                            .fill(LinearGradient(colors: [.clear, themeColor, .clear], startPoint: .leading, endPoint: .trailing))
+                            .frame(height: 5)
+                            .padding(.horizontal, 25)
                     }
                     .transition(.opacity)
                 }
             }
+            .offset(x: CGFloat.random(in: -screenShake...screenShake), y: CGFloat.random(in: -screenShake...screenShake))
             
+            //略過按鈕
             VStack {
                 HStack {
                     Spacer()
                     Button("SKIP ❯❯") {
                         withAnimation(.easeOut(duration: 0.2)) { isFinished = true }
                     }
-                    .font(.system(size: 11, weight: .black, design: .monospaced))
+                    .font(.system(size: 12, weight: .black, design: .monospaced))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.6))
-                    .cornerRadius(20)
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(themeColor, lineWidth: 1.5))
-                    .shadow(color: themeColor, radius: 6)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(22)
+                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(themeColor, lineWidth: 2))
+                    .shadow(color: themeColor, radius: 8)
                     .padding(.trailing, 24)
                     .padding(.top, 24)
                 }
@@ -700,36 +687,57 @@ struct MultiThemeBootLoadingView: View {
         }
         .ignoresSafeArea(.all, edges: .all)
         .onAppear {
-            withAnimation(.easeIn(duration: 0.1)) { flashScreen = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeOut(duration: 0.25)) { flashScreen = false }
+            // 第一重轟炸閃光與震動
+            AudioServicesPlaySystemSound(1016)
+            withAnimation(.easeIn(duration: 0.08)) {
+                flashScreen = true
+                screenShake = 12.0
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    flashScreen = false
+                    screenShake = 0.0
+                }
             }
             
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.5)) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.4)) {
                 animVal = 1.0
-                shockwaveScale = 2.5
+                shockwaveScale = 3.2
+                laserBeamWidth = 18.0
             }
             
-            withAnimation(Animation.easeOut(duration: 1.2)) {
+            withAnimation(Animation.easeOut(duration: 1.5)) {
                 particleExplode = true
             }
             
-            withAnimation(Animation.linear(duration: 6.0).repeatForever(autoreverses: false)) {
+            withAnimation(Animation.linear(duration: 4.0).repeatForever(autoreverses: false)) {
                 rotateAngle = 360.0
             }
             
-            withAnimation(Animation.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
+            withAnimation(Animation.easeInOut(duration: 0.25).repeatForever(autoreverses: true)) {
                 warningFlash.toggle()
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-                withAnimation(.easeInOut(duration: 0.3)) { bootStep = 1 }
+            // 第二階段切換
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                AudioServicesPlaySystemSound(1007)
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    bootStep = 1
+                    screenShake = 6.0
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    withAnimation { screenShake = 0.0 }
+                }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) {
+            
+            // 第三階段切換
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
                 withAnimation(.easeInOut(duration: 0.3)) { bootStep = 2 }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
-                withAnimation(.easeOut(duration: 0.3)) { isFinished = true }
+            
+            // 結束開場
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.8) {
+                withAnimation(.easeOut(duration: 0.4)) { isFinished = true }
             }
         }
     }
@@ -1492,7 +1500,7 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     
-                                    // 右側數據卡片：0-100 KM/H 測試數據
+                                    // 右側數據卡片
                                     VStack(spacing: 10) {
                                         MiniMapView(
                                             coordinate: vehicleManager.currentLocation,
