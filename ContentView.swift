@@ -436,8 +436,21 @@ struct MultiThemeBootLoadingView: View {
     }
 }
 
-// MARK: - 5. 櫻花飄落動態背景 (Particle System)
+// MARK: - 5. 櫻花飄落動態背景 (Particle System - iOS 15+ 防護)
 struct SakuraFallingView: View {
+    var density: Double
+    
+    var body: some View {
+        if #available(iOS 15.0, *) {
+            SakuraFallingContentView(density: density)
+        } else {
+            EmptyView()
+        }
+    }
+}
+
+@available(iOS 15.0, *)
+private struct SakuraFallingContentView: View {
     var density: Double
     
     var body: some View {
