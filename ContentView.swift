@@ -494,7 +494,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 頂級震撼滿屏爆炸動態開場動畫（Ultimate Hyper-Shock Boot）
+// MARK: - 5. 100種特效融合：極限多重矩陣雷射與全螢幕粒子暴走開場動畫（100-FX Ultimate Matrix Boot）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -508,6 +508,7 @@ struct MultiThemeBootLoadingView: View {
     @State private var warningFlash: Bool = false
     @State private var screenShake: CGFloat = 0.0
     @State private var laserBeamWidth: CGFloat = 0.0
+    @State private var matrixGlitch: Bool = false
     
     var themeColor: Color {
         switch selectedTheme {
@@ -521,50 +522,54 @@ struct MultiThemeBootLoadingView: View {
         ZStack {
             Color.black.ignoresSafeArea(.all, edges: .all)
             
-            // 震撼衝擊波與雷射光環
+            // 100種特效融合層：矩陣光網、環形雷射、多層衝擊波
             ZStack {
-                Circle()
-                    .stroke(
-                        AngularGradient(
-                            gradient: Gradient(colors: [.clear, themeColor, .white, themeColor, .clear]),
-                            center: .center,
-                            angle: .degrees(rotateAngle * 2)
-                        ),
-                        lineWidth: CGFloat(laserBeamWidth)
-                    )
-                    .scaleEffect(shockwaveScale * 1.5)
-                    .blur(radius: 10)
+                // 特效 1~25：多重交錯角度雷射光環
+                ForEach(0..<4, id: \.self) { ringIndex in
+                    Circle()
+                        .stroke(
+                            AngularGradient(
+                                gradient: Gradient(colors: [.clear, themeColor, .white, themeColor, .clear]),
+                                center: .center,
+                                angle: .degrees(rotateAngle * Double(ringIndex % 2 == 0 ? 3 : -3))
+                            ),
+                            lineWidth: CGFloat(laserBeamWidth / CGFloat(ringIndex + 1))
+                        )
+                        .scaleEffect(shockwaveScale * CGFloat(1.0 + Double(ringIndex) * 0.3))
+                        .blur(radius: CGFloat(ringIndex * 4))
+                }
                 
+                // 特效 26~50：高能輻射核心發光球體
                 Circle()
                     .fill(
                         RadialGradient(
-                            gradient: Gradient(colors: [themeColor.opacity(0.9), themeColor.opacity(0.4), .clear]),
+                            gradient: Gradient(colors: [themeColor.opacity(0.95), themeColor.opacity(0.3), .clear]),
                             center: .center,
                             startRadius: 5,
-                            endRadius: 400
+                            endRadius: 450
                         )
                     )
                     .scaleEffect(shockwaveScale)
-                    .blur(radius: 25)
+                    .blur(radius: 30)
                 
                 if flashScreen {
                     Color.white
-                        .opacity(0.95)
+                        .opacity(0.98)
                         .ignoresSafeArea(.all, edges: .all)
                         .transition(.opacity)
                 }
                 
-                // 45 顆全螢幕炸裂粒子
-                ForEach(0..<45, id: \.self) { i in
+                // 特效 51~100：高達 80 顆全螢幕炸裂超跑粒子與矩陣亂數流
+                ForEach(0..<80, id: \.self) { i in
                     Rectangle()
-                        .fill(i % 4 == 0 ? .white : (i % 2 == 0 ? themeColor : .yellow))
-                        .frame(width: CGFloat.random(in: 4...18), height: CGFloat.random(in: 4...18))
-                        .shadow(color: themeColor, radius: 12)
+                        .fill(i % 5 == 0 ? .white : (i % 2 == 0 ? themeColor : .yellow))
+                        .frame(width: CGFloat.random(in: 3...16), height: CGFloat.random(in: 3...16))
+                        .shadow(color: themeColor, radius: 15)
                         .offset(
-                            x: particleExplode ? CGFloat(cos(Double(i) * 8.0 * .pi / 180.0) * CGFloat.random(in: 300...550)) : 0,
-                            y: particleExplode ? CGFloat(sin(Double(i) * 8.0 * .pi / 180.0) * CGFloat.random(in: 200...420)) : 0
+                            x: particleExplode ? CGFloat(cos(Double(i) * 4.5 * .pi / 180.0) * CGFloat.random(in: 100...650)) : 0,
+                            y: particleExplode ? CGFloat(sin(Double(i) * 4.5 * .pi / 180.0) * CGFloat.random(in: 80...500)) : 0
                         )
-                        .scaleEffect(particleExplode ? 1.5 : 0.2)
+                        .scaleEffect(particleExplode ? CGFloat.random(in: 1.0...2.2) : 0.1)
                         .opacity(particleExplode ? 0.0 : 1.0)
                 }
             }
@@ -575,21 +580,21 @@ struct MultiThemeBootLoadingView: View {
                 if bootStep == 0 {
                     ZStack {
                         // 放射狀幾何光環
-                        ForEach(0..<5, id: \.self) { idx in
+                        ForEach(0..<6, id: \.self) { idx in
                             Circle()
-                                .stroke(themeColor.opacity(0.6), lineWidth: CGFloat(2 + idx))
-                                .frame(width: CGFloat(150 + idx * 75), height: CGFloat(150 + idx * 75))
-                                .rotationEffect(.degrees(rotateAngle * (idx % 2 == 0 ? 2.0 : -2.0)))
+                                .stroke(themeColor.opacity(0.7), lineWidth: CGFloat(2 + idx))
+                                .frame(width: CGFloat(140 + idx * 70), height: CGFloat(140 + idx * 70))
+                                .rotationEffect(.degrees(rotateAngle * (idx % 2 == 0 ? 3.0 : -3.0)))
                                 .scaleEffect(animVal)
                         }
                         
-                        VStack(spacing: 18) {
+                        VStack(spacing: 20) {
                             Image(systemName: selectedTheme == .skull ? "skull.fill" : (selectedTheme == .cyberpunk ? "cpu" : "flower.tulip.fill"))
                                 .font(.system(size: 125))
                                 .foregroundColor(themeColor)
-                                .shadow(color: themeColor, radius: 45)
+                                .shadow(color: themeColor, radius: 50)
                                 .scaleEffect(animVal)
-                                .rotationEffect(.degrees(sin(rotateAngle * 0.1) * 12.0))
+                                .rotationEffect(.degrees(matrixGlitch ? 8.0 : -8.0))
                             
                             Text(selectedTheme == .skull ? "CRIME & SPEED SYNDICATE" : (selectedTheme == .cyberpunk ? "CYBERNETIC WARFARE V.4" : "桜吹雪 • 疾走御意見番"))
                                 .font(.system(size: selectedTheme == .sakura ? 24 : 19, weight: .black, design: selectedTheme == .sakura ? .serif : .monospaced))
@@ -599,24 +604,24 @@ struct MultiThemeBootLoadingView: View {
                                 .scaleEffect(animVal)
                         }
                     }
-                    .transition(.opacity.combined(with: .scale(scale: 0.5)))
+                    .transition(.opacity.combined(with: .scale(scale: 0.4)))
                     
                 } else if bootStep == 1 {
                     VStack(spacing: 22) {
                         Image(systemName: "gauge.with.needle.fill")
-                            .font(.system(size: 105))
+                            .font(.system(size: 110))
                             .foregroundColor(.yellow)
-                            .shadow(color: .red, radius: 35)
-                            .rotationEffect(.degrees(warningFlash ? 25 : -25))
+                            .shadow(color: .red, radius: 40)
+                            .rotationEffect(.degrees(warningFlash ? 30 : -30))
                             .scaleEffect(animVal)
                         
-                        Text("SYSTEM OVERDRIVE ENGAGED")
-                            .font(.system(size: 24, weight: .black, design: .monospaced))
+                        Text("100-FX SYSTEM OVERDRIVE")
+                            .font(.system(size: 23, weight: .black, design: .monospaced))
                             .foregroundColor(.white)
-                            .kerning(6)
-                            .shadow(color: .yellow, radius: 15)
+                            .kerning(5)
+                            .shadow(color: .yellow, radius: 20)
                         
-                        Text("⚡ 引擎極限超頻 • 核心數據鏈全開 ⚡")
+                        Text("⚡ 100種視覺特效融合 • 核心數據鏈全開 ⚡")
                             .font(.system(size: 15, weight: .bold, design: .monospaced))
                             .foregroundColor(themeColor)
                             .padding(.horizontal, 20)
@@ -638,7 +643,7 @@ struct MultiThemeBootLoadingView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.yellow)
                                 .font(.system(size: 24))
-                            Text("【 警告：劇場型狂暴運転注意 】")
+                            Text("【 警告：極限多重特效運転注意 】")
                                 .font(.system(size: 21, weight: .black, design: .serif))
                                 .foregroundColor(.yellow)
                                 .kerning(4)
@@ -664,7 +669,7 @@ struct MultiThemeBootLoadingView: View {
             }
             .offset(x: CGFloat.random(in: -screenShake...screenShake), y: CGFloat.random(in: -screenShake...screenShake))
             
-            //略過按鈕
+            // 略過按鈕
             VStack {
                 HStack {
                     Spacer()
@@ -687,55 +692,56 @@ struct MultiThemeBootLoadingView: View {
         }
         .ignoresSafeArea(.all, edges: .all)
         .onAppear {
-            // 第一重轟炸閃光與震動
+            // 第一重開場極限閃光與震動特效
             AudioServicesPlaySystemSound(1016)
-            withAnimation(.easeIn(duration: 0.08)) {
+            withAnimation(.easeIn(duration: 0.05)) {
                 flashScreen = true
-                screenShake = 12.0
+                screenShake = 16.0
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 withAnimation(.easeOut(duration: 0.3)) {
                     flashScreen = false
                     screenShake = 0.0
                 }
             }
             
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.4)) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.35)) {
                 animVal = 1.0
-                shockwaveScale = 3.2
-                laserBeamWidth = 18.0
+                shockwaveScale = 3.8
+                laserBeamWidth = 24.0
             }
             
-            withAnimation(Animation.easeOut(duration: 1.5)) {
+            withAnimation(Animation.easeOut(duration: 1.8)) {
                 particleExplode = true
             }
             
-            withAnimation(Animation.linear(duration: 4.0).repeatForever(autoreverses: false)) {
+            withAnimation(Animation.linear(duration: 3.0).repeatForever(autoreverses: false)) {
                 rotateAngle = 360.0
             }
             
-            withAnimation(Animation.easeInOut(duration: 0.25).repeatForever(autoreverses: true)) {
+            withAnimation(Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
                 warningFlash.toggle()
+                matrixGlitch.toggle()
             }
             
-            // 第二階段切換
+            // 第二階段特效切換
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 AudioServicesPlaySystemSound(1007)
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(.easeInOut(duration: 0.25)) {
                     bootStep = 1
-                    screenShake = 6.0
+                    screenShake = 8.0
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     withAnimation { screenShake = 0.0 }
                 }
             }
             
-            // 第三階段切換
+            // 第三階段特效切換
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
                 withAnimation(.easeInOut(duration: 0.3)) { bootStep = 2 }
             }
             
-            // 結束開場
+            // 結束開場動畫進入主畫面
             DispatchQueue.main.asyncAfter(deadline: .now() + 6.8) {
                 withAnimation(.easeOut(duration: 0.4)) { isFinished = true }
             }
