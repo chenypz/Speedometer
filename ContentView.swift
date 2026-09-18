@@ -237,7 +237,6 @@ struct BootLoadingView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            // 掃描線特效背景
             VStack {
                 Rectangle()
                     .fill(LinearGradient(gradient: Gradient(colors: [.clear, safeCyan.opacity(0.3), .clear]), startPoint: .top, endPoint: .bottom))
@@ -249,7 +248,6 @@ struct BootLoadingView: View {
             .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 20) {
-                // 日本警告字保留與升級
                 if showWarningText {
                     Text("⚠️ 【 警告：システム強制起動・バイオメトリック認証完了 】")
                         .font(.system(size: 14, weight: .black, design: .monospaced))
@@ -271,7 +269,6 @@ struct BootLoadingView: View {
                     }
                 }
                 
-                // 暴力數字美學加載條
                 VStack(spacing: 6) {
                     ZStack(alignment: .leading) {
                         Rectangle().fill(Color.white.opacity(0.1)).frame(width: 300, height: 8).cornerRadius(4)
@@ -313,13 +310,11 @@ struct NeonArcFlowView: View {
     
     var body: some View {
         ZStack {
-            // 半圓形背景底軌
             Circle()
                 .trim(from: 0.0, to: 0.5)
                 .stroke(activeColor.opacity(0.2), style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 .rotationEffect(.degrees(180))
             
-            // 半圓形流水長亮發光主體
             Circle()
                 .trim(from: 0.0, to: 0.5)
                 .stroke(
@@ -434,6 +429,14 @@ struct ContentView: View {
         set { savedThemeRaw = newValue.rawValue }
     }
     
+    // 修正：提供正確的 Binding 讓 Picker 使用
+    var bindingTheme: Binding<DashboardTheme> {
+        Binding(
+            get { DashboardTheme(rawValue: savedThemeRaw) ?? .porsche },
+            set { savedThemeRaw = newValue.rawValue }
+        )
+    }
+    
     var activePrimaryColor: Color {
         if speedManager.speedKMH > speedLimit { return .red }
         if useCustomColor {
@@ -468,7 +471,6 @@ struct ContentView: View {
                         }
                         
                         VStack(spacing: 0) {
-                            // 頂部導覽列
                             HStack(alignment: .center, spacing: 6) {
                                 Text(currentTime, style: .time)
                                     .font(.system(size: isLandscape ? screenHeight * 0.042 : screenWidth * 0.035, weight: .black, design: .monospaced))
@@ -545,10 +547,8 @@ struct ContentView: View {
                             let gaugeSize = isLandscape ? min(screenWidth, screenHeight) * 0.68 : screenWidth * 0.72
                             let progress = min(speedManager.speedKMH / 160.0, 1.0)
                             
-                            // 主儀表與半圓形流水霓虹燈條結合
                             HStack(spacing: 20) {
                                 ZStack {
-                                    // 半圓形流水長亮霓虹燈條包覆在主儀表外圍上方
                                     if !isHUDMode {
                                         NeonArcFlowView(speed: speedManager.speedKMH, activeColor: activePrimaryColor)
                                             .offset(y: -10)
@@ -570,7 +570,6 @@ struct ContentView: View {
                                         .frame(width: gaugeSize, height: gaugeSize)
                                         .shadow(color: activePrimaryColor.opacity(0.9), radius: 16)
                                     
-                                    // 暴力數字美學字體呈現
                                     VStack(spacing: 0) {
                                         Text("\(Int(round(speedManager.speedKMH)))")
                                             .font(.system(size: gaugeSize * 0.38, weight: .black, design: .monospaced))
@@ -602,7 +601,6 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            // 下方多數據暴力美學面板
                             if !isHUDMode && !showMap {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 2) {
@@ -658,7 +656,7 @@ struct ContentView: View {
                     }
                     
                     Section(header: Text("視覺主題")) {
-                        Picker("風格主題", selection: $selectedTheme) {
+                        Picker("風格主題", selection: bindingTheme) {
                             ForEach(DashboardTheme.allCases) { theme in
                                 Text(theme.rawValue).tag(theme)
                             }
@@ -672,7 +670,6 @@ struct ContentView: View {
                             ColorPicker("燈條主色調", selection: Binding(
                                 get: { Color(red: customRed, green: customGreen, blue: customBlue) },
                                 set: { newColor in
-                                    // 簡易解析 Color 轉換為 RGB
                                     if let components = UIColor(newColor).cgColor.components, components.count >= 3 {
                                         customRed = Double(components[0])
                                         customGreen = Double(components[1])
@@ -792,7 +789,7 @@ struct OverspeedLogView: View {
                             Text("⚠️ 速度制限オーバー")
                                 .font(.system(size: 9, weight: .black, design: .monospaced))
                                 .padding(.horizontal, 4).padding(.vertical, 2)
-                               .background(Color.red.opacity(0.2))
+                                .background(Color.red.opacity(0.2))
                                 .foregroundColor(.red)
                                 .cornerRadius(4)
                         }
