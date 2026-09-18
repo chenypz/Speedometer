@@ -326,30 +326,30 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 【全新地平線風格】史詩級渲染開場動畫
+// MARK: - 4. 【地平線風格】頂級擬真開場動畫
 struct HorizonBootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var sunGlowScale: CGFloat = 0.8
-    @State private var carOffset: CGFloat = -300
+    @State private var carOffset: CGFloat = -350
     @State private var horizonLinesOffset: CGFloat = 0.0
     @State private var textFadeIn: Bool = false
     @State private var bootTextIndex: Int = 0
     
     let bootSequenceTexts = [
-        "FORZA HORIZON ENGINE LOADING...",
-        "CALIBRATING GLOBAL LIGHTING...",
-        "READY FOR THE OPEN ROAD."
+        "FORZA HORIZON 6 OPENING SEQUENCE...",
+        "SYNCHRONIZING WORLD LIGHTING & SKYBOX...",
+        "GET READY TO DRIVE."
     ]
 
     var body: some View {
         ZStack {
-            // 史詩感日落/黃昏大氣漸層背景 (地平線風格)
+            // 史詩感日落/曙光大氣漸層背景
             LinearGradient(
                 colors: [
-                    Color(red: 0.05, green: 0.02, blue: 0.12),
-                    Color(red: 0.15, green: 0.04, blue: 0.2),
-                    Color(red: 0.35, green: 0.1, blue: 0.15),
-                    Color(red: 0.05, green: 0.02, blue: 0.08)
+                    Color(red: 0.03, green: 0.01, blue: 0.08),
+                    Color(red: 0.18, green: 0.05, blue: 0.25),
+                    Color(red: 0.40, green: 0.12, blue: 0.15),
+                    Color(red: 0.02, green: 0.01, blue: 0.05)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -361,16 +361,16 @@ struct HorizonBootLoadingView: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            gradient: Gradient(colors: [Color.orange.opacity(0.8), Color.pink.opacity(0.3), Color.clear]),
+                            gradient: Gradient(colors: [Color.orange.opacity(0.85), Color.pink.opacity(0.4), Color.clear]),
                             center: .center,
-                            startRadius: 10,
-                            endRadius: 250
+                            startRadius: 5,
+                            endRadius: 280
                         )
                     )
-                    .frame(width: 400, height: 400)
+                    .frame(width: 450, height: 450)
                     .scaleEffect(sunGlowScale)
-                    .blur(radius: 20)
-                    .offset(y: -50)
+                    .blur(radius: 25)
+                    .offset(y: -40)
                 Spacer()
             }
             .ignoresSafeArea()
@@ -380,14 +380,14 @@ struct HorizonBootLoadingView: View {
                 Spacer()
                 ZStack {
                     LinearGradient(
-                        colors: [Color.clear, Color.cyan.opacity(0.5), Color.orange.opacity(0.8)],
+                        colors: [Color.clear, Color.safeCyan.opacity(0.4), Color.orange.opacity(0.9)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 120)
+                    .frame(height: 140)
                     .mask(
-                        VStack(spacing: 6) {
-                            ForEach(0..<8, id: \.self) { _ in
+                        VStack(spacing: 5) {
+                            ForEach(0..<10, id: \.self) { _ in
                                 Rectangle().frame(height: 2)
                             }
                         }
@@ -425,19 +425,18 @@ struct HorizonBootLoadingView: View {
                 Spacer()
                 
                 ZStack {
-                    // 超跑流光圖示
-                    VStack(spacing: 12) {
+                    VStack(spacing: 14) {
                         Image(systemName: "car.side.fill")
-                            .font(.system(size: 80))
+                            .font(.system(size: 90))
                             .foregroundColor(.white)
-                            .shadow(color: Color.orange.opacity(0.8), radius: 20)
+                            .shadow(color: Color.orange.opacity(0.9), radius: 25)
                             .offset(x: carOffset)
                         
-                        Text("HORIZON ENGINE")
-                            .font(.system(size: 16, weight: .black, design: .monospaced))
-                            .kerning(6)
+                        Text("FORZA HORIZON 6")
+                            .font(.system(size: 18, weight: .black, design: .monospaced))
+                            .kerning(8)
                             .foregroundColor(.orange)
-                            .shadow(color: .pink, radius: 10)
+                            .shadow(color: .pink, radius: 12)
                     }
                 }
                 
@@ -445,7 +444,7 @@ struct HorizonBootLoadingView: View {
                 Text(bootSequenceTexts[bootTextIndex])
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
                     .kerning(2)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(.white.opacity(0.85))
                     .frame(height: 25)
                     .opacity(textFadeIn ? 1.0 : 0.2)
 
@@ -454,26 +453,23 @@ struct HorizonBootLoadingView: View {
         }
         .ignoresSafeArea()
         .onAppear {
-            // 背景光柵流動
-            withAnimation(Animation.linear(duration: 0.6).repeatForever(autoreverses: false)) {
-                horizonLinesOffset = 50.0
+            withAnimation(Animation.linear(duration: 0.5).repeatForever(autoreverses: false)) {
+                horizonLinesOffset = 60.0
             }
 
-            // 太陽呼吸燈與超跑疾駛過場
-            withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                sunGlowScale = 1.1
+            withAnimation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                sunGlowScale = 1.12
             }
 
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.6)) {
                 carOffset = 0
             }
 
-            withAnimation(Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+            withAnimation(Animation.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
                 textFadeIn.toggle()
             }
 
-            // 依序切換文字並進入主畫面
-            Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { timer in
+            Timer.scheduledTimer(withTimeInterval: 1.3, repeats: true) { timer in
                 if bootTextIndex < bootSequenceTexts.count - 1 {
                     bootTextIndex += 1
                 } else {
