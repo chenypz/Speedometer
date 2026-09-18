@@ -1,4 +1,4 @@
-[source: 1]import SwiftUI
+import SwiftUI
 import CoreLocation
 import CoreMotion
 import MapKit
@@ -494,21 +494,19 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 100種特效融合：極限多重矩陣雷射與全螢幕粒子暴走開場動畫（100-FX Ultimate Matrix Boot）
+// MARK: - 5. 三種風格完全獨立的開場動畫（100-FX Ultimate Matrix Boot）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
     
     @State private var bootStep: Int = 0
     @State private var animVal: CGFloat = 0.0
-    @State private var shockwaveScale: CGFloat = 0.05
+    @State private var effectScale: CGFloat = 0.05
     @State private var particleExplode: Bool = false
     @State private var flashScreen: Bool = false
     @State private var rotateAngle: Double = 0.0
     @State private var warningFlash: Bool = false
     @State private var screenShake: CGFloat = 0.0
-    @State private var laserBeamWidth: CGFloat = 0.0
-    @State private var matrixGlitch: Bool = false
     
     var themeColor: Color {
         switch selectedTheme {
@@ -522,143 +520,109 @@ struct MultiThemeBootLoadingView: View {
         ZStack {
             Color.black.ignoresSafeArea(.all, edges: .all)
             
-            ZStack {
-                ForEach(0..<4, id: \.self) { ringIndex in
-                    Circle()
-                        .stroke(
-                            AngularGradient(
-                                gradient: Gradient(colors: [.clear, themeColor, .white, themeColor, .clear]),
-                                center: .center,
-                                angle: .degrees(rotateAngle * Double(ringIndex % 2 == 0 ? 3 : -3))
-                            ),
-                            lineWidth: CGFloat(laserBeamWidth / CGFloat(ringIndex + 1))
-                        )
-                        .scaleEffect(shockwaveScale * CGFloat(1.0 + Double(ringIndex) * 0.3))
-                        .blur(radius: CGFloat(ringIndex * 4))
-                }
-                
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [themeColor.opacity(0.95), themeColor.opacity(0.3), .clear]),
-                            center: .center,
-                            startRadius: 5,
-                            endRadius: 450
-                        )
-                    )
-                    .scaleEffect(shockwaveScale)
-                    .blur(radius: 30)
-                
-                if flashScreen {
-                    Color.white
-                        .opacity(0.98)
-                        .ignoresSafeArea(.all, edges: .all)
-                        .transition(.opacity)
-                }
-                
-                ForEach(0..<80, id: \.self) { i in
-                    Rectangle()
-                        .fill(i % 5 == 0 ? .white : (i % 2 == 0 ? themeColor : .yellow))
-                        .frame(width: CGFloat.random(in: 3...16), height: CGFloat.random(in: 3...16))
-                        .shadow(color: themeColor, radius: 15)
-                        .offset(
-                            x: particleExplode ? CGFloat(cos(Double(i) * 4.5 * .pi / 180.0) * CGFloat.random(in: 100...650)) : 0,
-                            y: particleExplode ? CGFloat(sin(Double(i) * 4.5 * .pi / 180.0) * CGFloat.random(in: 80...500)) : 0
-                        )
-                        .scaleEffect(particleExplode ? CGFloat.random(in: 1.0...2.2) : 0.1)
-                        .opacity(particleExplode ? 0.0 : 1.0)
+            // ─── 1. 骷髏暴力風：血色地獄雷射與暴走震動特效 ───
+            if selectedTheme == .skull {
+                ZStack {
+                    ForEach(0..<4, id: \.self) { i in
+                        Circle()
+                            .stroke(
+                                AngularGradient(gradient: Gradient(colors: [.clear, .red, .white, .red, .clear]), center: .center, angle: .degrees(rotateAngle * Double(i + 1))),
+                                lineWidth: CGFloat(15 + i * 8)
+                            )
+                            .scaleEffect(effectScale * CGFloat(1.0 + Double(i) * 0.25))
+                    }
+                    if flashScreen { Color.red.opacity(0.85).ignoresSafeArea() }
+                    
+                    ForEach(0..<50, id: \.self) { i in
+                        Rectangle()
+                            .fill(i % 2 == 0 ? Color.red : Color.white)
+                            .frame(width: CGFloat.random(in: 4...14), height: CGFloat.random(in: 4...14))
+                            .offset(
+                                x: particleExplode ? CGFloat(cos(Double(i) * 7.0 * .pi / 180.0) * CGFloat.random(in: 120...550)) : 0,
+                                y: particleExplode ? CGFloat(sin(Double(i) * 7.0 * .pi / 180.0) * CGFloat.random(in: 120...550)) : 0
+                            )
+                            .opacity(particleExplode ? 0.0 : 1.0)
+                    }
                 }
             }
-            .allowsHitTesting(false)
+            // ─── 2. 賽伯戰爭風：數位矩陣網格與高科技雷達掃描 ───
+            else if selectedTheme == .cyberpunk {
+                ZStack {
+                    ForEach(0..<5, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.safeCyan.opacity(0.6), lineWidth: 2)
+                            .frame(width: CGFloat(100 + i * 70), height: CGFloat(100 + i * 70))
+                            .rotationEffect(.degrees(rotateAngle * (i % 2 == 0 ? 2 : -2)))
+                            .scaleEffect(effectScale * 0.8)
+                    }
+                    if flashScreen { Color.safeCyan.opacity(0.8).ignoresSafeArea() }
+                    
+                    ForEach(0..<60, id: \.self) { i in
+                        Circle()
+                            .fill(i % 3 == 0 ? Color.white : Color.safeCyan)
+                            .frame(width: CGFloat.random(in: 3...8), height: CGFloat.random(in: 3...8))
+                            .offset(
+                                x: particleExplode ? CGFloat(sin(Double(i)) * CGFloat.random(in: 50...400)) : 0,
+                                y: particleExplode ? CGFloat(Double(i) * 12.0 - 250.0) : 0
+                            )
+                            .opacity(particleExplode ? 0.0 : 1.0)
+                    }
+                }
+            }
+            // ─── 3. 日本櫻花風：浪漫櫻雪紛飛與柔和霓虹暈染 ───
+            else {
+                ZStack {
+                    ForEach(0..<6, id: \.self) { i in
+                        Circle()
+                            .stroke(Color(red: 1.0, green: 0.6, blue: 0.8).opacity(0.4), lineWidth: 3)
+                            .frame(width: CGFloat(80 + i * 65), height: CGFloat(80 + i * 65))
+                            .scaleEffect(effectScale)
+                    }
+                    if flashScreen { Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.7).ignoresSafeArea() }
+                    
+                    ForEach(0..<45, id: \.self) { i in
+                        Ellipse()
+                            .fill(Color(red: 1.0, green: 0.7, blue: 0.85))
+                            .frame(width: 14, height: 9)
+                            .offset(
+                                x: particleExplode ? CGFloat(cos(Double(i) * 8.0) * CGFloat.random(in: 50...350)) : 0,
+                                y: particleExplode ? CGFloat(sin(Double(i) * 5.0) * CGFloat.random(in: 50...400) + 100) : 0
+                            )
+                            .rotationEffect(.degrees(rotateAngle * Double(i)))
+                            .opacity(particleExplode ? 0.0 : 1.0)
+                    }
+                }
+            }
             
             Group {
                 if bootStep == 0 {
-                    ZStack {
-                        ForEach(0..<6, id: \.self) { idx in
-                            Circle()
-                                .stroke(themeColor.opacity(0.7), lineWidth: CGFloat(2 + idx))
-                                .frame(width: CGFloat(140 + idx * 70), height: CGFloat(140 + idx * 70))
-                                .rotationEffect(.degrees(rotateAngle * (idx % 2 == 0 ? 3.0 : -3.0)))
-                                .scaleEffect(animVal)
-                        }
-                        
-                        VStack(spacing: 20) {
-                            Image(systemName: selectedTheme == .skull ? "skull.fill" : (selectedTheme == .cyberpunk ? "cpu" : "flower.tulip.fill"))
-                                .font(.system(size: 125))
-                                .foregroundColor(themeColor)
-                                .shadow(color: themeColor, radius: 50)
-                                .scaleEffect(animVal)
-                                .rotationEffect(.degrees(matrixGlitch ? 8.0 : -8.0))
-                            
-                            Text(selectedTheme == .skull ? "CRIME & SPEED SYNDICATE" : (selectedTheme == .cyberpunk ? "CYBERNETIC WARFARE V.4" : "桜吹雪 • 疾走御意見番"))
-                                .font(.system(size: selectedTheme == .sakura ? 24 : 19, weight: .black, design: selectedTheme == .sakura ? .serif : .monospaced))
-                                .foregroundColor(.white)
-                                .kerning(6)
-                                .shadow(color: themeColor, radius: 20)
-                                .scaleEffect(animVal)
-                        }
-                    }
-                    .transition(.opacity.combined(with: .scale(scale: 0.4)))
-                    
-                } else if bootStep == 1 {
                     VStack(spacing: 22) {
-                        Image(systemName: "gauge.with.needle.fill")
+                        Image(systemName: selectedTheme == .skull ? "skull.fill" : (selectedTheme == .cyberpunk ? "cpu" : "flower.tulip.fill"))
                             .font(.system(size: 110))
-                            .foregroundColor(.yellow)
-                            .shadow(color: .red, radius: 40)
-                            .rotationEffect(.degrees(warningFlash ? 30 : -30))
+                            .foregroundColor(themeColor)
+                            .shadow(color: themeColor, radius: 40)
                             .scaleEffect(animVal)
+                            .rotationEffect(.degrees(warningFlash ? 10 : -10))
                         
-                        Text("100-FX SYSTEM OVERDRIVE")
-                            .font(.system(size: 23, weight: .black, design: .monospaced))
+                        Text(selectedTheme == .skull ? "CRIME & SPEED SYNDICATE" : (selectedTheme == .cyberpunk ? "CYBERNETIC WARFARE V.4" : "桜吹雪 • 疾走御意見番"))
+                            .font(.system(size: selectedTheme == .sakura ? 22 : 18, weight: .black, design: selectedTheme == .sakura ? .serif : .monospaced))
                             .foregroundColor(.white)
-                            .kerning(5)
-                            .shadow(color: .yellow, radius: 20)
-                        
-                        Text("⚡ 100種視覺特效融合 • 核心數據鏈全開 ⚡")
-                            .font(.system(size: 15, weight: .bold, design: .monospaced))
+                            .kerning(4)
+                            .shadow(color: themeColor, radius: 15)
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.5)))
+                } else {
+                    VStack(spacing: 20) {
+                        Text(selectedTheme == .skull ? "⚠️ 暴力極限超速模式解禁 ⚠️" : (selectedTheme == .cyberpunk ? "⚡ 網路核心系統完全同步 ⚡" : "🌸 桜の極致 • 準備發車 🌸"))
+                            .font(.system(size: 18, weight: .black, design: .monospaced))
                             .foregroundColor(themeColor)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 10)
-                            .background(themeColor.opacity(0.3))
+                            .background(themeColor.opacity(0.25))
                             .cornerRadius(12)
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(themeColor, lineWidth: 2))
                     }
                     .transition(.scale.combined(with: .opacity))
-                    
-                } else {
-                    VStack(spacing: 24) {
-                        Rectangle()
-                            .fill(LinearGradient(colors: [.clear, themeColor, .clear], startPoint: .leading, endPoint: .trailing))
-                            .frame(height: 5)
-                            .padding(.horizontal, 25)
-                        
-                        HStack(spacing: 10) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.yellow)
-                                .font(.system(size: 24))
-                            Text("【 警告：極限多重特效運転注意 】")
-                                .font(.system(size: 21, weight: .black, design: .serif))
-                                .foregroundColor(.yellow)
-                                .kerning(4)
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.yellow)
-                                .font(.system(size: 24))
-                        }
-                        
-                        Text("本作品はフィクションであり、実際の公道における\n極端な速度超過や危険運転は法律で厳禁されています。\n安全第一で理性的なドライビングをお楽しみください。")
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.98))
-                            .multilineTextAlignment(.center)
-                            .lineSpacing(7)
-                            .padding(.horizontal, 25)
-                        
-                        Rectangle()
-                            .fill(LinearGradient(colors: [.clear, themeColor, .clear], startPoint: .leading, endPoint: .trailing))
-                            .frame(height: 5)
-                            .padding(.horizontal, 25)
-                    }
-                    .transition(.opacity)
                 }
             }
             .offset(x: CGFloat.random(in: -screenShake...screenShake), y: CGFloat.random(in: -screenShake...screenShake))
@@ -676,7 +640,6 @@ struct MultiThemeBootLoadingView: View {
                     .background(Color.black.opacity(0.7))
                     .cornerRadius(22)
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(themeColor, lineWidth: 2))
-                    .shadow(color: themeColor, radius: 8)
                     .padding(.trailing, 24)
                     .padding(.top, 24)
                 }
@@ -685,53 +648,50 @@ struct MultiThemeBootLoadingView: View {
         }
         .ignoresSafeArea(.all, edges: .all)
         .onAppear {
-            AudioServicesPlaySystemSound(1016)
-            withAnimation(.easeIn(duration: 0.05)) {
-                flashScreen = true
-                screenShake = 16.0
+            switch selectedTheme {
+            case .skull:
+                AudioServicesPlaySystemSound(1073)
+                AudioServicesPlaySystemSound(1115)
+            case .cyberpunk:
+                AudioServicesPlaySystemSound(1057)
+                AudioServicesPlaySystemSound(1104)
+            case .sakura:
+                AudioServicesPlaySystemSound(1022)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            
+            withAnimation(.easeIn(duration: 0.08)) {
+                flashScreen = true
+                screenShake = selectedTheme == .skull ? 18.0 : (selectedTheme == .cyberpunk ? 8.0 : 3.0)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
                 withAnimation(.easeOut(duration: 0.3)) {
                     flashScreen = false
                     screenShake = 0.0
                 }
             }
             
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.35)) {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.4)) {
                 animVal = 1.0
-                shockwaveScale = 3.8
-                laserBeamWidth = 24.0
+                effectScale = 3.5
             }
             
-            withAnimation(Animation.easeOut(duration: 1.8)) {
+            withAnimation(Animation.easeOut(duration: 1.6)) {
                 particleExplode = true
             }
             
-            withAnimation(Animation.linear(duration: 3.0).repeatForever(autoreverses: false)) {
+            withAnimation(Animation.linear(duration: 2.5).repeatForever(autoreverses: false)) {
                 rotateAngle = 360.0
             }
             
             withAnimation(Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
                 warningFlash.toggle()
-                matrixGlitch.toggle()
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                AudioServicesPlaySystemSound(1007)
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    bootStep = 1
-                    screenShake = 8.0
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    withAnimation { screenShake = 0.0 }
-                }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+                withAnimation(.easeInOut(duration: 0.3)) { bootStep = 1 }
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
-                withAnimation(.easeInOut(duration: 0.3)) { bootStep = 2 }
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 6.8) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
                 withAnimation(.easeOut(duration: 0.4)) { isFinished = true }
             }
         }
