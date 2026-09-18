@@ -493,7 +493,6 @@ struct SciFiParticleAssembleView<Content: View>: View {
                 .scaleEffect(0.8 + (assembleProgress * 0.2))
             
             if assembleProgress < 1.0 {
-                // 模擬小石頭/科幻光點從四面八方聚攏到中央的特效
                 ZStack {
                     ForEach(0..<30, id: \.self) { i in
                         let angle = Double(i) * (Double.pi * 2 / 30.0)
@@ -502,10 +501,10 @@ struct SciFiParticleAssembleView<Content: View>: View {
                         let y = sin(angle) * distance
                         
                         Circle()
-                            .fill(i % 2 == 0 ? Color.cyan : Color.white)
+                            .fill(i % 2 == 0 ? Color(red: 0.0, green: 0.8, blue: 1.0) : Color.white)
                             .frame(width: CGFloat(2 + (i % 4)), height: CGFloat(2 + (i % 4)))
                             .offset(x: x, y: y)
-                            .shadow(color: .cyan, radius: 4)
+                            .shadow(color: Color(red: 0.0, green: 0.8, blue: 1.0), radius: 4)
                     }
                 }
                 .edgesIgnoringSafeArea(.all)
