@@ -326,7 +326,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 暴力狂野、犯罪感與極速賽博風格 10 秒開場動畫
+// MARK: - 4. 暴力犯罪、骷髏與紅黑白拉線風格 10 秒開場動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
     @State private var progress: CGFloat = 0.0
@@ -334,7 +334,7 @@ struct BootLoadingView: View {
     @State private var showWarningScreen: Bool = false
     @State private var warningOpacity: Double = 0.0
     
-    // 暴力賽博動態參數
+    // 紅黑白暴力賽博動態參數
     @State private var glitchOffset: CGFloat = 0.0
     @State private var warningFlash: Bool = false
     @State private var skullScale: CGFloat = 0.2
@@ -352,29 +352,29 @@ struct BootLoadingView: View {
 
     var body: some View {
         ZStack {
-            // 極黑底色與血紅/暗紫賽博動態背景
-            LinearGradient(colors: [Color.black, Color(red: 0.15, green: 0.0, blue: 0.02), Color.black], startPoint: .top, endPoint: .bottom)
+            // 純黑與血紅色底調
+            LinearGradient(colors: [Color.black, Color(red: 0.12, green: 0.0, blue: 0.02), Color.black], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
 
-            // 暴力高速流動線條（製造極速感）
-            VStack(spacing: 20) {
-                ForEach(0..<10, id: \.self) { i in
+            // 紅、白、黑交織的暴力高速拉線（極速感）
+            VStack(spacing: 18) {
+                ForEach(0..<12, id: \.self) { i in
                     Rectangle()
-                        .fill(i % 2 == 0 ? Color.red : Color.safeCyan)
-                        .frame(height: 2)
-                        .opacity(0.3)
+                        .fill(i % 3 == 0 ? Color.red : (i % 3 == 1 ? Color.white : Color.gray))
+                        .frame(height: i % 2 == 0 ? 2 : 1)
+                        .opacity(i % 3 == 1 ? 0.6 : 0.3)
                         .offset(x: (i % 2 == 0 ? speedLineOffset : -speedLineOffset) * CGFloat(i + 1))
                 }
             }
             .ignoresSafeArea()
 
-            // 畫面震動與紅色警告閃爍遮罩
+            // 畫面警告閃爍遮罩
             Color.red
-                .opacity(warningFlash ? 0.25 : 0.0)
+                .opacity(warningFlash ? 0.2 : 0.0)
                 .ignoresSafeArea()
                 .animation(Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true), value: warningFlash)
 
-            // 右下角殘酷風格 SKIP 按鈕
+            // 右下角 SKIP 按鈕
             VStack {
                 Spacer()
                 HStack {
@@ -389,7 +389,7 @@ struct BootLoadingView: View {
                             .foregroundColor(.black)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                            .background(Color.red)
+                            .background(Color.white)
                             .cornerRadius(4)
                             .shadow(color: .red, radius: 8)
                     }
@@ -401,26 +401,27 @@ struct BootLoadingView: View {
 
             if !showWarningScreen {
                 VStack(spacing: 25) {
-                    // 暴力賽博核心圖示（火焰與血紅雷達波）
+                    // 骷髏頭核心圖示與紅黑白拉線環
                     ZStack {
-                        // 狂暴旋轉環
+                        // 外圈血紅拉線
                         Circle()
-                            .stroke(style: StrokeStyle(lineWidth: 4, dash: [15, 10]))
+                            .stroke(style: StrokeStyle(lineWidth: 4, dash: [12, 8]))
                             .foregroundColor(.red)
                             .frame(width: 190, height: 190)
                             .rotationEffect(.degrees(ringRotation))
                             .shadow(color: .red, radius: 10)
 
+                        // 內圈白色科技拉線
                         Circle()
-                            .stroke(Color.safeCyan.opacity(0.6), lineWidth: 2)
+                            .stroke(Color.white.opacity(0.7), lineWidth: 2)
                             .frame(width: 140, height: 140)
                             .rotationEffect(.degrees(-ringRotation * 1.5))
 
-                        // 中央犯罪/極速象徵圖示
-                        Image(systemName: "flame.fill")
+                        // 中央骷髏頭標誌
+                        Image(systemName: "skull.fill")
                             .font(.system(size: 60, weight: .black))
-                            .foregroundColor(.red)
-                            .shadow(color: .orange, radius: 15)
+                            .foregroundColor(.white)
+                            .shadow(color: .red, radius: 15)
                             .scaleEffect(skullScale)
                             // 霓虹失真錯位效果 (Glitch Effect)
                             .offset(x: glitchOffset)
@@ -435,7 +436,7 @@ struct BootLoadingView: View {
                         .shadow(color: .red, radius: 8)
                         .offset(x: -glitchOffset)
 
-                    // 進度條與駭客指令
+                    // 進度條與駭客指令 (紅黑白配色)
                     VStack(alignment: .leading, spacing: 8) {
                         ZStack(alignment: .leading) {
                             Rectangle()
@@ -444,7 +445,7 @@ struct BootLoadingView: View {
                                 .cornerRadius(2)
 
                             Rectangle()
-                                .fill(LinearGradient(colors: [.red, .orange, .safeCyan], startPoint: .leading, endPoint: .trailing))
+                                .fill(LinearGradient(colors: [.red, .white, .gray], startPoint: .leading, endPoint: .trailing))
                                 .frame(width: 320 * progress, height: 8)
                                 .cornerRadius(2)
                                 .shadow(color: .red, radius: 10)
@@ -452,7 +453,7 @@ struct BootLoadingView: View {
 
                         Text(brutalSteps[min(textStep, brutalSteps.count - 1)])
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.red)
+                            .foregroundColor(.white)
                     }
                 }
                 .transition(.opacity)
@@ -475,16 +476,16 @@ struct BootLoadingView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("超速、非法改裝與街頭競速協議")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.red)
+                            .foregroundColor(.white)
 
                         Text("您正在載入非官方、高度危險之地下賽博競速與測速略過核心。本系統不承擔任何警方追捕、超速罰單與物理撞擊之法律責任。踩下油門，生死自負。")
                             .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.gray)
                             .lineSpacing(4)
 
                         Text("STATUS: WANTED LEVEL MAXED OUT.")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundColor(.safeCyan)
+                            .foregroundColor(.red)
                             .padding(.top, 4)
                     }
                     .padding(20)
@@ -492,7 +493,7 @@ struct BootLoadingView: View {
                     .background(Color.black)
                 }
                 .frame(width: min(UIScreen.main.bounds.width - 40, 480))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red, lineWidth: 3))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white, lineWidth: 2))
                 .cornerRadius(8)
                 .shadow(color: .red.opacity(0.8), radius: 20)
                 .opacity(warningOpacity)
@@ -1084,6 +1085,19 @@ struct ContentView: View {
                                                 .background(Color.white.opacity(0.1))
                                                 .foregroundColor(.white)
                                                 .cornerRadius(12)
+                                            }
+                                            
+                                            // 設定按鍵 (齒輪按鈕)
+                                            Button(action: { showSettings = true }) {
+                                                VStack(spacing: 4) {
+                                                    Image(systemName: "gearshape.fill").font(.system(size: 14))
+                                                    Text("設定").font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                }
+                                                .frame(width: 52, height: 52)
+                                                .background(Color.white.opacity(0.1))
+                                                .foregroundColor(currentPrimaryColor)
+                                                .cornerRadius(12)
+                                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(currentPrimaryColor.opacity(0.4), lineWidth: 1))
                                             }
                                             
                                             Button(action: { vehicleManager.reportMobileSpeedTrap() }) {
