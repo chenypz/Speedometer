@@ -243,7 +243,6 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         SpeedCamera(latitude: 25.0400, longitude: 121.5700, speedLimit: 60, description: "台北忠孝東路固定測速")
     ]
     
-    // 修正：改為 var 以支援 SwiftUI 的雙向綁定 (Binding)
     @Published var speechManager = SpeechManager()
     
     private var lastSpokenCameraId: UUID? = nil
@@ -656,24 +655,23 @@ private struct SakuraFallingContentView: View {
     }
 }
 
-// MARK: - 7. 強化版超跑流光霓虹框（對準修復）
+// MARK: - 7. 強化版超跑流光霓虹框（已對準手機邊框修復）
 struct BackgroundNeonFlowView: View {
     @State private var isAnimating = false
     var primaryColor: Color
     
     var body: some View {
-        RoundedRectangle(cornerRadius: 28)
+        RoundedRectangle(cornerRadius: 40)
             .stroke(
                 AngularGradient(
                     gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, .white, primaryColor, primaryColor.opacity(0.2)]),
                     center: .center,
                     angle: .degrees(isAnimating ? 360 : 0)
                 ),
-                lineWidth: 10
+                lineWidth: 6
             )
-            .padding(10)
-            .shadow(color: primaryColor, radius: 20)
-            .shadow(color: primaryColor.opacity(0.6), radius: 8)
+            .shadow(color: primaryColor, radius: 15)
+            .shadow(color: primaryColor.opacity(0.5), radius: 6)
             .allowsHitTesting(false)
             .ignoresSafeArea()
             .onAppear {
