@@ -326,33 +326,73 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 【全新極速重機點火動畫】炫麗科技感開場
-struct BootLoadingView: View {
+// MARK: - 4. 【全新地平線風格】史詩級渲染開場動畫
+struct HorizonBootLoadingView: View {
     @Binding var isFinished: Bool
-    @State private var pulseGlow: Bool = false
-    @State private var bikeScale: CGFloat = 0.8
-    @State private var speedLinesOffset: CGFloat = 0.0
+    @State private var sunGlowScale: CGFloat = 0.8
+    @State private var carOffset: CGFloat = -300
+    @State private var horizonLinesOffset: CGFloat = 0.0
+    @State private var textFadeIn: Bool = false
     @State private var bootTextIndex: Int = 0
     
     let bootSequenceTexts = [
-        "SYSTEM INITIALIZING...",
-        "CONNECTING NEURAL GPS...",
-        "TURBOCHARGER READY. LET'S RIDE!"
+        "FORZA HORIZON ENGINE LOADING...",
+        "CALIBRATING GLOBAL LIGHTING...",
+        "READY FOR THE OPEN ROAD."
     ]
 
     var body: some View {
         ZStack {
-            // 深邃科幻背景
-            Color.black.ignoresSafeArea()
+            // 史詩感日落/黃昏大氣漸層背景 (地平線風格)
+            LinearGradient(
+                colors: [
+                    Color(red: 0.05, green: 0.02, blue: 0.12),
+                    Color(red: 0.15, green: 0.04, blue: 0.2),
+                    Color(red: 0.35, green: 0.1, blue: 0.15),
+                    Color(red: 0.05, green: 0.02, blue: 0.08)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
-            // 放射狀高速流動光條
-            VStack(spacing: 30) {
-                ForEach(0..<12, id: \.self) { i in
-                    Rectangle()
-                        .fill(i % 2 == 0 ? Color.safeCyan : Color.purple)
-                        .frame(height: 1)
-                        .opacity(0.4)
-                        .offset(x: speedLinesOffset * CGFloat(i + 1))
+            // 擬真光暈日輪背景
+            VStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [Color.orange.opacity(0.8), Color.pink.opacity(0.3), Color.clear]),
+                            center: .center,
+                            startRadius: 10,
+                            endRadius: 250
+                        )
+                    )
+                    .frame(width: 400, height: 400)
+                    .scaleEffect(sunGlowScale)
+                    .blur(radius: 20)
+                    .offset(y: -50)
+                Spacer()
+            }
+            .ignoresSafeArea()
+
+            // 地面高速流動光柵 (速度感)
+            VStack {
+                Spacer()
+                ZStack {
+                    LinearGradient(
+                        colors: [Color.clear, Color.cyan.opacity(0.5), Color.orange.opacity(0.8)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 120)
+                    .mask(
+                        VStack(spacing: 6) {
+                            ForEach(0..<8, id: \.self) { _ in
+                                Rectangle().frame(height: 2)
+                            }
+                        }
+                        .offset(y: horizonLinesOffset)
+                    )
                 }
             }
             .ignoresSafeArea()
@@ -362,16 +402,16 @@ struct BootLoadingView: View {
                 HStack {
                     Spacer()
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) { isFinished = true }
+                        withAnimation(.easeInOut(duration: 0.3)) { isFinished = true }
                     }) {
                         Text("SKIP ❯❯")
                             .font(.system(size: 11, weight: .black, design: .monospaced))
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.safeCyan)
-                            .cornerRadius(4)
-                            .shadow(color: .safeCyan, radius: 6)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Color.white.opacity(0.2))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.6), lineWidth: 1))
+                            .cornerRadius(6)
                     }
                     .padding(.trailing, 24)
                     .padding(.top, 40)
@@ -380,70 +420,65 @@ struct BootLoadingView: View {
             }
             .zIndex(30)
 
-            // 核心重機視覺與啟動特效
-            VStack(spacing: 24) {
+            // 中央核心：超跑剪影與地平線字體
+            VStack(spacing: 20) {
                 Spacer()
                 
                 ZStack {
-                    // 外環炫光霓虹圈
-                    Circle()
-                        .stroke(
-                            AngularGradient(gradient: Gradient(colors: [.safeCyan, .purple, .blue, .safeCyan]), center: .center),
-                            lineWidth: 4
-                        )
-                        .frame(width: 220, height: 220)
-                        .scaleEffect(pulseGlow ? 1.15 : 0.95)
-                        .opacity(pulseGlow ? 0.9 : 0.4)
-                        .shadow(color: .safeCyan, radius: 15)
-
-                    // 重機圖示與速度符號
-                    VStack(spacing: 8) {
-                        Image(systemName: "fuelpump.fill") // 代表機車動能核心
-                            .font(.system(size: 64))
+                    // 超跑流光圖示
+                    VStack(spacing: 12) {
+                        Image(systemName: "car.side.fill")
+                            .font(.system(size: 80))
                             .foregroundColor(.white)
-                            .shadow(color: .safeCyan, radius: 12)
+                            .shadow(color: Color.orange.opacity(0.8), radius: 20)
+                            .offset(x: carOffset)
                         
-                        Text("CYBER RIDER")
-                            .font(.system(size: 12, weight: .black, design: .monospaced))
-                            .kerning(3)
-                            .foregroundColor(.safeCyan)
+                        Text("HORIZON ENGINE")
+                            .font(.system(size: 16, weight: .black, design: .monospaced))
+                            .kerning(6)
+                            .foregroundColor(.orange)
+                            .shadow(color: .pink, radius: 10)
                     }
-                    .scaleEffect(bikeScale)
                 }
-
-                // 啟動狀態文字
-                VStack(spacing: 8) {
-                    Text(bootSequenceTexts[bootTextIndex])
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .kerning(2)
-                        .foregroundColor(.white)
-                        .shadow(color: .purple, radius: 6)
-                        .frame(height: 25)
-                }
+                
+                // 動態狀態加載文字
+                Text(bootSequenceTexts[bootTextIndex])
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .kerning(2)
+                    .foregroundColor(.white.opacity(0.8))
+                    .frame(height: 25)
+                    .opacity(textFadeIn ? 1.0 : 0.2)
 
                 Spacer()
             }
         }
         .ignoresSafeArea()
         .onAppear {
-            // 背景光條高速流動
-            withAnimation(Animation.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                speedLinesOffset = -400.0
+            // 背景光柵流動
+            withAnimation(Animation.linear(duration: 0.6).repeatForever(autoreverses: false)) {
+                horizonLinesOffset = 50.0
             }
 
-            // 霓虹圈呼吸燈特效
-            withAnimation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                pulseGlow = true
-                bikeScale = 1.05
+            // 太陽呼吸燈與超跑疾駛過場
+            withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                sunGlowScale = 1.1
             }
 
-            // 依序切換開機文字並進入主畫面
-            Timer.scheduledTimer(withTimeInterval: 1.1, repeats: true) { timer in
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+                carOffset = 0
+            }
+
+            withAnimation(Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                textFadeIn.toggle()
+            }
+
+            // 依序切換文字並進入主畫面
+            Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { timer in
                 if bootTextIndex < bootSequenceTexts.count - 1 {
                     bootTextIndex += 1
                 } else {
                     timer.invalidate()
-                    withAnimation(.easeInOut(duration: 0.4)) {
+                    withAnimation(.easeInOut(duration: 0.5)) {
                         isFinished = true
                     }
                 }
@@ -880,7 +915,7 @@ struct ContentView: View {
                 .ignoresSafeArea(.all, edges: .all)
                 
                 if !isBootLoaded {
-                    BootLoadingView(isFinished: $isBootLoaded)
+                    HorizonBootLoadingView(isFinished: $isBootLoaded)
                         .transition(.opacity)
                         .zIndex(20)
                 } else {
