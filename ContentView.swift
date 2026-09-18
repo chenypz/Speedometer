@@ -326,211 +326,183 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 4. 【極度刺激】機車飆速甩開警車追逐 7 秒開場動畫
+// MARK: - 4. 【電影級追逐畫面】動態重機與警車追逐開場動畫
 struct BootLoadingView: View {
     @Binding var isFinished: Bool
-    @State private var progress: CGFloat = 0.0
-    @State private var textStep = 0
-    @State private var showWarningScreen: Bool = false
-    @State private var warningOpacity: Double = 0.0
-    
-    @State private var glitchOffset: CGFloat = 0.0
     @State private var policeFlash: Bool = false
-    @State private var bikeSpeed: Double = 30.0
-    @State private var speedLineOffset: CGFloat = 0.0
-    @State private var copDistance: Int = 300
-
-    let chaseSteps = [
-        "🚨 [0.0s] 警告：前方 300 公尺發現國道紅斑馬攔截...",
-        "⚡ [1.5s] 油門全開！轉速直逼紅線區 (14,000 RPM)...",
-        "🏍️ [3.0s] 鑽車縫！極限壓車過彎，甩開警車追擊...",
-        "🔥 [4.5s] 甩尾脫離！Current Speed: 185 km/h...",
-        "☠️ [6.0s] 甩尾成功。甩開法律，全速逃脫。"
+    @State private var roadOffset: CGFloat = 0.0
+    @State private var copPosition: CGFloat = 80.0
+    @State private var bikeShake: CGFloat = 0.0
+    @State private var storyIndex: Int = 0
+    @State private var showEscapeBanner: Bool = false
+    
+    let movieScripts = [
+        "🚨 國道高速公路：警鳴大作，後方紅斑馬急逼...",
+        "⚡ 騎士油門一拜！強行切入車陣，突破封鎖線...",
+        "🔥 引擎嘶吼：轉速飆破 14,000 RPM，極速甩尾...",
+        "☠️ 甩開追兵！進入地下極速駕駛模式..."
     ]
 
     var body: some View {
         ZStack {
+            // 電影紅藍警笛閃爍背景
             Group {
                 if policeFlash {
-                    Color.red.opacity(0.4)
+                    Color.red.opacity(0.45)
                 } else {
-                    Color.blue.opacity(0.4)
+                    Color.blue.opacity(0.45)
                 }
             }
             .ignoresSafeArea()
-            .animation(Animation.easeInOut(duration: 0.18).repeatForever(autoreverses: true), value: policeFlash)
+            .animation(Animation.easeInOut(duration: 0.16).repeatForever(autoreverses: true), value: policeFlash)
 
-            VStack(spacing: 12) {
-                ForEach(0..<16, id: \.self) { i in
+            // 高速移動的道路光條 (畫面感來源)
+            VStack(spacing: 20) {
+                ForEach(0..<10, id: \.self) { i in
                     Rectangle()
                         .fill(i % 2 == 0 ? Color.safeCyan : Color.white)
-                        .frame(height: i % 3 == 0 ? 3 : 1)
-                        .opacity(0.6)
-                        .offset(x: (i % 2 == 0 ? speedLineOffset : -speedLineOffset) * CGFloat(i + 1))
+                        .frame(height: 2)
+                        .opacity(0.7)
+                        .offset(x: roadOffset * CGFloat(i + 1))
                 }
             }
             .ignoresSafeArea()
 
+            // 右上角略過按鈕
             VStack {
-                Spacer()
                 HStack {
                     Spacer()
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isFinished = true
-                        }
+                        withAnimation(.easeInOut(duration: 0.2)) { isFinished = true }
                     }) {
-                        Text("SKIP CHASE ❯❯")
+                        Text("SKIP ❯❯")
                             .font(.system(size: 11, weight: .black, design: .monospaced))
                             .foregroundColor(.black)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
                             .background(Color.white)
                             .cornerRadius(4)
-                            .shadow(color: .red, radius: 8)
+                            .shadow(color: .red, radius: 6)
                     }
                     .padding(.trailing, 24)
-                    .padding(.bottom, 20)
+                    .padding(.top, 40)
                 }
+                Spacer()
             }
             .zIndex(30)
 
-            if !showWarningScreen {
-                VStack(spacing: 18) {
-                    ZStack {
-                        Circle()
-                            .stroke(style: StrokeStyle(lineWidth: 6, dash: [12, 8]))
-                            .foregroundColor(policeFlash ? Color.red : Color.blue)
-                            .frame(width: 200, height: 200)
-                            .shadow(color: policeFlash ? .red : .blue, radius: 15)
+            // 核心追逐畫面 (重機 vs 警車)
+            VStack(spacing: 24) {
+                Spacer()
+                
+                // 動態視覺圖形：重機在前逃竄、警車在後緊咬
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.black.opacity(0.6))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(policeFlash ? Color.red : Color.blue, lineWidth: 2))
+                        .frame(height: 180)
+                        .shadow(color: policeFlash ? .red : .blue, radius: 12)
 
+                    HStack(spacing: 40) {
+                        // 追在後方的警車
                         VStack(spacing: 4) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "light.beacon.max.fill")
-                                    .foregroundColor(policeFlash ? .red : .blue)
-                                    .font(.system(size: 14))
-                                Text("POLICE CHASE")
-                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.white)
+                            HStack(spacing: 2) {
+                                Circle().fill(policeFlash ? Color.red : Color.blue).frame(width: 8, height: 8)
+                                Circle().fill(policeFlash ? Color.blue : Color.red).frame(width: 8, height: 8)
                             }
-                            
-                            Text(String(format: "%.0f", bikeSpeed))
-                                .font(.system(size: 56, weight: .black, design: .monospaced))
+                            Image(systemName: "car.fill")
+                                .font(.system(size: 44))
                                 .foregroundColor(.white)
-                                .shadow(color: Color.safeCyan, radius: 10)
-                            
-                            Text("KM/H (WANTED)")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .shadow(color: policeFlash ? .red : .blue, radius: 10)
+                            Text("POLICE")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
                                 .foregroundColor(.red)
-
-                            Text("警車距離: \(copDistance)m")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                .foregroundColor(copDistance < 100 ? .red : .yellow)
-                                .padding(.top, 2)
                         }
-                    }
-                    .frame(height: 200)
+                        .offset(x: copPosition)
 
-                    Text("UNDERGROUND BIKE ESCAPE")
-                        .font(.system(size: 16, weight: .black, design: .monospaced))
-                        .kerning(3)
+                        // 逃跑中的重機 (帶震動感)
+                        VStack(spacing: 4) {
+                            Image(systemName: "light.beacon.max.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.yellow)
+                            Image(systemName: "fuelpump.fill") // 代表機車/動力
+                                .font(.system(size: 48))
+                                .foregroundColor(Color.safeCyan)
+                                .shadow(color: Color.safeCyan, radius: 10)
+                            Text("WANTED RIDER")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundColor(.safeCyan)
+                        }
+                        .offset(x: bikeShake)
+                    }
+                }
+                .padding(.horizontal, 24)
+
+                // 電影感字幕與情境旁白
+                VStack(spacing: 12) {
+                    Text("HIGH-SPEED PURSUIT")
+                        .font(.system(size: 15, weight: .black, design: .monospaced))
+                        .kerning(4)
                         .foregroundColor(.white)
-                        .shadow(color: .red, radius: 10)
-                        .offset(x: glitchOffset)
+                        .shadow(color: .red, radius: 8)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        ZStack(alignment: .leading) {
-                            Rectangle()
-                                .fill(Color.white.opacity(0.1))
-                                .frame(width: 320, height: 8)
-                                .cornerRadius(2)
-
-                            Rectangle()
-                                .fill(LinearGradient(colors: [.blue, .red, .white], startPoint: .leading, endPoint: .trailing))
-                                .frame(width: 320 * progress, height: 8)
-                                .cornerRadius(2)
-                                .shadow(color: .red, radius: 10)
-                        }
-
-                        Text(chaseSteps[min(textStep, chaseSteps.count - 1)])
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
-                    }
+                    Text(movieScripts[storyIndex])
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundColor(.yellow)
+                        .multilineTextAlignment(.center)
+                        .frame(height: 30)
                 }
-                .transition(.opacity)
-            } else {
-                VStack(spacing: 0) {
-                    HStack {
-                        Text("🚨 ESCAPE SUCCESSFUL")
-                            .font(.system(size: 14, weight: .black, design: .monospaced))
-                            .foregroundColor(.black)
-                        Spacer()
-                        Text("LOS SANTOS POLICE")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundColor(.black)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.yellow)
+                .padding(.horizontal, 20)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("成功甩開警車攔截！")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
+                Spacer()
+            }
 
-                        Text("通緝狀態已解除。解鎖地下飆車模式，油門一拜，生死無懼。")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black)
+            // 成功甩開的結尾特效框
+            if showEscapeBanner {
+                VStack(spacing: 8) {
+                    Text("🚨 甩尾成功：脫離警車追緝")
+                        .font(.system(size: 14, weight: .black, design: .monospaced))
+                        .foregroundColor(.black)
+                    Text("全速解鎖，準備進入駕駛艙...")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.gray)
                 }
-                .frame(width: min(UIScreen.main.bounds.width - 40, 440))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow, lineWidth: 2))
-                .cornerRadius(8)
-                .shadow(color: .red.opacity(0.8), radius: 20)
-                .opacity(warningOpacity)
+                .padding(20)
+                .background(Color.yellow)
+                .cornerRadius(12)
+                .shadow(color: .red, radius: 20)
+                .transition(.scale)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
         .onAppear {
             policeFlash = true
 
-            withAnimation(Animation.linear(duration: 0.6).repeatForever(autoreverses: false)) {
-                speedLineOffset = 200.0
+            // 道路光條流動動畫 (製造高速感)
+            withAnimation(Animation.linear(duration: 0.4).repeatForever(autoreverses: false)) {
+                roadOffset = -300.0
             }
 
-            withAnimation(Animation.easeInOut(duration: 0.08).repeatForever(autoreverses: true)) {
-                glitchOffset = CGFloat(Int.random(in: -4...4))
+            // 重機高速行駛的微幅震動
+            withAnimation(Animation.easeInOut(duration: 0.05).repeatForever(autoreverses: true)) {
+                bikeShake = CGFloat(Int.random(in: -3...3))
             }
 
-            withAnimation(.easeInOut(duration: 7.0)) {
-                progress = 1.0
-                bikeSpeed = 195.0
+            // 警車距離逐漸被拉開的動畫
+            withAnimation(Animation.easeInOut(duration: 6.0)) {
+                copPosition = 140.0
             }
 
-            Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { timer in
-                if copDistance > 30 {
-                    copDistance -= Int.random(in: 40...80)
-                    if copDistance < 0 { copDistance = 0 }
-                }
-            }
-
-            Timer.scheduledTimer(withTimeInterval: 1.35, repeats: true) { timer in
-                if textStep < chaseSteps.count - 1 {
-                    textStep += 1
+            // 電影旁白文字依序切換
+            Timer.scheduledTimer(withTimeInterval: 1.6, repeats: true) { timer in
+                if storyIndex < movieScripts.count - 1 {
+                    storyIndex += 1
                 } else {
                     timer.invalidate()
-                    withAnimation(.easeInOut(duration: 0.2)) { showWarningScreen = true }
-                    withAnimation(.easeIn(duration: 0.2)) { warningOpacity = 1.0 }
-
+                    withAnimation(.spring()) { showEscapeBanner = true }
+                    
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                        withAnimation(.easeOut(duration: 0.3)) { warningOpacity = 0.0 }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            withAnimation(.easeInOut(duration: 0.3)) { isFinished = true }
-                        }
+                        withAnimation(.easeInOut(duration: 0.3)) { isFinished = true }
                     }
                 }
             }
@@ -1212,7 +1184,7 @@ struct ContentView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 16) // 確保主畫面兩側留有安全距離，不再被邊緣切掉
+                        .padding(.horizontal, 16)
                     }
                 }
             }
