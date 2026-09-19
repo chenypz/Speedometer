@@ -5,14 +5,13 @@ import MapKit
 import AVFoundation
 import UIKit
 
-// MARK: - iOS 14 / 15 相容性色彩防護
+// MARK: - iOS 14/15 相容色彩
 extension Color {
     static var safeCyan: Color {
         if #available(iOS 15.0, *) { return Color.cyan }
         else { return Color(red: 0.0, green: 0.75, blue: 1.0) }
     }
 }
-
 extension UIColor {
     static var safeSystemCyan: UIColor {
         if #available(iOS 15.0, *) { return UIColor.systemCyan }
@@ -20,294 +19,369 @@ extension UIColor {
     }
 }
 
-// MARK: - [新增] 動態模糊與 120Hz 順暢化模組 (Metal GPU 加速)
-struct DynamicMotionBlurModifier: ViewModifier {
-    var isEnabled: Bool
-    var intensity: CGFloat // 根據速度動態決定模糊與殘影程度
-
-    func body(content: Content) -> some View {
-        if isEnabled && intensity > 0 {
-            ZStack {
-                // 殘影層 1 (向外擴展 + 模糊)
-                content
-                    .opacity(0.35 * Double(intensity))
-                    .scaleEffect(1.0 + (intensity * 0.025))
-                    .blur(radius: intensity * 3.0)
-                    .offset(x: -intensity * 3, y: intensity * 2)
-                
-                // 殘影層 2 (反向錯位)
-                content
-                    .opacity(0.2 * Double(intensity))
-                    .scaleEffect(1.0 + (intensity * 0.015))
-                    .blur(radius: intensity * 5.0)
-                    .offset(x: intensity * 4, y: -intensity * 2)
-
-                // 主體層
-                content
-            }
-            // 啟用 Metal GPU 渲染，大幅降低 iPhone 11 CPU 負擔，防止掉幀
-            .drawingGroup() 
-        } else {
-            content
-        }
-    }
-}
-
-extension View {
-    func dynamicMotionBlur(isEnabled: Bool, intensity: CGFloat) -> some View {
-        self.modifier(DynamicMotionBlurModifier(isEnabled: isEnabled, intensity: intensity))
-    }
-    
-    // 單純開啟 Metal 加速，用於靜態但複雜的向量圖形
-    func metalAcceleration(isEnabled: Bool = true) -> some View {
-        Group {
-            if isEnabled { self.drawingGroup() }
-            else { self }
-        }
-    }
-}
-
-// MARK: - 1. 資料模型與歷史紀錄
+// MARK: - 資料模型
 struct OverspeedRecord: Identifiable, Codable {
-    let id: UUID
-    let date: Date
-    let speed: Double
-    let speedLimit: Double
+    let id: UUID; let date: Date; let speed: Double; let speedLimit: Double
 }
-
 struct HistoryRecord: Identifiable, Codable {
-    let id: UUID
-    let date: Date
-    let maxSpeed: Double
-    let zeroToOneHundredTime: Double
-    let maxGForce: Double
-    let tripDistance: Double
-    let routeCoordinates: [CodableCoordinate]
+    let id: UUID; let date: Date; let maxSpeed: Double
+    let zeroToOneHundredTime: Double; let maxGForce: Double
+    let tripDistance: Double; let routeCoordinates: [CodableCoordinate]
 }
-
 struct CodableCoordinate: Codable {
-    let latitude: Double
-    let longitude: Double
-    init(_ coordinate: CLLocationCoordinate2D) {
-        self.latitude = coordinate.latitude
-        self.longitude = coordinate.longitude
-    }
-    var coordinate: CLLocationCoordinate2D {
-        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-    }
+    let latitude: Double; let longitude: Double
+    init(_ c: CLLocationCoordinate2D) { latitude = c.latitude; longitude = c.longitude }
+    var coordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
 }
-
 struct SpeedCamera: Identifiable, Codable {
     var id: UUID = UUID()
-    let latitude: Double
-    let longitude: Double
-    let speedLimit: Double
-    let description: String
+    let latitude: Double; let longitude: Double
+    let speedLimit: Double; let description: String
     var isTemporary: Bool = false
-    
-    enum CodingKeys: String, CodingKey {
-        case latitude, longitude, speedLimit, description, isTemporary
-    }
-    
+    enum CodingKeys: String, CodingKey { case latitude, longitude, speedLimit, description, isTemporary }
     init(latitude: Double, longitude: Double, speedLimit: Double, description: String, isTemporary: Bool = false) {
-        self.latitude = latitude
-        self.longitude = longitude
-        self.speedLimit = speedLimit
-        self.description = description
-        self.isTemporary = isTemporary
+        self.latitude = latitude; self.longitude = longitude
+        self.speedLimit = speedLimit; self.description = description; self.isTemporary = isTemporary
     }
-    
-    var coordinate: CLLocationCoordinate2D {
-        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-    }
+    var coordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
 }
 
-// MARK: - 2. 佈景主題設定
+// MARK: - 主題
 enum DashboardTheme: String, CaseIterable, Identifiable {
     case skull = "骷髏暴力風"
     case cyberpunk = "賽伯戰爭風"
     case sakura = "日本櫻花風"
-    
-    var id: String { self.rawValue }
-    
+    var id: String { rawValue }
     func primaryColor(custom: Color?) -> Color {
-        if let custom = custom { return custom }
+        if let c = custom { return c }
         switch self {
-        case .skull: return .red
+        case .skull:     return .red
         case .cyberpunk: return .safeCyan
-        case .sakura: return Color(red: 1.0, green: 0.3, blue: 0.4)
+        case .sakura:    return Color(red: 1.0, green: 0.3, blue: 0.4)
         }
     }
-    
     var backgroundGradientColors: [Color] {
         switch self {
         case .skull:
-            return [Color(red: 0.2, green: 0.0, blue: 0.0), Color.black, Color(red: 0.1, green: 0.0, blue: 0.02)]
+            return [Color(red: 0.18, green: 0.0, blue: 0.0), Color.black, Color(red: 0.08, green: 0.0, blue: 0.02)]
         case .cyberpunk:
-            return [Color(red: 0.01, green: 0.05, blue: 0.18), Color.black, Color(red: 0.05, green: 0.0, blue: 0.15)]
+            return [Color(red: 0.01, green: 0.04, blue: 0.16), Color.black, Color(red: 0.04, green: 0.0, blue: 0.14)]
         case .sakura:
-            return [Color(red: 0.15, green: 0.02, blue: 0.05), Color(red: 0.04, green: 0.01, blue: 0.03), Color.black]
+            return [Color(red: 0.14, green: 0.02, blue: 0.05), Color(red: 0.03, green: 0.01, blue: 0.03), Color.black]
         }
     }
 }
-
 extension Color: @retroactive RawRepresentable {
     public init?(rawValue: String) {
-        let components = rawValue.components(separatedBy: ",")
-        guard components.count == 3,
-              let red = Double(components[0]),
-              let green = Double(components[1]),
-              let blue = Double(components[2]) else {
-            return nil
-        }
-        self.init(red: red, green: green, blue: blue)
+        let c = rawValue.components(separatedBy: ",")
+        guard c.count == 3, let r = Double(c[0]), let g = Double(c[1]), let b = Double(c[2]) else { return nil }
+        self.init(red: r, green: g, blue: b)
     }
-
     public var rawValue: String {
-        let uiColor = UIColor(self)
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        return "\(red),\(green),\(blue)"
+        let u = UIColor(self); var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        u.getRed(&r, green: &g, blue: &b, alpha: &a); return "\(r),\(g),\(b)"
     }
 }
 
-// MARK: - 動態流動背景元件
+// MARK: - ★ 效能優化：統一動畫計時器（減少 Timer/DispatchQueue 重繪壓力）
+class AnimationClock: ObservableObject {
+    @Published var tick: Double = 0
+    private var displayLink: CADisplayLink?
+    private var startTime: CFTimeInterval = 0
+
+    init() { start() }
+
+    private func start() {
+        startTime = CACurrentMediaTime()
+        displayLink = CADisplayLink(target: self, selector: #selector(update))
+        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+        displayLink?.add(to: .main, forMode: .common)
+    }
+
+    @objc private func update() {
+        tick = CACurrentMediaTime() - startTime
+    }
+
+    deinit { displayLink?.invalidate() }
+}
+
+// MARK: - ★ 骷髏主題專屬：血色霧氣粒子背景
+struct SkullBloodFogView: View {
+    let tick: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let count = 18
+            for i in 0..<count {
+                let seed = Double(i) * 137.5
+                let phase = tick * 0.38 + seed
+                let x = (sin(phase * 0.31 + seed * 0.07) * 0.5 + 0.5) * size.width
+                let y = (cos(phase * 0.19 + seed * 0.11) * 0.5 + 0.5) * size.height
+                let radius = CGFloat(55 + sin(phase * 0.5 + seed) * 35)
+                let opacity = 0.05 + abs(sin(phase * 0.27 + seed * 0.3)) * 0.12
+
+                ctx.opacity = opacity
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: x - radius, y: y - radius,
+                                          width: radius * 2, height: radius * 2)),
+                    with: .color(Color(red: 0.85, green: 0.0, blue: 0.05))
+                )
+            }
+            // 血絲裂紋效果
+            for i in 0..<6 {
+                let seed = Double(i) * 60.0
+                let prog = CGFloat(fmod(tick * 0.4 + seed * 0.1, 1.0))
+                let startX = CGFloat(sin(seed) * 0.5 + 0.5) * size.width
+                let startY = CGFloat(cos(seed) * 0.5 + 0.5) * size.height
+                var path = Path()
+                path.move(to: CGPoint(x: startX, y: startY))
+                path.addLine(to: CGPoint(
+                    x: startX + CGFloat(sin(seed * 1.3)) * 80 * prog,
+                    y: startY + CGFloat(cos(seed * 1.7)) * 80 * prog
+                ))
+                ctx.opacity = Double(0.15 * prog)
+                ctx.stroke(path, with: .color(.red), style: StrokeStyle(lineWidth: 1.5))
+            }
+        }
+        .allowsHitTesting(false)
+        .ignoresSafeArea()
+        .blendMode(.screen)
+    }
+}
+
+// MARK: - ★ 賽伯主題專屬：矩陣數字流
+struct CyberpunkMatrixRainView: View {
+    let tick: Double
+    private let columns = 22
+    private let chars = ["0","1","ア","イ","ウ","エ","オ","カ","キ","ク","ケ","コ","サ","シ","ス",
+                         "△","◇","╬","░","▓","█","∑","∞","π","Ω","∂","∇"]
+
+    var body: some View {
+        Canvas { ctx, size in
+            let colWidth = size.width / CGFloat(columns)
+            for col in 0..<columns {
+                let seed = Double(col) * 73.1
+                let speed = 0.6 + fmod(seed * 0.031, 0.8)
+                let phase = fmod(tick * speed + seed * 0.4, 1.0)
+                let rows = 12
+                for row in 0..<rows {
+                    let rowFrac = (CGFloat(row) / CGFloat(rows) + CGFloat(phase)) .truncatingRemainder(dividingBy: 1.0)
+                    let y = rowFrac * (size.height + 60) - 30
+                    let x = CGFloat(col) * colWidth + colWidth / 2
+                    let fade = 1.0 - Double(row) / Double(rows)
+                    let charIdx = (col * 7 + row + Int(tick * 8)) % chars.count
+                    let brightness: Double = row == 0 ? 1.0 : fade * 0.55
+                    ctx.opacity = brightness * 0.85
+
+                    let fontSize = CGFloat(9 + (col % 3) * 2)
+                    ctx.draw(
+                        Text(chars[charIdx])
+                            .font(.system(size: fontSize, weight: .bold, design: .monospaced))
+                            .foregroundColor(row == 0 ? .white : .safeCyan),
+                        at: CGPoint(x: x, y: y)
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .ignoresSafeArea()
+        .blendMode(.screen)
+    }
+}
+
+// MARK: - ★ 賽伯主題：霓虹網格地面
+struct CyberpunkNeonGridView: View {
+    let tick: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let vp = CGPoint(x: size.width / 2, y: size.height * 0.55)
+            let cols = 10
+            let rows = 8
+            let pulse = 0.7 + sin(tick * 2.2) * 0.3
+
+            for c in 0...cols {
+                let t = CGFloat(c) / CGFloat(cols)
+                let bottomX = t * size.width
+                var path = Path()
+                path.move(to: vp)
+                path.addLine(to: CGPoint(x: bottomX, y: size.height))
+                ctx.opacity = 0.18 * pulse
+                ctx.stroke(path, with: .color(.safeCyan), style: StrokeStyle(lineWidth: 0.8))
+            }
+            for r in 1...rows {
+                let t = CGFloat(r) / CGFloat(rows)
+                let eased = t * t
+                let leftX = vp.x - (vp.x - 0) * eased
+                let rightX = vp.x + (size.width - vp.x) * eased
+                let y = vp.y + (size.height - vp.y) * eased
+                var path = Path()
+                path.move(to: CGPoint(x: leftX, y: y))
+                path.addLine(to: CGPoint(x: rightX, y: y))
+                ctx.opacity = (0.08 + eased * 0.2) * pulse
+                ctx.stroke(path, with: .color(.safeCyan), style: StrokeStyle(lineWidth: 0.9))
+            }
+        }
+        .allowsHitTesting(false)
+        .ignoresSafeArea()
+        .blendMode(.screen)
+    }
+}
+
+// MARK: - ★ 櫻花主題：金光神社粒子
+struct SakuraGoldParticlesView: View {
+    let tick: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let count = 30
+            for i in 0..<count {
+                let seed = Double(i) * 111.3
+                let phase = fmod(tick * (0.25 + fmod(seed * 0.009, 0.3)) + seed * 0.6, 1.0)
+                let x = (sin(seed * 0.47 + tick * 0.12) * 0.5 + 0.5) * size.width
+                let y = (1.0 - phase) * (size.height + 40) - 20
+                let s = CGFloat(2.5 + sin(seed * 1.7 + tick) * 1.5)
+                let fade = sin(phase * Double.pi)
+                ctx.opacity = fade * 0.85
+
+                let shimmer = (sin(tick * 4.0 + seed) * 0.5 + 0.5)
+                let goldColor = Color(red: 1.0, green: 0.82 + shimmer * 0.1, blue: 0.2 + shimmer * 0.15)
+                ctx.fill(Path(ellipseIn: CGRect(x: x - s, y: y - s, width: s*2, height: s*2)),
+                         with: .color(goldColor))
+
+                // 光暈
+                let glowR = s * 3.5
+                ctx.opacity = fade * 0.18
+                ctx.fill(Path(ellipseIn: CGRect(x: x - glowR, y: y - glowR, width: glowR*2, height: glowR*2)),
+                         with: .color(Color(red: 1.0, green: 0.9, blue: 0.4)))
+            }
+        }
+        .allowsHitTesting(false)
+        .ignoresSafeArea()
+        .blendMode(.screen)
+    }
+}
+
+// MARK: - ★ 升級版動態背景（含金屬光澤mesh）
 struct AnimatedBackgroundView: View {
     var themeColors: [Color]
     var primaryColor: Color
-    
-    @State private var startPoint = UnitPoint(x: 0, y: 0)
-    @State private var endPoint = UnitPoint(x: 1, y: 1)
-    @State private var pulseScale: CGFloat = 1.0
-    
+    var theme: DashboardTheme
+    @ObservedObject var clock: AnimationClock
+
     var body: some View {
         ZStack {
-            LinearGradient(colors: themeColors, startPoint: startPoint, endPoint: endPoint)
-                .ignoresSafeArea(.all, edges: .all)
-            
-            RadialGradient(
-                gradient: Gradient(colors: [primaryColor.opacity(0.25), .clear]),
-                center: .center,
-                startRadius: 20,
-                endRadius: 280
-            )
-            .scaleEffect(pulseScale)
-            .blur(radius: 30)
-            .ignoresSafeArea(.all, edges: .all)
-        }
-        .metalAcceleration() // 加入 GPU 加速
-        .onAppear {
-            withAnimation(Animation.easeInOut(duration: 6.0).repeatForever(autoreverses: true)) {
-                startPoint = UnitPoint(x: 1, y: 0)
-                endPoint = UnitPoint(x: 0, y: 1)
+            // 基礎漸層
+            LinearGradient(colors: themeColors,
+                           startPoint: UnitPoint(x: 0.5 + sin(clock.tick * 0.15) * 0.5,
+                                                 y: 0.0),
+                           endPoint: UnitPoint(x: 0.5 + cos(clock.tick * 0.12) * 0.5,
+                                               y: 1.0))
+                .ignoresSafeArea()
+
+            // 金屬光澤 mesh 覆蓋
+            Canvas { ctx, size in
+                let t = clock.tick
+                for i in 0..<4 {
+                    let seed = Double(i) * 90.0
+                    let cx = (sin(t * 0.22 + seed) * 0.5 + 0.5) * size.width
+                    let cy = (cos(t * 0.17 + seed) * 0.5 + 0.5) * size.height
+                    let r = CGFloat(120 + sin(t * 0.5 + seed) * 60)
+                    ctx.opacity = 0.06 + abs(sin(t * 0.3 + seed)) * 0.08
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: cx - r, y: cy - r, width: r*2, height: r*2)),
+                        with: .color(primaryColor)
+                    )
+                }
             }
-            withAnimation(Animation.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) {
-                pulseScale = 1.35
+            .blendMode(.screen)
+            .ignoresSafeArea()
+
+            // 主題專屬環境粒子
+            switch theme {
+            case .skull:
+                SkullBloodFogView(tick: clock.tick)
+            case .cyberpunk:
+                CyberpunkNeonGridView(tick: clock.tick)
+                CyberpunkMatrixRainView(tick: clock.tick)
+                    .opacity(0.35)
+            case .sakura:
+                SakuraGoldParticlesView(tick: clock.tick)
             }
         }
+        .drawingGroup() // ★ 合批渲染，大幅降低 GPU 壓力
     }
 }
 
-// MARK: - 3. 語音播報管理器
+// MARK: - 語音播報
 class SpeechManager: ObservableObject {
     private let synthesizer = AVSpeechSynthesizer()
-    
     @Published var currentLanguage: String = "zh-TW" {
-        didSet {
-            UserDefaults.standard.set(currentLanguage, forKey: "AppLanguage")
-        }
+        didSet { UserDefaults.standard.set(currentLanguage, forKey: "AppLanguage") }
     }
-    
     init() {
-        if let savedLang = UserDefaults.standard.string(forKey: "AppLanguage") {
-            self.currentLanguage = savedLang
-        }
+        if let s = UserDefaults.standard.string(forKey: "AppLanguage") { currentLanguage = s }
     }
-    
     func speak(_ text: String) {
-        if synthesizer.isSpeaking {
-            synthesizer.stopSpeaking(at: .immediate)
-        }
-        
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: currentLanguage)
-        utterance.rate = 0.52
-        utterance.pitchMultiplier = 1.0
-        
-        synthesizer.speak(utterance)
+        if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
+        let u = AVSpeechUtterance(string: text)
+        u.voice = AVSpeechSynthesisVoice(language: currentLanguage)
+        u.rate = 0.52; u.pitchMultiplier = 1.0
+        synthesizer.speak(u)
     }
-    
     func announceWarning(speedLimit: Int, isOverspeed: Bool) {
         let text: String
         if currentLanguage.starts(with: "zh") {
-            if isOverspeed {
-                text = "注意，您已超速！前方速限 \(speedLimit) 公里"
-            } else {
-                text = "前方速限 \(speedLimit) 公里"
-            }
+            text = isOverspeed ? "注意，您已超速！前方速限 \(speedLimit) 公里" : "前方速限 \(speedLimit) 公里"
         } else {
-            if isOverspeed {
-                text = "Warning! Speed limit is \(speedLimit). You are speeding!"
-            } else {
-                text = "Speed limit is \(speedLimit)."
-            }
+            text = isOverspeed ? "Warning! Speed limit \(speedLimit). You are speeding!" : "Speed limit \(speedLimit)."
         }
         speak(text)
     }
 }
 
-// MARK: - 4. GPS & 感應器管理器
+// MARK: - GPS & 感應器管理器
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
-    
+
     @Published var speed: Double = 0.0
     @Published var maxSpeed: Double = 0.0
     @Published var tripDistance: Double = 0.0
     @Published var heading: Double = 0.0
-    
     @Published var currentGForceX: Double = 0.0
     @Published var currentGForceY: Double = 0.0
     @Published var maxGForce: Double = 0.0
-    
     @Published var zeroToOneHundredTime: Double = 0.0
     @Published var isTesting0_100: Bool = false
     private var accelStartTime: Date? = nil
     private var hasReached100: Bool = false
-    
     @Published var zeroTo100mTime: Double = 0.0
     @Published var isTesting0_100m: Bool = false
     private var distanceStartTime: Date? = nil
     private var startLocationFor100m: CLLocation? = nil
     private var hasReached100m: Bool = false
-    
     @Published var harshAccelerationCount: Int = 0
     @Published var harshBrakingCount: Int = 0
     @Published var overspeedDurationSeconds: Double = 0.0
     private var lastRecordedSpeed: Double = 0.0
-    
     @Published var currentLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654)
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
-    
     @Published var isNavigating: Bool = false
     @Published var routePolyline: MKPolyline? = nil
     @Published var currentInstruction: String = "搜尋目的地或點擊地圖"
     @Published var distanceToNextStep: Double = 0.0
     @Published var destinationCoordinate: CLLocationCoordinate2D? = nil
-    
     @Published var nearestCameraAlert: String? = nil
     @Published var recordedPath: [CLLocationCoordinate2D] = []
-    
     @Published var speedCameras: [SpeedCamera] = [
         SpeedCamera(latitude: 25.0330, longitude: 121.5654, speedLimit: 50, description: "台北信義路固定測速"),
         SpeedCamera(latitude: 25.0400, longitude: 121.5700, speedLimit: 60, description: "台北忠孝東路固定測速")
     ]
-    
     @Published var speechManager = SpeechManager()
-    
     private var lastSpokenCameraId: UUID? = nil
     private var lastLocation: CLLocation? = nil
-    
+
     override init() {
         super.init()
         locationManager.delegate = self
@@ -317,359 +391,363 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
         locationManager.startUpdatingHeading()
-        
         startMotionUpdates()
     }
-    
+
     func updateLocationAccuracy(isNetworkBoostEnabled: Bool) {
-        if isNetworkBoostEnabled {
-            locationManager.desiredAccuracy = kCLLocationAccuracyBest
-            locationManager.distanceFilter = 1.0
-        } else {
-            locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-            locationManager.distanceFilter = kCLDistanceFilterNone
-        }
+        locationManager.desiredAccuracy = isNetworkBoostEnabled ? kCLLocationAccuracyBest : kCLLocationAccuracyBestForNavigation
+        locationManager.distanceFilter = isNetworkBoostEnabled ? 1.0 : kCLDistanceFilterNone
     }
-    
+
     func resetData() {
-        tripDistance = 0.0
-        maxSpeed = 0.0
-        maxGForce = 0.0
-        
-        zeroToOneHundredTime = 0.0
-        isTesting0_100 = false
-        hasReached100 = false
-        accelStartTime = nil
-        
-        zeroTo100mTime = 0.0
-        isTesting0_100m = false
-        hasReached100m = false
-        distanceStartTime = nil
-        startLocationFor100m = nil
-        
-        lastLocation = nil
-        recordedPath.removeAll()
-        lastSpokenCameraId = nil
-        
-        harshAccelerationCount = 0
-        harshBrakingCount = 0
-        overspeedDurationSeconds = 0.0
-        lastRecordedSpeed = 0.0
+        tripDistance = 0; maxSpeed = 0; maxGForce = 0
+        zeroToOneHundredTime = 0; isTesting0_100 = false; hasReached100 = false; accelStartTime = nil
+        zeroTo100mTime = 0; isTesting0_100m = false; hasReached100m = false
+        distanceStartTime = nil; startLocationFor100m = nil
+        lastLocation = nil; recordedPath.removeAll(); lastSpokenCameraId = nil
+        harshAccelerationCount = 0; harshBrakingCount = 0
+        overspeedDurationSeconds = 0; lastRecordedSpeed = 0
     }
-    
+
     func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
-        let newCam = SpeedCamera(
-            latitude: currentLocation.latitude,
-            longitude: currentLocation.longitude,
-            speedLimit: speedLimit,
-            description: description.isEmpty ? "⚠️ 手動回報測速點" : description,
-            isTemporary: true
-        )
-        speedCameras.append(newCam)
+        let cam = SpeedCamera(latitude: currentLocation.latitude, longitude: currentLocation.longitude,
+                              speedLimit: speedLimit,
+                              description: description.isEmpty ? "⚠️ 手動回報測速點" : description,
+                              isTemporary: true)
+        speedCameras.append(cam)
         nearestCameraAlert = "已成功加入目前測速點！"
         AudioServicesPlaySystemSound(1016)
         speechManager.speak("已成功加入目前測速點")
     }
-    
+
     func removeNearestCamera() {
-        guard let currentLoc = lastLocation else {
-            speechManager.speak("目前沒有定位資訊")
-            return
-        }
-        
-        if let index = speedCameras.firstIndex(where: { camera in
-            let camLoc = CLLocation(latitude: camera.latitude, longitude: camera.longitude)
-            return currentLoc.distance(from: camLoc) <= 150.0
+        guard let loc = lastLocation else { speechManager.speak("目前沒有定位資訊"); return }
+        if let idx = speedCameras.firstIndex(where: {
+            loc.distance(from: CLLocation(latitude: $0.latitude, longitude: $0.longitude)) <= 150
         }) {
-            let removedCam = speedCameras.remove(at: index)
-            nearestCameraAlert = "已移除最近測速點：\(removedCam.description)"
-            AudioServicesPlaySystemSound(1016)
-            speechManager.speak("已移除最近測速點")
+            let removed = speedCameras.remove(at: idx)
+            nearestCameraAlert = "已移除最近測速點：\(removed.description)"
+            AudioServicesPlaySystemSound(1016); speechManager.speak("已移除最近測速點")
         } else {
             nearestCameraAlert = "附近 150 公尺內沒有測速點可移除"
             speechManager.speak("附近沒有找到可移除的測速點")
         }
     }
-    
+
     func setDestination(_ coordinate: CLLocationCoordinate2D) {
-        self.destinationCoordinate = coordinate
-        self.isNavigating = true
-        
-        let request = MKDirections.Request()
-        request.source = MKMapItem(placemark: MKPlacemark(coordinate: currentLocation))
-        request.destination = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
-        request.transportType = .automobile
-        
-        let directions = MKDirections(request: request)
-        directions.calculate { [weak self] response, error in
-            guard let self = self, let route = response?.routes.first else {
-                self?.currentInstruction = "路線計算失敗"
-                return
+        destinationCoordinate = coordinate; isNavigating = true
+        let req = MKDirections.Request()
+        req.source = MKMapItem(placemark: MKPlacemark(coordinate: currentLocation))
+        req.destination = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        req.transportType = .automobile
+        MKDirections(request: req).calculate { [weak self] resp, _ in
+            guard let self, let route = resp?.routes.first else {
+                self?.currentInstruction = "路線計算失敗"; return
             }
-            
             self.routePolyline = route.polyline
-            if let firstStep = route.steps.first(where: { !$0.instructions.isEmpty }) {
-                self.currentInstruction = firstStep.instructions
-                self.distanceToNextStep = firstStep.distance
+            if let step = route.steps.first(where: { !$0.instructions.isEmpty }) {
+                self.currentInstruction = step.instructions
+                self.distanceToNextStep = step.distance
             }
         }
     }
-    
+
     func cancelNavigation() {
-        isNavigating = false
-        routePolyline = nil
-        destinationCoordinate = nil
-        currentInstruction = "導航已結束"
-        distanceToNextStep = 0.0
+        isNavigating = false; routePolyline = nil; destinationCoordinate = nil
+        currentInstruction = "導航已結束"; distanceToNextStep = 0
     }
-    
+
     private func startMotionUpdates() {
-        if motionManager.isAccelerometerAvailable {
-            motionManager.accelerometerUpdateInterval = 0.1
-            motionManager.startAccelerometerUpdates(to: OperationQueue.main) { [weak self] (data: CMAccelerometerData?, error: Error?) in
-                guard let self = self, let acceleration = data?.acceleration else { return }
-                self.currentGForceX = acceleration.x
-                self.currentGForceY = acceleration.y
-                let currentG = sqrt(acceleration.x * acceleration.x + acceleration.y * acceleration.y)
-                if currentG > self.maxGForce {
-                    self.maxGForce = currentG
-                }
-            }
+        guard motionManager.isAccelerometerAvailable else { return }
+        motionManager.accelerometerUpdateInterval = 0.1
+        motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
+            guard let self, let acc = data?.acceleration else { return }
+            self.currentGForceX = acc.x; self.currentGForceY = acc.y
+            let g = sqrt(acc.x*acc.x + acc.y*acc.y)
+            if g > self.maxGForce { self.maxGForce = g }
         }
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let newLocation = locations.last else { return }
-        currentLocation = newLocation.coordinate
-        recordedPath.append(newLocation.coordinate)
-        
-        let speedKmh = max(0, newLocation.speed * 3.6)
-        // 透過 SwiftUI Animation 讓速度變動平滑化，不卡頓
-        withAnimation(.easeOut(duration: 0.3)) {
-            self.speed = speedKmh
-        }
-        
-        let speedDelta = speedKmh - lastRecordedSpeed
-        if speedDelta > 18.0 {
-            harshAccelerationCount += 1
-        } else if speedDelta < -18.0 {
-            harshBrakingCount += 1
-        }
-        lastRecordedSpeed = speedKmh
-        
-        checkSpeedCameras(currentLoc: newLocation, currentSpeed: speedKmh)
-        if speedKmh > maxSpeed { maxSpeed = speedKmh }
-        
+        guard let loc = locations.last else { return }
+        currentLocation = loc.coordinate
+        recordedPath.append(loc.coordinate)
+        let kmh = max(0, loc.speed * 3.6)
+        speed = kmh
+        let delta = kmh - lastRecordedSpeed
+        if delta > 18 { harshAccelerationCount += 1 } else if delta < -18 { harshBrakingCount += 1 }
+        lastRecordedSpeed = kmh
+        checkSpeedCameras(currentLoc: loc, currentSpeed: kmh)
+        if kmh > maxSpeed { maxSpeed = kmh }
         if let last = lastLocation {
-            let distanceInMeters = newLocation.distance(from: last)
-            if distanceInMeters > 0 { tripDistance += distanceInMeters / 1000.0 }
+            let d = loc.distance(from: last)
+            if d > 0 { tripDistance += d / 1000.0 }
         }
-        lastLocation = newLocation
-        
-        if speedKmh < 5 && !isTesting0_100 && !hasReached100 {
-            isTesting0_100 = true
-            accelStartTime = Date()
-            zeroToOneHundredTime = 0.0
-            hasReached100 = false
-        } else if isTesting0_100, let startTime = accelStartTime {
-            let elapsed = Date().timeIntervalSince(startTime)
-            zeroToOneHundredTime = elapsed
-            if speedKmh >= 100.0 {
-                isTesting0_100 = false
-                hasReached100 = true
-            } else if elapsed > 30.0 {
-                isTesting0_100 = false
-            }
+        lastLocation = loc
+        if kmh < 5 && !isTesting0_100 && !hasReached100 {
+            isTesting0_100 = true; accelStartTime = Date(); zeroToOneHundredTime = 0; hasReached100 = false
+        } else if isTesting0_100, let t = accelStartTime {
+            zeroToOneHundredTime = Date().timeIntervalSince(t)
+            if kmh >= 100 { isTesting0_100 = false; hasReached100 = true }
+            else if zeroToOneHundredTime > 30 { isTesting0_100 = false }
         }
-        
-        if speedKmh < 3 && !isTesting0_100m && !hasReached100m {
-            isTesting0_100m = true
-            distanceStartTime = Date()
-            startLocationFor100m = newLocation
-            zeroTo100mTime = 0.0
-            hasReached100m = false
-        } else if isTesting0_100m, let startLoc = startLocationFor100m, let startTime = distanceStartTime {
-            let elapsed = Date().timeIntervalSince(startTime)
-            let distanceCovered = newLocation.distance(from: startLoc)
-            zeroTo100mTime = elapsed
-            if distanceCovered >= 100.0 {
-                isTesting0_100m = false
-                hasReached100m = true
-            } else if elapsed > 30.0 {
-                isTesting0_100m = false
-            }
+        if kmh < 3 && !isTesting0_100m && !hasReached100m {
+            isTesting0_100m = true; distanceStartTime = Date(); startLocationFor100m = loc; zeroTo100mTime = 0
+        } else if isTesting0_100m, let sl = startLocationFor100m, let st = distanceStartTime {
+            zeroTo100mTime = Date().timeIntervalSince(st)
+            if loc.distance(from: sl) >= 100 { isTesting0_100m = false; hasReached100m = true }
+            else if zeroTo100mTime > 30 { isTesting0_100m = false }
         }
     }
-    
+
     private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
-        let alertDistance: CLLocationDistance = 400.0
-        
-        for camera in speedCameras {
-            let cameraLocation = CLLocation(latitude: camera.latitude, longitude: camera.longitude)
-            let distance = currentLoc.distance(from: cameraLocation)
-            
-            if distance <= alertDistance {
-                nearestCameraAlert = "\(camera.description) 剩 \(Int(distance))m (速限 \(Int(camera.speedLimit))km)"
-                
-                if distance <= 300, lastSpokenCameraId != camera.id {
-                    lastSpokenCameraId = camera.id
-                    let isOverspeed = currentSpeed > camera.speedLimit
-                    speechManager.announceWarning(speedLimit: Int(camera.speedLimit), isOverspeed: isOverspeed)
-                    
-                    if isOverspeed {
-                        AudioServicesPlaySystemSound(1007)
-                    }
+        for cam in speedCameras {
+            let camLoc = CLLocation(latitude: cam.latitude, longitude: cam.longitude)
+            let dist = currentLoc.distance(from: camLoc)
+            if dist <= 400 {
+                nearestCameraAlert = "\(cam.description) 剩 \(Int(dist))m (速限 \(Int(cam.speedLimit))km)"
+                if dist <= 300, lastSpokenCameraId != cam.id {
+                    lastSpokenCameraId = cam.id
+                    speechManager.announceWarning(speedLimit: Int(cam.speedLimit), isOverspeed: currentSpeed > cam.speedLimit)
+                    if currentSpeed > cam.speedLimit { AudioServicesPlaySystemSound(1007) }
                 }
                 return
             }
         }
-        
-        if let lastId = lastSpokenCameraId,
-           let camera = speedCameras.first(where: { $0.id == lastId }) {
-            let cameraLocation = CLLocation(latitude: camera.latitude, longitude: camera.longitude)
-            if currentLoc.distance(from: cameraLocation) > 500 {
+        if let id = lastSpokenCameraId, let cam = speedCameras.first(where: { $0.id == id }) {
+            if currentLoc.distance(from: CLLocation(latitude: cam.latitude, longitude: cam.longitude)) > 500 {
                 lastSpokenCameraId = nil
             }
         }
-        
         if nearestCameraAlert?.contains("已成功") == false && nearestCameraAlert?.contains("已移除") == false {
             nearestCameraAlert = nil
         }
     }
-    
-    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
-        heading = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading h: CLHeading) {
+        heading = h.trueHeading >= 0 ? h.trueHeading : h.magneticHeading
     }
-    
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
     }
 }
 
-// MARK: - 5. 日式大威嚴神獸白狐向量繪圖（帶有紅色領巾與項圈）
+// MARK: - ★ 白狐靈獸（保留原版，加強光效）
 struct MajesticWhiteFoxFaceView: View {
     var body: some View {
         ZStack {
-            // 背景靈氣微光
             Circle()
-                .fill(RadialGradient(gradient: Gradient(colors: [Color.red.opacity(0.4), .clear]), center: .center, startRadius: 10, endRadius: 160))
-                .frame(width: 320, height: 320)
-            
-            // 左耳外廓
-            Path { path in
-                path.move(to: CGPoint(x: 100, y: 150))
-                path.addLine(to: CGPoint(x: 10, y: 10))
-                path.addLine(to: CGPoint(x: 120, y: 80))
-                path.closeSubpath()
-            }
-            .fill(Color.white)
-            .shadow(color: .red, radius: 8)
-            
-            // 右耳外廓
-            Path { path in
-                path.move(to: CGPoint(x: 200, y: 150))
-                path.addLine(to: CGPoint(x: 290, y: 10))
-                path.addLine(to: CGPoint(x: 180, y: 80))
-                path.closeSubpath()
-            }
-            .fill(Color.white)
-            .shadow(color: .red, radius: 8)
-            
-            // 耳內暗紅紋路
-            Path { path in
-                path.move(to: CGPoint(x: 90, y: 120))
-                path.addLine(to: CGPoint(x: 35, y: 35))
-                path.addLine(to: CGPoint(x: 110, y: 85))
-                path.closeSubpath()
-            }
-            .fill(Color(red: 0.7, green: 0.0, blue: 0.1))
-            
-            Path { path in
-                path.move(to: CGPoint(x: 210, y: 120))
-                path.addLine(to: CGPoint(x: 265, y: 35))
-                path.addLine(to: CGPoint(x: 190, y: 85))
-                path.closeSubpath()
-            }
-            .fill(Color(red: 0.7, green: 0.0, blue: 0.1))
-            
-            // 狐狸面部主輪廓
-            Path { path in
-                path.move(to: CGPoint(x: 150, y: 280)) // 下巴
-                path.addLine(to: CGPoint(x: 40, y: 130))  // 左頰
-                path.addLine(to: CGPoint(x: 90, y: 110))  // 左額
-                path.addLine(to: CGPoint(x: 150, y: 140)) // 額頭中心
-                path.addLine(to: CGPoint(x: 210, y: 110)) // 右額
-                path.addLine(to: CGPoint(x: 260, y: 130)) // 右頰
-                path.closeSubpath()
-            }
-            .fill(Color(red: 0.98, green: 0.98, blue: 1.0))
-            .shadow(color: .white, radius: 12)
-            
-            // 威嚴紅瞳 (左)
-            Ellipse()
-                .fill(Color(red: 0.9, green: 0.1, blue: 0.2))
-                .frame(width: 42, height: 18)
-                .rotationEffect(.degrees(28))
-                .position(x: 105, y: 165)
-                .shadow(color: .red, radius: 10)
-            
-            // 威嚴紅瞳 (右)
-            Ellipse()
-                .fill(Color(red: 0.9, green: 0.1, blue: 0.2))
-                .frame(width: 42, height: 18)
-                .rotationEffect(.degrees(-28))
-                .position(x: 195, y: 165)
-                .shadow(color: .red, radius: 10)
-            
-            // 金黃瞳孔
-            Circle().fill(Color.yellow).frame(width: 6, height: 6).position(x: 108, y: 163)
-            Circle().fill(Color.yellow).frame(width: 6, height: 6).position(x: 192, y: 163)
-            
-            // 臉頰日式狐狸面具紅色印紋
-            Path { path in
-                path.move(to: CGPoint(x: 65, y: 180))
-                path.addQuadCurve(to: CGPoint(x: 95, y: 200), control: CGPoint(x: 80, y: 170))
-                path.move(to: CGPoint(x: 235, y: 180))
-                path.addQuadCurve(to: CGPoint(x: 205, y: 200), control: CGPoint(x: 220, y: 170))
-            }
-            .stroke(Color.red, lineWidth: 5)
-            
-            // 脖子傳統紅色繩結與飾帶
-            Path { path in
-                path.move(to: CGPoint(x: 80, y: 250))
-                path.addQuadCurve(to: CGPoint(x: 220, y: 250), control: CGPoint(x: 150, y: 290))
-            }
-            .stroke(Color(red: 0.8, green: 0.0, blue: 0.1), lineWidth: 16)
-            
+                .fill(RadialGradient(
+                    gradient: Gradient(colors: [Color.red.opacity(0.5), Color.orange.opacity(0.15), .clear]),
+                    center: .center, startRadius: 10, endRadius: 180))
+                .frame(width: 360, height: 360)
             Circle()
-                .fill(Color.yellow)
-                .frame(width: 22, height: 22)
-                .position(x: 150, y: 272)
-                .shadow(color: .orange, radius: 6)
+                .fill(RadialGradient(
+                    gradient: Gradient(colors: [Color.white.opacity(0.08), .clear]),
+                    center: .center, startRadius: 50, endRadius: 170))
+                .frame(width: 340, height: 340)
+            // 耳朵
+            Path { p in
+                p.move(to: CGPoint(x: 100, y: 150))
+                p.addLine(to: CGPoint(x: 10, y: 10))
+                p.addLine(to: CGPoint(x: 120, y: 80))
+                p.closeSubpath()
+            }.fill(Color.white).shadow(color: .red, radius: 10)
+            Path { p in
+                p.move(to: CGPoint(x: 200, y: 150))
+                p.addLine(to: CGPoint(x: 290, y: 10))
+                p.addLine(to: CGPoint(x: 180, y: 80))
+                p.closeSubpath()
+            }.fill(Color.white).shadow(color: .red, radius: 10)
+            Path { p in
+                p.move(to: CGPoint(x: 90, y: 120))
+                p.addLine(to: CGPoint(x: 35, y: 35))
+                p.addLine(to: CGPoint(x: 110, y: 85))
+                p.closeSubpath()
+            }.fill(Color(red: 0.7, green: 0.0, blue: 0.1))
+            Path { p in
+                p.move(to: CGPoint(x: 210, y: 120))
+                p.addLine(to: CGPoint(x: 265, y: 35))
+                p.addLine(to: CGPoint(x: 190, y: 85))
+                p.closeSubpath()
+            }.fill(Color(red: 0.7, green: 0.0, blue: 0.1))
+            // 臉
+            Path { p in
+                p.move(to: CGPoint(x: 150, y: 280))
+                p.addLine(to: CGPoint(x: 40, y: 130))
+                p.addLine(to: CGPoint(x: 90, y: 110))
+                p.addLine(to: CGPoint(x: 150, y: 140))
+                p.addLine(to: CGPoint(x: 210, y: 110))
+                p.addLine(to: CGPoint(x: 260, y: 130))
+                p.closeSubpath()
+            }.fill(Color(red: 0.98, green: 0.98, blue: 1.0)).shadow(color: .white, radius: 16)
+            // 眼睛
+            Ellipse().fill(Color(red: 0.9, green: 0.1, blue: 0.2))
+                .frame(width: 44, height: 19).rotationEffect(.degrees(28)).position(x: 105, y: 165)
+                .shadow(color: .red, radius: 14)
+            Ellipse().fill(Color(red: 0.9, green: 0.1, blue: 0.2))
+                .frame(width: 44, height: 19).rotationEffect(.degrees(-28)).position(x: 195, y: 165)
+                .shadow(color: .red, radius: 14)
+            Circle().fill(Color.yellow).frame(width: 7, height: 7).position(x: 108, y: 163)
+            Circle().fill(Color.yellow).frame(width: 7, height: 7).position(x: 192, y: 163)
+            // 面具紋路
+            Path { p in
+                p.move(to: CGPoint(x: 65, y: 180))
+                p.addQuadCurve(to: CGPoint(x: 95, y: 200), control: CGPoint(x: 80, y: 170))
+                p.move(to: CGPoint(x: 235, y: 180))
+                p.addQuadCurve(to: CGPoint(x: 205, y: 200), control: CGPoint(x: 220, y: 170))
+            }.stroke(Color.red, lineWidth: 5)
+            // 紅繩
+            Path { p in
+                p.move(to: CGPoint(x: 80, y: 250))
+                p.addQuadCurve(to: CGPoint(x: 220, y: 250), control: CGPoint(x: 150, y: 290))
+            }.stroke(Color(red: 0.8, green: 0.0, blue: 0.1), lineWidth: 16)
+            Circle().fill(Color.yellow).frame(width: 22, height: 22).position(x: 150, y: 272)
+                .shadow(color: .orange, radius: 8)
         }
         .frame(width: 300, height: 320)
-        .metalAcceleration() // 向量圖 GPU 渲染優化
+        .drawingGroup() // ★ 合批渲染
     }
 }
 
-// MARK: - 6. 三種風格獨立開場動畫
+// MARK: - ★ 骷髏開場：骨骼組裝霓虹特效粒子
+private struct SkullBootParticles: View {
+    let progress: CGFloat
+
+    var body: some View {
+        Canvas { ctx, size in
+            let cx = size.width / 2
+            let cy = size.height / 2
+            let count = 48
+            for i in 0..<count {
+                let angle = Double(i) * (Double.pi * 2 / Double(count))
+                let baseR = 50.0 + Double(i % 5) * 30.0
+                let r = baseR + Double(progress) * (130.0 + Double(i % 4) * 50.0)
+                let x = cx + CGFloat(cos(angle)) * CGFloat(r)
+                let y = cy + CGFloat(sin(angle)) * CGFloat(r)
+                let fade = max(0, 1.0 - Double(progress) * 1.4)
+                let sz = CGFloat(2.0 + Double(i % 4))
+                ctx.opacity = fade * 0.9
+                ctx.fill(Path(ellipseIn: CGRect(x: x - sz, y: y - sz, width: sz*2, height: sz*2)),
+                         with: .color(i % 3 == 0 ? .white : .red))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - ★ 賽伯開場：全息掃描框
+private struct CyberHoloScanFrame: View {
+    let progress: CGFloat // 0→1 掃描進度
+    let color: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width; let h = geo.size.height
+            Canvas { ctx, size in
+                // 四角掃描框
+                let corners: [(CGPoint, CGPoint, CGPoint)] = [
+                    (CGPoint(x: 0,y:0), CGPoint(x:60,y:0), CGPoint(x:0,y:60)),
+                    (CGPoint(x:w,y:0), CGPoint(x:w-60,y:0), CGPoint(x:w,y:60)),
+                    (CGPoint(x:0,y:h), CGPoint(x:60,y:h), CGPoint(x:0,y:h-60)),
+                    (CGPoint(x:w,y:h), CGPoint(x:w-60,y:h), CGPoint(x:w,y:h-60))
+                ]
+                for (pivot, end1, end2) in corners {
+                    var p = Path()
+                    p.move(to: end1); p.addLine(to: pivot); p.addLine(to: end2)
+                    ctx.opacity = 0.9
+                    ctx.stroke(p, with: .color(color),
+                               style: StrokeStyle(lineWidth: 2.5, lineCap: .square))
+                }
+                // 水平掃描光束
+                let scanY = h * CGFloat(progress)
+                var scanPath = Path()
+                scanPath.move(to: CGPoint(x: 0, y: scanY))
+                scanPath.addLine(to: CGPoint(x: w, y: scanY))
+                ctx.opacity = 0.7 * Double(1.0 - abs(progress - 0.5) * 2)
+                ctx.stroke(scanPath, with: .color(color),
+                           style: StrokeStyle(lineWidth: 1.5))
+                // 光束拖尾
+                ctx.opacity = 0.15
+                ctx.fill(Path(CGRect(x: 0, y: scanY - 30, width: w, height: 30)),
+                         with: .color(color))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - ★ 掃描線（優化版，減少 ForEach）
+private struct ScanlineOverlay: View {
+    let color: Color
+    let offset: CGFloat
+
+    var body: some View {
+        GeometryReader { geo in
+            Canvas { ctx, size in
+                let spacing: CGFloat = 8
+                var y: CGFloat = (offset * size.height).truncatingRemainder(dividingBy: spacing)
+                while y < size.height {
+                    var line = Path()
+                    line.move(to: CGPoint(x: 0, y: y))
+                    line.addLine(to: CGPoint(x: size.width, y: y))
+                    ctx.opacity = 0.04
+                    ctx.stroke(line, with: .color(color), style: StrokeStyle(lineWidth: 1))
+                    y += spacing
+                }
+            }
+        }
+        .blendMode(.screen)
+        .allowsHitTesting(false)
+        .ignoresSafeArea()
+    }
+}
+
+// MARK: - ★ 賽車速度線（優化版）
+private struct RacingSpeedLines: View {
+    let color: Color
+    let progress: CGFloat
+    let intensity: CGFloat
+    private struct SpeedLine: Identifiable {
+        let id = UUID(); let x, y, length, thickness, delay: CGFloat
+    }
+    private let lines: [SpeedLine] = (0..<28).map { i in
+        SpeedLine(
+            x: CGFloat((i * 37) % 100) / 100,
+            y: CGFloat((i * 61) % 100) / 100,
+            length: CGFloat(60 + (i * 29) % 130),
+            thickness: CGFloat(1 + i % 3),
+            delay: CGFloat((i * 17) % 100) / 100
+        )
+    }
+
+    var body: some View {
+        Canvas { ctx, size in
+            for line in lines {
+                let x = size.width * line.x
+                let y = size.height * (line.y + progress * (0.25 + line.delay * 0.35))
+                var path = Path()
+                path.move(to: CGPoint(x: x, y: y))
+                path.addLine(to: CGPoint(x: x + line.length, y: y + line.length * 0.14))
+                ctx.opacity = Double(0.55 * intensity)
+                ctx.stroke(path, with: .linearGradient(
+                    Gradient(colors: [.clear, color.opacity(0.85), .clear]),
+                    startPoint: CGPoint(x: x, y: y),
+                    endPoint: CGPoint(x: x + line.length, y: y)
+                ), style: StrokeStyle(lineWidth: line.thickness))
+            }
+        }
+        .clipped()
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - ★ 開場動畫主體（三主題全升級）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
 
-    enum BootTheme {
-        case skull
-        case cyberpunk
-        case sakura
-    }
-
-    private var theme: BootTheme {
-        switch selectedTheme {
-        case .skull: return .skull
-        case .cyberpunk: return .cyberpunk
-        case .sakura: return .sakura
-        }
-    }
+    private var theme: DashboardTheme { selectedTheme }
 
     @State private var bootStep = 0
     @State private var rotation: Double = 0
@@ -687,11 +765,19 @@ struct MultiThemeBootLoadingView: View {
     @State private var showParticles = false
     @State private var didStart = false
 
+    // ★ 新增：掃描框進度 & 骷髏裂紋
+    @State private var holoScanProgress: CGFloat = 0
+    @State private var crackProgress: CGFloat = 0
+    @State private var glitchOffset: CGFloat = 0
+    @State private var matrixOpacity: Double = 0
+    @State private var goldFlareScale: CGFloat = 0.1
+    @State private var goldFlareOpacity: Double = 0
+
     private var themeColor: Color {
         switch theme {
-        case .skull: return .red
+        case .skull:     return .red
         case .cyberpunk: return .safeCyan
-        case .sakura: return .red
+        case .sakura:    return Color(red: 1.0, green: 0.3, blue: 0.4)
         }
     }
 
@@ -701,12 +787,9 @@ struct MultiThemeBootLoadingView: View {
                 Color.black.ignoresSafeArea()
 
                 switch theme {
-                case .skull:
-                    skullBoot(in: geo.size)
-                case .cyberpunk:
-                    cyberBoot(in: geo.size)
-                case .sakura:
-                    sakuraBoot(in: geo.size)
+                case .skull:    skullBoot(in: geo.size)
+                case .cyberpunk: cyberBoot(in: geo.size)
+                case .sakura:   sakuraBoot(in: geo.size)
                 }
 
                 ScanlineOverlay(color: themeColor, offset: scanOffset)
@@ -721,30 +804,22 @@ struct MultiThemeBootLoadingView: View {
                 }
 
                 if showParticles {
-                    BootParticlesView(
-                        color: themeColor,
-                        progress: particleProgress
-                    )
-                    .allowsHitTesting(false)
+                    BootParticlesView(color: themeColor, progress: particleProgress)
+                        .allowsHitTesting(false)
                 }
 
+                // SKIP 按鈕
                 VStack {
                     HStack {
                         Spacer()
-                        Button("SKIP") {
-                            finishBoot()
-                        }
-                        .font(.system(size: 11, weight: .black, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.78))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.black.opacity(0.55))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(themeColor.opacity(0.5), lineWidth: 1)
-                        )
-                        .padding(.top, 18)
-                        .padding(.trailing, 18)
+                        Button("SKIP") { finishBoot() }
+                            .font(.system(size: 11, weight: .black, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.78))
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .background(Color.black.opacity(0.55))
+                            .overlay(RoundedRectangle(cornerRadius: 8)
+                                .stroke(themeColor.opacity(0.5), lineWidth: 1))
+                            .padding(.top, 18).padding(.trailing, 18)
                     }
                     Spacer()
                 }
@@ -758,94 +833,161 @@ struct MultiThemeBootLoadingView: View {
         }
     }
 
-    // MARK: Skull
+    // MARK: Skull Boot ★ 升級版
     @ViewBuilder
     private func skullBoot(in size: CGSize) -> some View {
         ZStack {
+            // 血色霧氣放射
+            RadialGradient(
+                gradient: Gradient(colors: [Color.red.opacity(0.22), Color(red:0.4,green:0,blue:0).opacity(0.15), .clear]),
+                center: .center, startRadius: 20, endRadius: 260)
+            .ignoresSafeArea()
+            .scaleEffect(pulse ? 1.12 : 0.95)
+            .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: pulse)
+
+            // ★ 骷髏骨骼組裝裂紋粒子
+            if crackProgress > 0 {
+                SkullBootParticles(progress: crackProgress)
+            }
+
+            // 外旋轉光環（3層）
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(colors: [.clear, .red, .white, .red, .clear]),
+                            center: .center
+                        ),
+                        lineWidth: CGFloat(4 - i)
+                    )
+                    .frame(width: CGFloat(290 + i * 24), height: CGFloat(290 + i * 24))
+                    .rotationEffect(.degrees(rotation * (i % 2 == 0 ? 1 : -1) + Double(i) * 40))
+                    .opacity(0.55 - Double(i) * 0.12)
+            }
+
+            // 彩虹血色光環
             Circle()
-                .stroke(
-                    AngularGradient(
-                        gradient: Gradient(colors: [.clear, .red, .white, .red, .clear]),
-                        center: .center
-                    ),
-                    lineWidth: 3
-                )
-                .frame(width: min(size.width, size.height) * 0.68)
-                .rotationEffect(.degrees(rotation))
-                .opacity(0.75)
+                .stroke(Color.red.opacity(0.3), lineWidth: 1.5)
+                .frame(width: min(size.width, size.height) * 0.88)
+                .scaleEffect(ringScale).opacity(ringOpacity)
 
-            Circle()
-                .stroke(Color.red.opacity(0.35), lineWidth: 1)
-                .frame(width: min(size.width, size.height) * 0.86)
-                .scaleEffect(ringScale)
-                .opacity(ringOpacity)
+            // 骷髏圖示
+            ZStack {
+                // 光暈底層
+                Circle()
+                    .fill(Color.red.opacity(0.18))
+                    .frame(width: 140, height: 140)
+                    .blur(radius: 18)
 
-            Image(systemName: "skull.fill")
-                .font(.system(size: min(size.width, size.height) * 0.20, weight: .black))
-                .foregroundColor(.white)
-                .scaleEffect(logoScale)
-                .opacity(logoOpacity)
-                .blur(radius: logoBlur)
+                Image(systemName: "skull.fill")
+                    .font(.system(size: min(size.width, size.height) * 0.21, weight: .black))
+                    .foregroundStyle(
+                        LinearGradient(colors: [.white, Color(red:0.9,green:0.85,blue:0.85), .white],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .shadow(color: .red, radius: 20)
+                    .shadow(color: .red.opacity(0.5), radius: 40)
+            }
+            .scaleEffect(logoScale)
+            .opacity(logoOpacity)
+            .blur(radius: logoBlur)
+            .offset(x: glitchOffset)
 
-            VStack(spacing: 5) {
+            VStack(spacing: 6) {
                 Spacer().frame(height: min(size.width, size.height) * 0.43)
                 Text("CHEN")
-                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .font(.system(size: 36, weight: .black, design: .rounded))
                     .tracking(9)
-                Text("SYSTEM ONLINE")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(4)
-                    .foregroundColor(.red)
+                    .foregroundStyle(LinearGradient(
+                        colors: [.white, Color(red:1,green:0.6,blue:0.6)],
+                        startPoint: .leading, endPoint: .trailing))
+                    .shadow(color: .red, radius: 8)
+
+                HStack(spacing: 4) {
+                    Rectangle().fill(Color.red).frame(width: 22, height: 1.5)
+                    Text("SYSTEM ONLINE")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .tracking(4).foregroundColor(.red)
+                    Rectangle().fill(Color.red).frame(width: 22, height: 1.5)
+                }
             }
             .opacity(logoOpacity)
         }
     }
 
-    // MARK: Cyberpunk
+    // MARK: Cyberpunk Boot ★ 升級版
     @ViewBuilder
     private func cyberBoot(in size: CGSize) -> some View {
         ZStack {
+            // neon grid 地面
+            CyberpunkNeonGridView(tick: Double(speed) * 3.0)
+                .opacity(0.6)
+
+            // ★ 矩陣數字雨
+            CyberpunkMatrixRainView(tick: Double(speed) * 2.5)
+                .opacity(matrixOpacity)
+
+            // ★ 全息掃描框
+            CyberHoloScanFrame(progress: holoScanProgress, color: .safeCyan)
+                .opacity(logoOpacity)
+
+            // 主面板
             RoundedRectangle(cornerRadius: 26)
                 .stroke(
                     AngularGradient(
                         gradient: Gradient(colors: [.clear, .safeCyan, .white, .safeCyan, .clear]),
-                        center: .center
-                    ),
-                    lineWidth: 2
-                )
-                .frame(
-                    width: min(size.width * 0.82, 430),
-                    height: min(size.height * 0.54, 420)
-                )
-                .rotationEffect(.degrees(rotation * 0.45))
-                .opacity(0.8)
+                        center: .center),
+                    lineWidth: 2)
+                .frame(width: min(size.width * 0.82, 430),
+                       height: min(size.height * 0.52, 400))
+                .rotationEffect(.degrees(rotation * 0.4))
+                .opacity(0.85)
 
-            VStack(spacing: 12) {
+            // 內框玻璃板
+            RoundedRectangle(cornerRadius: 22)
+                .fill(Color.safeCyan.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22)
+                        .stroke(Color.safeCyan.opacity(0.2), lineWidth: 1)
+                )
+                .frame(width: min(size.width * 0.76, 400),
+                       height: min(size.height * 0.46, 370))
+
+            VStack(spacing: 14) {
+                // ★ 全息文字
                 Text("CHEN // DRIVE")
-                    .font(.system(size: 29, weight: .black, design: .monospaced))
+                    .font(.system(size: 30, weight: .black, design: .monospaced))
                     .tracking(3)
-                    .foregroundColor(.safeCyan)
+                    .foregroundStyle(LinearGradient(
+                        colors: [.safeCyan, .white, .safeCyan],
+                        startPoint: .leading, endPoint: .trailing))
+                    .shadow(color: .safeCyan, radius: 12)
+                    .shadow(color: .safeCyan.opacity(0.4), radius: 24)
+                    .offset(x: glitchOffset * 0.3)
 
-                Text("NEURAL VEHICLE INTERFACE")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                Text("NEURAL VEHICLE INTERFACE v2.0")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
                     .tracking(3)
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(.white.opacity(0.55))
 
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.clear, .safeCyan, .white, .safeCyan, .clear],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: min(size.width * 0.68, 330), height: 2)
-                    .scaleEffect(x: 0.4 + speed * 0.6, y: 1)
+                // 動態進度條
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: min(size.width * 0.58, 280), height: 3)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(LinearGradient(
+                            colors: [.safeCyan, .white],
+                            startPoint: .leading, endPoint: .trailing))
+                        .frame(width: min(size.width * 0.58, 280) * speed, height: 3)
+                        .shadow(color: .safeCyan, radius: 6)
+                }
 
-                HStack(spacing: 20) {
-                    metric("BOOST", "MAX")
-                    metric("RADAR", "ONLINE")
-                    metric("GPS", "LOCK")
+                HStack(spacing: 24) {
+                    cyberMetric("BOOST", "MAX")
+                    cyberMetric("RADAR", "ONLINE")
+                    cyberMetric("GPS", "LOCK")
+                    cyberMetric("AI", "ACTIVE")
                 }
             }
             .scaleEffect(logoScale)
@@ -854,482 +996,392 @@ struct MultiThemeBootLoadingView: View {
         }
     }
 
-    private func metric(_ title: String, _ value: String) -> some View {
-        VStack(spacing: 3) {
+    private func cyberMetric(_ title: String, _ value: String) -> some View {
+        VStack(spacing: 4) {
             Text(title)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .foregroundColor(.white.opacity(0.45))
+                .font(.system(size: 7, weight: .bold, design: .monospaced))
+                .foregroundColor(.white.opacity(0.4))
             Text(value)
-                .font(.system(size: 11, weight: .black, design: .monospaced))
+                .font(.system(size: 10, weight: .black, design: .monospaced))
                 .foregroundColor(.safeCyan)
+                .shadow(color: .safeCyan, radius: 4)
         }
+        .padding(.horizontal, 8).padding(.vertical, 6)
+        .background(Color.safeCyan.opacity(0.08))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.safeCyan.opacity(0.25), lineWidth: 1))
+        .cornerRadius(6)
     }
 
-    // MARK: Sakura / Racing
+    // MARK: Sakura Boot ★ 升級版（神社金光+龍神）
     @ViewBuilder
     private func sakuraBoot(in size: CGSize) -> some View {
         ZStack {
-            RacingSpeedLines(
-                color: .red,
-                progress: speed,
-                intensity: bootStep >= 2 ? 1 : 0.45
-            )
+            RacingSpeedLines(color: .red, progress: speed, intensity: bootStep >= 2 ? 1 : 0.45)
 
-            // 黑底紅框警示面板
+            // ★ 金光神社粒子爆發
+            if goldFlareScale > 0.1 {
+                ZStack {
+                    ForEach(0..<12, id: \.self) { i in
+                        let angle = Double(i) * 30.0
+                        let dist = CGFloat(80 + i * 15) * goldFlareScale
+                        Circle()
+                            .fill(Color(red: 1.0, green: 0.85, blue: 0.2))
+                            .frame(width: CGFloat(3 + i % 3), height: CGFloat(3 + i % 3))
+                            .offset(x: dist * CGFloat(cos(angle * .pi / 180)),
+                                    y: dist * CGFloat(sin(angle * .pi / 180)))
+                            .opacity(Double(goldFlareOpacity))
+                    }
+                    // 金光光暈
+                    Circle()
+                        .fill(Color(red: 1.0, green: 0.85, blue: 0.3).opacity(0.25))
+                        .frame(width: 180 * goldFlareScale, height: 180 * goldFlareScale)
+                        .blur(radius: 20)
+                        .opacity(Double(goldFlareOpacity))
+                }
+            }
+
             if bootStep <= 1 {
-                VStack(spacing: 10) {
-                    Text("⚠ WARNING")
-                        .font(.system(size: 17, weight: .black, design: .monospaced))
-                        .foregroundColor(.red)
-
-                    Text("極速領域")
-                        .font(.system(size: 40, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-                        .tracking(5)
+                VStack(spacing: 12) {
+                    // ★ 升級警示牌
+                    HStack(spacing: 6) {
+                        Rectangle().fill(Color.red).frame(width: 3, height: 40)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("⚠ WARNING")
+                                .font(.system(size: 15, weight: .black, design: .monospaced))
+                                .foregroundColor(.red)
+                            Text("極速領域")
+                                .font(.system(size: 36, weight: .black, design: .rounded))
+                                .foregroundColor(.white)
+                                .tracking(5)
+                                .shadow(color: .red.opacity(0.7), radius: 10)
+                        }
+                        Rectangle().fill(Color.red).frame(width: 3, height: 40)
+                    }
 
                     Text("超速走行禁止")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundColor(.red)
-                        .tracking(4)
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .tracking(4).foregroundColor(.red)
 
-                    Text("AUTOMATIC SPEED RADAR ACTIVE")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.55))
-                        .tracking(2)
+                    HStack(spacing: 16) {
+                        ForEach(["RADAR","ACTIVE","GPS","ON"], id: \.self) { txt in
+                            Text(txt)
+                                .font(.system(size: 7, weight: .black, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.5))
+                                .padding(.horizontal, 6).padding(.vertical, 3)
+                                .background(Color.red.opacity(0.15))
+                                .cornerRadius(3)
+                        }
+                    }
                 }
-                .padding(.horizontal, 28)
-                .padding(.vertical, 26)
+                .padding(.horizontal, 30).padding(.vertical, 28)
                 .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color.black.opacity(0.92))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.red.opacity(pulse ? 1 : 0.38), lineWidth: pulse ? 3 : 1)
-                        )
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.black.opacity(0.92))
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.red.opacity(pulse ? 1.0 : 0.35),
+                                    lineWidth: pulse ? 3 : 1)
+                        // ★ 內部玻璃反光
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.04), .clear],
+                            startPoint: .topLeading, endPoint: .bottomTrailing)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
                 )
                 .scaleEffect(logoScale)
                 .opacity(logoOpacity)
                 .blur(radius: logoBlur)
             }
 
-            // 狐狸 Logo：從高速模糊中衝出，避免放大裁切
             if bootStep == 2 {
                 ZStack {
+                    // ★ 龍神光圈（雙層旋轉）
+                    ForEach(0..<2, id: \.self) { i in
+                        Circle()
+                            .stroke(
+                                AngularGradient(
+                                    gradient: Gradient(colors: [.clear,
+                                                                Color(red:1,green:0.85,blue:0.3),
+                                                                .white,
+                                                                Color(red:1,green:0.85,blue:0.3),
+                                                                .clear]),
+                                    center: .center),
+                                lineWidth: CGFloat(3 - i))
+                            .frame(width: CGFloat(min(size.width * 0.68, 360) + CGFloat(i) * 20))
+                            .rotationEffect(.degrees(rotation * (i == 0 ? 1 : -0.7)))
+                            .opacity(0.7 - Double(i) * 0.2)
+                    }
+
                     Circle()
-                        .stroke(Color.red.opacity(0.8), lineWidth: 2)
+                        .stroke(Color.red.opacity(0.7), lineWidth: 2)
                         .frame(width: min(size.width * 0.66, 360))
-                        .scaleEffect(ringScale)
-                        .opacity(ringOpacity)
+                        .scaleEffect(ringScale).opacity(ringOpacity)
 
                     MajesticWhiteFoxFaceView()
-                        .frame(
-                            width: min(size.width * 0.64, 330),
-                            height: min(size.width * 0.64, 330)
-                        )
-                        .scaleEffect(1.0 + speed * 0.035)
+                        .frame(width: min(size.width * 0.64, 330),
+                               height: min(size.width * 0.64, 330))
+                        .scaleEffect(1.0 + speed * 0.03)
                         .opacity(logoOpacity)
                         .blur(radius: logoBlur)
-                        .shadow(color: .red.opacity(0.75), radius: 22)
+                        .shadow(color: .red.opacity(0.8), radius: 24)
+                        .shadow(color: Color(red:1,green:0.85,blue:0.3).opacity(0.35), radius: 40)
                 }
 
                 VStack {
                     Spacer()
                     Text("CHEN")
-                        .font(.system(size: 30, weight: .black, design: .rounded))
-                        .tracking(10)
-                        .foregroundColor(.white)
-
+                        .font(.system(size: 32, weight: .black, design: .rounded))
+                        .tracking(10).foregroundColor(.white)
+                        .shadow(color: .red, radius: 8)
                     Text("EXTREME MODE")
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .tracking(5)
-                        .foregroundColor(.red)
-                        .padding(.top, 3)
-                        .padding(.bottom, 55)
+                        .tracking(5).foregroundColor(.red)
+                        .padding(.top, 3).padding(.bottom, 55)
                 }
                 .opacity(logoOpacity)
             }
 
-            // 最後一拍：Logo → 系統啟動
             if bootStep >= 3 {
-                VStack(spacing: 9) {
+                VStack(spacing: 10) {
                     Text("SYSTEM")
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .tracking(5)
-                        .foregroundColor(.red.opacity(0.8))
-
+                        .tracking(5).foregroundColor(.red.opacity(0.8))
                     Text("全系統啟動")
-                        .font(.system(size: 32, weight: .black, design: .rounded))
+                        .font(.system(size: 34, weight: .black, design: .rounded))
                         .foregroundColor(.white)
-
+                        .shadow(color: .red, radius: 10)
                     HStack(spacing: 8) {
-                        Capsule().fill(Color.red).frame(width: 34, height: 3)
-                        Capsule().fill(Color.white).frame(width: 34, height: 3)
-                        Capsule().fill(Color.red).frame(width: 34, height: 3)
+                        Capsule().fill(Color.red).frame(width: 36, height: 3)
+                        Capsule().fill(Color.white).frame(width: 36, height: 3)
+                        Capsule().fill(Color.red).frame(width: 36, height: 3)
                     }
-
                     Text("DRIVE • RADAR • GPS • PERFORMANCE")
                         .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.5))
-                        .tracking(2)
+                        .foregroundColor(.white.opacity(0.5)).tracking(2)
                 }
-                .scaleEffect(logoScale)
-                .opacity(logoOpacity)
-                .blur(radius: logoBlur)
+                .scaleEffect(logoScale).opacity(logoOpacity).blur(radius: logoBlur)
             }
         }
     }
 
-    // MARK: Finish
     private func finishBoot() {
-        withAnimation(.easeOut(duration: 0.32)) {
-            isFinished = true
-        }
+        withAnimation(.easeOut(duration: 0.32)) { isFinished = true }
     }
 
-    // MARK: Animation
     private func startBoot() {
-        bootStep = 0
-        speed = 0
-        logoScale = 0.72
-        logoOpacity = 0
-        logoBlur = 12
-        flashOpacity = 0
-        shake = 0
-        ringScale = 0.25
-        ringOpacity = 0
-        scanOffset = 0
-        pulse = false
-        particleProgress = 0
-        showParticles = false
+        bootStep = 0; speed = 0; logoScale = 0.72; logoOpacity = 0; logoBlur = 12
+        flashOpacity = 0; shake = 0; ringScale = 0.25; ringOpacity = 0
+        scanOffset = 0; pulse = false; particleProgress = 0; showParticles = false
+        holoScanProgress = 0; crackProgress = 0; glitchOffset = 0
+        matrixOpacity = 0; goldFlareScale = 0.1; goldFlareOpacity = 0
 
-        withAnimation(.linear(duration: 1.15).repeatForever(autoreverses: false)) {
-            rotation = 360
-        }
+        withAnimation(.linear(duration: 1.1).repeatForever(autoreverses: false)) { rotation = 360 }
+        withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: true)) { scanOffset = 1 }
+        withAnimation(.easeInOut(duration: 0.22).repeatForever(autoreverses: true)) { pulse = true }
 
-        withAnimation(.linear(duration: 0.95).repeatForever(autoreverses: true)) {
-            scanOffset = 1
-        }
-
-        withAnimation(.easeInOut(duration: 0.24).repeatForever(autoreverses: true)) {
-            pulse = true
-        }
-
-        // 第一拍：黑底警示
         withAnimation(.easeOut(duration: 0.38)) {
-            logoOpacity = 1
-            logoScale = 1.0
-            logoBlur = 0
+            logoOpacity = 1; logoScale = 1.0; logoBlur = 0
         }
 
-        // 第二拍：加速、紅色速度線
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) {
-            withAnimation(.easeIn(duration: 0.28)) {
-                speed = 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeIn(duration: 0.28)) { speed = 1 }
+        }
+
+        switch theme {
+        case .skull:
+            // 骷髏特效序列
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                withAnimation(.easeOut(duration: 0.15)) { crackProgress = 0 }
+                withAnimation(.easeIn(duration: 0.8)) { crackProgress = 1 }
             }
-        }
-
-        if theme == .sakura {
-            // 0.95s：狐狸高速衝入
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.95) {
-                bootStep = 2
-                ringScale = 1.0
-                ringOpacity = 1
-                logoScale = 1.0
-                logoOpacity = 0
-                logoBlur = 18
-
-                withAnimation(.easeOut(duration: 0.24)) {
-                    logoOpacity = 1
-                    logoBlur = 0
-                    ringScale = 1.18
-                    ringOpacity = 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                // glitch 效果
+                withAnimation(.easeOut(duration: 0.06)) { glitchOffset = -8 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.07) {
+                    withAnimation(.easeOut(duration: 0.06)) { glitchOffset = 6 }
                 }
-
-                // 模擬高速鏡頭震動
-                withAnimation(.easeOut(duration: 0.06)) {
-                    shake = -7
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+                    withAnimation(.easeOut(duration: 0.08)) { glitchOffset = 0 }
                 }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                withAnimation(.easeIn(duration: 0.22)) { flashOpacity = 0.9; logoOpacity = 0 }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { finishBoot() }
+
+        case .cyberpunk:
+            // 矩陣數字雨淡入
+            withAnimation(.easeIn(duration: 0.6).delay(0.3)) { matrixOpacity = 1 }
+            // 全息掃描框動畫
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation(.linear(duration: 0.9)) { holoScanProgress = 1 }
+            }
+            // glitch
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                withAnimation(.easeOut(duration: 0.05)) { glitchOffset = -12 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-                    withAnimation(.easeOut(duration: 0.06)) {
-                        shake = 6
-                    }
+                    withAnimation(.easeOut(duration: 0.05)) { glitchOffset = 10 }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                    withAnimation(.easeOut(duration: 0.08)) {
-                        shake = -3
-                    }
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) {
-                    withAnimation(.easeOut(duration: 0.10)) {
-                        shake = 0
-                    }
-                }
-
-                withAnimation(.easeOut(duration: 0.18)) {
-                    flashOpacity = 0.8
-                }
-                withAnimation(.easeIn(duration: 0.28).delay(0.05)) {
-                    flashOpacity = 0
+                    withAnimation(.easeOut(duration: 0.07)) { glitchOffset = 0 }
                 }
             }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.7) {
+                withAnimation(.easeIn(duration: 0.24)) { flashOpacity = 0.85; logoOpacity = 0 }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.1) { finishBoot() }
 
-            // 2.0s：Logo 短暫定格後進入系統
+        case .sakura:
+            // 狐狸衝入
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.95) {
+                bootStep = 2; ringScale = 1.0; ringOpacity = 1
+                logoScale = 1.0; logoOpacity = 0; logoBlur = 18
+                withAnimation(.easeOut(duration: 0.24)) {
+                    logoOpacity = 1; logoBlur = 0; ringScale = 1.2; ringOpacity = 0
+                }
+                // 震動
+                withAnimation(.easeOut(duration: 0.06)) { shake = -8 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+                    withAnimation(.easeOut(duration: 0.06)) { shake = 7 }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                    withAnimation(.easeOut(duration: 0.1)) { shake = 0 }
+                }
+                withAnimation(.easeOut(duration: 0.18)) { flashOpacity = 0.8 }
+                withAnimation(.easeIn(duration: 0.28).delay(0.05)) { flashOpacity = 0 }
+            }
+            // 金光爆發
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                    goldFlareScale = 1.0; goldFlareOpacity = 1
+                }
+                withAnimation(.easeOut(duration: 0.8).delay(0.3)) {
+                    goldFlareOpacity = 0; goldFlareScale = 1.5
+                }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 withAnimation(.easeInOut(duration: 0.22)) {
-                    bootStep = 3
-                    logoScale = 0.92
-                    logoOpacity = 1
-                    logoBlur = 0
-                    speed = 0.25
+                    bootStep = 3; logoScale = 0.92; logoOpacity = 1; logoBlur = 0; speed = 0.25
                 }
             }
-
-            // 2.55s：紅色爆閃 + 粒子
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.55) {
-                showParticles = true
-                particleProgress = 0
-
-                withAnimation(.easeOut(duration: 0.12)) {
-                    flashOpacity = 1
-                    shake = 4
-                }
-                withAnimation(.easeIn(duration: 0.34).delay(0.02)) {
-                    flashOpacity = 0
-                    shake = 0
-                }
-                withAnimation(.easeOut(duration: 0.55)) {
-                    particleProgress = 1
-                }
+                showParticles = true; particleProgress = 0
+                withAnimation(.easeOut(duration: 0.12)) { flashOpacity = 1; shake = 4 }
+                withAnimation(.easeIn(duration: 0.34).delay(0.02)) { flashOpacity = 0; shake = 0 }
+                withAnimation(.easeOut(duration: 0.55)) { particleProgress = 1 }
             }
-
-            // 3.15s：淡出後進主畫面
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.15) {
-                withAnimation(.easeIn(duration: 0.32)) {
-                    logoOpacity = 0
-                    logoBlur = 8
-                }
+                withAnimation(.easeIn(duration: 0.32)) { logoOpacity = 0; logoBlur = 8 }
             }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.48) {
-                finishBoot()
-            }
-        } else {
-            // 其他兩個主題維持短版高速啟動
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.65) {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    logoScale = 1.04
-                }
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.15) {
-                withAnimation(.easeIn(duration: 0.24)) {
-                    flashOpacity = 0.85
-                    logoOpacity = 0
-                }
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.43) {
-                finishBoot()
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.48) { finishBoot() }
         }
-    }
-}
-
-// MARK: - 掃描線
-private struct ScanlineOverlay: View {
-    let color: Color
-    let offset: CGFloat
-
-    var body: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                ForEach(0..<80, id: \.self) { _ in
-                    Rectangle()
-                        .fill(color.opacity(0.045))
-                        .frame(height: 1)
-                    Spacer(minLength: 7)
-                }
-            }
-            .offset(y: offset * geo.size.height)
-        }
-        .blendMode(.screen)
-        .allowsHitTesting(false)
-    }
-}
-
-// MARK: - 賽車高速線
-private struct RacingSpeedLines: View {
-    let color: Color
-    let progress: CGFloat
-    let intensity: CGFloat
-
-    private let lines: [SpeedLine] = (0..<34).map { i in
-        let x = CGFloat((i * 37) % 100) / 100.0
-        let y = CGFloat((i * 61) % 100) / 100.0
-        let length = CGFloat(70 + ((i * 29) % 150))
-        let thickness = CGFloat(1 + (i % 3))
-        let delay = CGFloat((i * 17) % 100) / 100.0
-        return SpeedLine(x: x, y: y, length: length, thickness: thickness, delay: delay)
-    }
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                ForEach(lines) { line in
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    .clear,
-                                    color.opacity(0.18 * intensity),
-                                    color.opacity(0.9 * intensity),
-                                    .clear
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: line.length, height: line.thickness)
-                        .position(
-                            x: geo.size.width * line.x,
-                            y: geo.size.height * (line.y + progress * (0.25 + line.delay * 0.35))
-                        )
-                        .rotationEffect(.degrees(-8))
-                        .blur(radius: 0.4)
-                }
-            }
-        }
-        .clipped()
-        .allowsHitTesting(false)
-    }
-
-    private struct SpeedLine: Identifiable {
-        let id = UUID()
-        let x: CGFloat
-        let y: CGFloat
-        let length: CGFloat
-        let thickness: CGFloat
-        let delay: CGFloat
     }
 }
 
 // MARK: - 爆閃粒子
 private struct BootParticlesView: View {
-    let color: Color
-    let progress: CGFloat
-
-    private let particles: [Particle] = (0..<36).map { i in
-        let angle = Double(i) * (Double.pi * 2.0 / 36.0)
-        let radius = CGFloat(90 + ((i * 31) % 180))
-        let size = CGFloat(1.5 + Double(i % 4))
-        return Particle(
-            angle: angle,
-            radius: radius,
-            size: size,
-            delay: CGFloat(i % 7) / 7.0
-        )
+    let color: Color; let progress: CGFloat
+    private struct Particle: Identifiable {
+        let id = UUID(); let angle: Double; let radius: CGFloat; let size: CGFloat
     }
-
+    private let particles: [Particle] = (0..<40).map { i in
+        Particle(angle: Double(i) * (Double.pi * 2 / 40),
+                 radius: CGFloat(80 + (i * 31) % 190),
+                 size: CGFloat(1.5 + Double(i % 4)))
+    }
     var body: some View {
         GeometryReader { geo in
-            ZStack {
-                ForEach(particles) { p in
-                    Circle()
-                        .fill(color.opacity(max(0, 1 - progress)))
-                        .frame(width: p.size, height: p.size)
-                        .position(
-                            x: geo.size.width / 2 + cos(p.angle) * p.radius * progress,
-                            y: geo.size.height / 2 + sin(p.angle) * p.radius * progress
-                        )
+            Canvas { ctx, size in
+                for p in particles {
+                    let x = size.width/2 + cos(p.angle) * p.radius * progress
+                    let y = size.height/2 + sin(p.angle) * p.radius * progress
+                    let fade = max(0, 1.0 - Double(progress) * 1.1)
+                    ctx.opacity = fade
+                    ctx.fill(Path(ellipseIn: CGRect(x: x - p.size, y: y - p.size,
+                                                    width: p.size*2, height: p.size*2)),
+                             with: .color(color))
                 }
             }
         }
         .allowsHitTesting(false)
     }
-
-    private struct Particle: Identifiable {
-        let id = UUID()
-        let angle: Double
-        let radius: CGFloat
-        let size: CGFloat
-        let delay: CGFloat
-    }
 }
 
-// MARK: - 7. 櫻花飄落背景
+// MARK: - 櫻花飄落（iOS 15+ Canvas 優化版）
 struct SakuraFallingView: View {
     var density: Double
-    
     var body: some View {
         if #available(iOS 15.0, *) {
             SakuraFallingContentView(density: density)
-        } else {
-            EmptyView()
-        }
+        } else { EmptyView() }
     }
 }
-
 @available(iOS 15.0, *)
 private struct SakuraFallingContentView: View {
     var density: Double
-    
     var body: some View {
-        TimelineView(.animation) { timeline in
-            Canvas { context, size in
+        TimelineView(.animation) { tl in
+            Canvas { ctx, size in
                 let count = Int(density)
+                let t = tl.date.timeIntervalSinceReferenceDate
                 for i in 0..<count {
                     let seed = Double(i) * 99.0
-                    let time = timeline.date.timeIntervalSinceReferenceDate + seed
+                    let time = t + seed
                     let x = (sin(time * 0.5 + seed) * 0.5 + 0.5) * size.width
-                    let y = (fmod(time * 30.0 + seed * 50.0, size.height + 50.0)) - 25.0
-                    let scale = 0.5 + (sin(seed) * 0.5)
-                    
-                    context.opacity = 0.75
-                    context.fill(
-                        Path(ellipseIn: CGRect(x: x, y: y, width: 12 * scale, height: 8 * scale)),
-                        with: .color(Color(red: 1.0, green: 0.3, blue: 0.4))
+                    let y = fmod(time * 28.0 + seed * 50.0, size.height + 60) - 30
+                    let scale = CGFloat(0.4 + sin(seed) * 0.4)
+                    let rot = sin(time * 1.5 + seed) * 0.8
+                    ctx.opacity = 0.7
+                    ctx.translateBy(x: x, y: y)
+                    ctx.rotate(by: Angle(radians: rot))
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: -6*scale, y: -4*scale, width: 12*scale, height: 8*scale)),
+                        with: .color(Color(red: 1.0, green: 0.4, blue: 0.5))
                     )
+                    ctx.translateBy(x: -x, y: -y)
+                    ctx.rotate(by: Angle(radians: -rot))
                 }
             }
         }
         .allowsHitTesting(false)
-        .ignoresSafeArea(.all, edges: .all)
-        .metalAcceleration() // 讓高密度櫻花交給 GPU 運算，防卡頓
+        .ignoresSafeArea()
     }
 }
 
-// MARK: - 8. 最外框霓虹流光線條
+// MARK: - ★ 升級版霓虹流光邊框
 struct BackgroundNeonFlowView: View {
     var primaryColor: Color
     var borderWidth: Double
     var animSpeed: Double
-    
-    @State private var isAnimating = false
-    
+    @State private var phase: Double = 0
+
     var body: some View {
-        Rectangle()
-            .stroke(
-                AngularGradient(
-                    gradient: Gradient(colors: [primaryColor.opacity(0.2), primaryColor, .white, primaryColor, primaryColor.opacity(0.2)]),
-                    center: .center,
-                    angle: .degrees(isAnimating ? 360 : 0)
-                ),
-                lineWidth: CGFloat(borderWidth)
-            )
-            .shadow(color: primaryColor, radius: 10)
-            .allowsHitTesting(false)
-            .ignoresSafeArea(.all, edges: .all)
-            .metalAcceleration() // GPU 加速渲染霓虹漸層
-            .onAppear {
-                let duration = max(0.5, 6.0 - animSpeed)
-                withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
-                    isAnimating = true
-                }
-            }
+        TimelineView(.animation(minimumInterval: 1.0/60.0)) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate * (animSpeed * 0.5 + 0.5)
+            Rectangle()
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: primaryColor.opacity(0.15), location: 0),
+                            .init(color: primaryColor, location: 0.3),
+                            .init(color: .white, location: 0.5),
+                            .init(color: primaryColor, location: 0.7),
+                            .init(color: primaryColor.opacity(0.15), location: 1)
+                        ]),
+                        center: .center,
+                        angle: .degrees(t * 60)
+                    ),
+                    lineWidth: CGFloat(borderWidth)
+                )
+                .shadow(color: primaryColor, radius: CGFloat(borderWidth) * 2)
+                .shadow(color: primaryColor.opacity(0.4), radius: CGFloat(borderWidth) * 4)
+                .allowsHitTesting(false)
+                .ignoresSafeArea()
+        }
     }
 }
 
-// MARK: - 9. 互動式導航地圖
+// MARK: - 互動導航地圖
 struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
@@ -1337,171 +1389,239 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
     var historyPath: [CLLocationCoordinate2D]?
     var isInteractive: Bool = true
     var onMapTap: (CLLocationCoordinate2D) -> Void
-    
+
     func makeCoordinator() -> Coordinator { Coordinator(self) }
-    
     func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView()
-        mapView.showsUserLocation = true
-        mapView.userTrackingMode = isInteractive ? .followWithHeading : .none
-        mapView.isZoomEnabled = isInteractive
-        mapView.isScrollEnabled = isInteractive
-        mapView.isRotateEnabled = isInteractive
-        mapView.showsCompass = false
-        mapView.showsTraffic = false
-        mapView.delegate = context.coordinator
-        
+        let map = MKMapView()
+        map.showsUserLocation = true
+        map.userTrackingMode = isInteractive ? .followWithHeading : .none
+        map.isZoomEnabled = isInteractive; map.isScrollEnabled = isInteractive
+        map.isRotateEnabled = isInteractive
+        map.showsCompass = false; map.showsTraffic = false
+        map.delegate = context.coordinator
         if isInteractive {
-            let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
-            mapView.addGestureRecognizer(tapGesture)
+            let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+            map.addGestureRecognizer(tap)
         }
-        return mapView
+        return map
     }
-    
     func updateUIView(_ uiView: MKMapView, context: Context) {
         if isInteractive && uiView.userTrackingMode != .followWithHeading {
             uiView.setUserTrackingMode(.followWithHeading, animated: true)
         }
-        uiView.removeOverlays(uiView.overlays)
-        uiView.removeAnnotations(uiView.annotations)
-        
-        if let polyline = routePolyline { uiView.addOverlay(polyline) }
-        
+        uiView.removeOverlays(uiView.overlays); uiView.removeAnnotations(uiView.annotations)
+        if let p = routePolyline { uiView.addOverlay(p) }
         if let path = historyPath, !path.isEmpty {
-            let polyline = MKPolyline(coordinates: path, count: path.count)
-            uiView.addOverlay(polyline)
+            uiView.addOverlay(MKPolyline(coordinates: path, count: path.count))
         }
-        
         if let dest = destinationCoordinate {
-            let annotation = MKPointAnnotation()
-            annotation.coordinate = dest
-            annotation.title = "目的地"
-            uiView.addAnnotation(annotation)
+            let ann = MKPointAnnotation(); ann.coordinate = dest; ann.title = "目的地"
+            uiView.addAnnotation(ann)
         }
     }
-    
     class Coordinator: NSObject, MKMapViewDelegate {
         var parent: InteractiveNavigationMapView
-        init(_ parent: InteractiveNavigationMapView) { self.parent = parent }
-        
-        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-            let mapView = gesture.view as! MKMapView
-            let point = gesture.location(in: mapView)
-            let coord = mapView.convert(point, toCoordinateFrom: mapView)
-            parent.onMapTap(coord)
+        init(_ p: InteractiveNavigationMapView) { self.parent = p }
+        @objc func handleTap(_ g: UITapGestureRecognizer) {
+            let map = g.view as! MKMapView
+            parent.onMapTap(map.convert(g.location(in: map), toCoordinateFrom: map))
         }
-        
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let polyline = overlay as? MKPolyline {
-                let renderer = MKPolylineRenderer(polyline: polyline)
-                renderer.strokeColor = parent.historyPath != nil ? .systemOrange : .safeSystemCyan
-                renderer.lineWidth = 6
-                return renderer
+            if let p = overlay as? MKPolyline {
+                let r = MKPolylineRenderer(polyline: p)
+                r.strokeColor = parent.historyPath != nil ? .systemOrange : .safeSystemCyan
+                r.lineWidth = 6; return r
             }
             return MKOverlayRenderer()
         }
     }
 }
 
-// MARK: - 10. 動態速度環形儀表板
+// MARK: - ★ 升級版速度儀表環（多層光暈 + 金屬反射）
 struct NeonSpeedGaugeRing: View {
     var speed: Double
     var maxDisplaySpeed: Double = 220.0
     var color: Color
     var outerBorderWidth: Double
     var animSpeed: Double
-    
-    @State private var isOuterRotating = false
-    
-    var progress: Double {
-        return min(max(speed / maxDisplaySpeed, 0.0), 1.0)
-    }
-    
+
+    var progress: Double { min(max(speed / maxDisplaySpeed, 0), 1) }
+
     var body: some View {
         ZStack {
+            // 最外層旋轉光環
+            TimelineView(.animation(minimumInterval: 1.0/60.0)) { tl in
+                let t = tl.date.timeIntervalSinceReferenceDate * (animSpeed * 0.4 + 0.3)
+                Circle()
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: color.opacity(0.08), location: 0),
+                                .init(color: color.opacity(0.6), location: 0.25),
+                                .init(color: .white, location: 0.5),
+                                .init(color: color.opacity(0.6), location: 0.75),
+                                .init(color: color.opacity(0.08), location: 1)
+                            ]),
+                            center: .center,
+                            angle: .degrees(t * 60)
+                        ),
+                        lineWidth: CGFloat(outerBorderWidth)
+                    )
+                    .frame(width: 299, height: 299)
+                    .shadow(color: color, radius: 8)
+                    .shadow(color: color.opacity(0.3), radius: 18)
+            }
+
+            // ★ 金屬反射底環
             Circle()
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.15), color.opacity(0.05),
+                                 Color.white.opacity(0.12), color.opacity(0.03)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: 10)
+                .frame(width: 259, height: 259)
+
+            // 背景軌道
+            Circle()
+                .stroke(Color.white.opacity(0.07), lineWidth: 12)
+                .frame(width: 257, height: 257)
+
+            // ★ 多層進度弧（外光暈 + 主弧 + 內白線）
+            // 外光暈層
+            Circle()
+                .trim(from: 0, to: CGFloat(progress))
+                .stroke(color.opacity(0.3), style: StrokeStyle(lineWidth: 20, lineCap: .round))
+                .frame(width: 257, height: 257)
+                .rotationEffect(.degrees(-90))
+                .blur(radius: 8)
+
+            // 主進度弧
+            Circle()
+                .trim(from: 0, to: CGFloat(progress))
                 .stroke(
                     AngularGradient(
-                        gradient: Gradient(colors: [color.opacity(0.1), color, .white, color, color.opacity(0.1)]),
-                        center: .center,
-                        angle: .degrees(isOuterRotating ? 360 : 0)
-                    ),
-                    lineWidth: CGFloat(outerBorderWidth)
-                )
-                .frame(width: 295, height: 295)
-                .shadow(color: color, radius: 8)
-            
-            Circle()
-                .stroke(Color.white.opacity(0.1), lineWidth: 10)
-                .frame(width: 255, height: 255)
-            
-            Circle()
-                .trim(from: 0.0, to: CGFloat(progress))
-                .stroke(
-                    AngularGradient(gradient: Gradient(colors: [color.opacity(0.4), color, .white]), center: .center),
-                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
-                )
-                .frame(width: 255, height: 255)
+                        gradient: Gradient(colors: [color.opacity(0.4), color, .white]),
+                        center: .center),
+                    style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                .frame(width: 257, height: 257)
                 .rotationEffect(.degrees(-90))
                 .shadow(color: color, radius: 10)
-                // 加入 120Hz 順暢化的平滑動畫插值，防止每秒指針瞬跳
-                .animation(.easeOut(duration: 0.35), value: speed)
-            
+                .shadow(color: color.opacity(0.4), radius: 20)
+
+            // 弧頭光點
+            if progress > 0.01 {
+                let angle = (progress * 360 - 90) * .pi / 180
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 10, height: 10)
+                    .offset(x: cos(angle) * 128.5, y: sin(angle) * 128.5)
+                    .shadow(color: .white, radius: 6)
+                    .shadow(color: color, radius: 10)
+            }
+
+            // 刻度燈
             ForEach(0..<12, id: \.self) { i in
+                let lit = i < Int(progress * 12)
                 Rectangle()
-                    .fill(i < Int(progress * 12) ? color : Color.white.opacity(0.2))
-                    .frame(width: 3, height: 10)
-                    .offset(y: -120)
+                    .fill(lit ? color : Color.white.opacity(0.15))
+                    .frame(width: lit ? 4 : 2.5, height: lit ? 12 : 8)
+                    .offset(y: -124)
                     .rotationEffect(.degrees(Double(i) * 30))
-                    // 同步套用平滑插值
-                    .animation(.easeOut(duration: 0.35), value: speed)
+                    .shadow(color: lit ? color : .clear, radius: lit ? 6 : 0)
             }
         }
-        .metalAcceleration() // 讓大量圓環使用 GPU 加速繪製
-        .onAppear {
-            let duration = max(0.5, 6.0 - animSpeed)
-            withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
-                isOuterRotating = true
-            }
-        }
+        .drawingGroup() // ★ 合批渲染
     }
 }
 
-// MARK: - 11. 轉速燈
+// MARK: - 轉速燈
 struct ShiftLightsView: View {
     let speed: Double
-    
     var body: some View {
-        HStack(spacing: 5) {
-            ForEach(0..<8, id: \.self) { index in
-                Rectangle()
-                    .fill(lightColor(for: index))
-                    .frame(width: 16, height: 6)
-                    .cornerRadius(3)
-                    .shadow(color: lightColor(for: index), radius: isLit(index) ? 6 : 0)
+        HStack(spacing: 4) {
+            ForEach(0..<8, id: \.self) { i in
+                let lit = speed >= Double(i + 1) * 25.0
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(lightColor(for: i, lit: lit))
+                    .frame(width: 16, height: 7)
+                    .shadow(color: lit ? lightColor(for: i, lit: true) : .clear, radius: lit ? 6 : 0)
             }
         }
-        // 燈號隨速度變化時，也帶有微小漸變
-        .animation(.linear(duration: 0.2), value: speed)
     }
-    
-    private func isLit(_ index: Int) -> Bool { speed >= Double(index + 1) * 25.0 }
-    private func lightColor(for index: Int) -> Color {
-        guard isLit(index) else { return Color.gray.opacity(0.25) }
-        if index < 4 { return .green }
-        if index < 6 { return .yellow }
+    private func lightColor(for i: Int, lit: Bool) -> Color {
+        guard lit else { return Color.gray.opacity(0.2) }
+        if i < 4 { return .green }
+        if i < 6 { return .yellow }
         return .red
     }
 }
 
-// MARK: - 12. 內嵌小地圖
+// MARK: - ★ 玻璃態 HUD 資訊卡（升級版）
+struct GlassInfoCard: View {
+    let title: String
+    let value: String
+    let valueColor: Color
+    let icon: String
+    var isActive: Bool = false
+    @State private var breathe = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(valueColor.opacity(0.8))
+                .frame(width: 14)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundColor(.gray)
+                Text(value)
+                    .font(.system(size: 10, weight: .black, design: .monospaced))
+                    .foregroundColor(valueColor)
+            }
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(0.06))
+                // ★ 玻璃頂部反光
+                LinearGradient(
+                    colors: [Color.white.opacity(0.12), .clear],
+                    startPoint: .top, endPoint: .center)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), valueColor.opacity(0.3), Color.white.opacity(0.1)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: 0.8)
+        )
+        .scaleEffect(isActive && breathe ? 1.02 : 1.0)
+        .onAppear {
+            if isActive {
+                withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                    breathe = true
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 小地圖
 struct MiniMapView: View {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
     var destinationCoordinate: CLLocationCoordinate2D?
     var primaryColor: Color
     var onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .bottomTrailing) {
@@ -1510,114 +1630,94 @@ struct MiniMapView: View {
                     routePolyline: routePolyline,
                     destinationCoordinate: destinationCoordinate,
                     isInteractive: false,
-                    onMapTap: { _ in }
-                )
+                    onMapTap: { _ in })
                 .clipShape(RoundedRectangle(cornerRadius: 18))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(primaryColor, lineWidth: 2))
-                
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(
+                            LinearGradient(
+                                colors: [primaryColor, primaryColor.opacity(0.4)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing),
+                            lineWidth: 1.5)
+                )
+
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.white)
-                    .padding(7)
-                    .background(Color.black.opacity(0.7))
+                    .padding(6)
+                    .background(Color.black.opacity(0.75))
                     .clipShape(Circle())
-                    .padding(8)
+                    .padding(7)
             }
         }
         .frame(width: 110, height: 110)
-        .shadow(color: primaryColor.opacity(0.5), radius: 8)
+        .shadow(color: primaryColor.opacity(0.5), radius: 10)
     }
 }
 
-// MARK: - 13. 效能測試檢視
+// MARK: - 效能測試
 struct PerformanceTestDashboardView: View {
     @ObservedObject var vehicleManager: VehicleManager
     var primaryColor: Color
-    
     var body: some View {
         TabView {
             ZStack {
-                Color.black.ignoresSafeArea(.all, edges: .all)
+                Color.black.ignoresSafeArea()
                 VStack(spacing: 24) {
                     Text("0 - 100 KM/H 加速測試")
-                        .font(.system(size: 20, weight: .black, design: .monospaced))
-                        .foregroundColor(.white)
-                    
+                        .font(.system(size: 20, weight: .black, design: .monospaced)).foregroundColor(.white)
                     ZStack {
-                        Circle()
-                            .stroke(primaryColor.opacity(0.3), lineWidth: 12)
-                            .frame(width: 200, height: 200)
-                        
+                        Circle().stroke(primaryColor.opacity(0.3), lineWidth: 12).frame(width: 200, height: 200)
                         VStack(spacing: 4) {
                             Text(String(format: "%.2f", vehicleManager.zeroToOneHundredTime))
-                                .font(.system(size: 48, weight: .black, design: .monospaced))
-                                .foregroundColor(.white)
-                            Text("秒 (SEC)")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(primaryColor)
+                                .font(.system(size: 48, weight: .black, design: .monospaced)).foregroundColor(.white)
+                            Text("秒 (SEC)").font(.system(size: 12, weight: .bold)).foregroundColor(primaryColor)
                         }
                     }
-                    
-                    Text(vehicleManager.isTesting0_100 ? "測試中...請全油門加速！" : "車速低於 5 km/h 靜止後自動重置測試")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(.gray)
+                    Text(vehicleManager.isTesting0_100 ? "測試中...全油門加速！" : "靜止後自動重置")
+                        .font(.system(size: 12, design: .monospaced)).foregroundColor(.gray)
                 }
             }
-            .tabItem {
-                Label("0-100加速", systemImage: "timer")
-            }
-            
+            .tabItem { Label("0-100加速", systemImage: "timer") }
             ZStack {
-                Color.black.ignoresSafeArea(.all, edges: .all)
+                Color.black.ignoresSafeArea()
                 VStack(spacing: 24) {
                     Text("0 - 100 公尺短距加速")
-                        .font(.system(size: 20, weight: .black, design: .monospaced))
-                        .foregroundColor(.white)
-                    
+                        .font(.system(size: 20, weight: .black, design: .monospaced)).foregroundColor(.white)
                     ZStack {
-                        Circle()
-                            .stroke(Color.orange.opacity(0.3), lineWidth: 12)
-                            .frame(width: 200, height: 200)
-                        
+                        Circle().stroke(Color.orange.opacity(0.3), lineWidth: 12).frame(width: 200, height: 200)
                         VStack(spacing: 4) {
                             Text(String(format: "%.2f", vehicleManager.zeroTo100mTime))
-                                .font(.system(size: 48, weight: .black, design: .monospaced))
-                                .foregroundColor(.orange)
-                            Text("秒 / 100M")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.orange)
+                                .font(.system(size: 48, weight: .black, design: .monospaced)).foregroundColor(.orange)
+                            Text("秒 / 100M").font(.system(size: 12, weight: .bold)).foregroundColor(.orange)
                         }
                     }
-                    
-                    Text(vehicleManager.isTesting0_100m ? "0-100公尺計測中..." : "車輛靜止後起步自動開始計測")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(.gray)
+                    Text(vehicleManager.isTesting0_100m ? "0-100公尺計測中..." : "起步自動開始")
+                        .font(.system(size: 12, design: .monospaced)).foregroundColor(.gray)
                 }
             }
-            .tabItem {
-                Label("100公尺測試", systemImage: "flag.checkered")
-            }
+            .tabItem { Label("100公尺測試", systemImage: "flag.checkered") }
         }
         .accentColor(primaryColor)
         .navigationTitle("車輛效能測試")
-        .ignoresSafeArea(.all, edges: .all)
+        .ignoresSafeArea()
     }
 }
 
-// MARK: - 14. 歷史紀錄
+// MARK: - 歷史紀錄
 struct HistoryRecordsView: View {
     @Binding var records: [HistoryRecord]
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea(.all, edges: .all)
+            Color.black.ignoresSafeArea()
             List {
-                ForEach(records) { record in
-                    NavigationLink(destination: HistoryDetailMapView(record: record)) {
+                ForEach(records) { rec in
+                    NavigationLink(destination: HistoryDetailMapView(record: rec)) {
                         VStack(alignment: .leading) {
-                            Text(record.date, formatter: dateFormatter).font(.system(size: 12)).foregroundColor(.gray)
-                            Text(String(format: "極速: %.0f km/h | 0-100: %.2fs | 里程: %.2f km", record.maxSpeed, record.zeroToOneHundredTime, record.tripDistance))
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
+                            Text(rec.date, formatter: dateFormatter).font(.system(size: 12)).foregroundColor(.gray)
+                            Text(String(format: "極速: %.0f km/h | 0-100: %.2fs | %.2f km",
+                                        rec.maxSpeed, rec.zeroToOneHundredTime, rec.tripDistance))
+                            .font(.system(size: 14, weight: .bold)).foregroundColor(.white)
                         }
                     }
                     .listRowBackground(Color.black)
@@ -1626,26 +1726,24 @@ struct HistoryRecordsView: View {
             }
         }
         .navigationTitle("行車歷史封存")
-        .ignoresSafeArea(.all, edges: .all)
     }
-    private var dateFormatter: DateFormatter { let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df }
+    private var dateFormatter: DateFormatter {
+        let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .medium; return df
+    }
 }
-
 struct HistoryDetailMapView: View {
     let record: HistoryRecord
     var body: some View {
         InteractiveNavigationMapView(
-            coordinate: record.routeCoordinates.first?.coordinate ?? CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654),
+            coordinate: record.routeCoordinates.first?.coordinate ?? CLLocationCoordinate2D(latitude: 25.033, longitude: 121.5654),
             historyPath: record.routeCoordinates.map { $0.coordinate },
-            isInteractive: true,
-            onMapTap: { _ in }
-        )
-        .ignoresSafeArea(.all, edges: .all)
+            isInteractive: true, onMapTap: { _ in })
+        .ignoresSafeArea()
         .navigationTitle("軌跡回放")
     }
 }
 
-// MARK: - 15. 設定頁面
+// MARK: - 設定頁面
 struct SettingsView: View {
     @ObservedObject var vehicleManager: VehicleManager
     @Binding var selectedTheme: DashboardTheme
@@ -1659,116 +1757,91 @@ struct SettingsView: View {
     @Binding var sakuraDensity: Double
     @Binding var borderWidth: Double
     @Binding var animSpeed: Double
-    
-    // [新增] 動態模糊控制綁定
-    @Binding var enableMotionBlur: Bool
-    
+
     var body: some View {
         Form {
-            Section(header: Text("視覺特效與 120Hz 防卡頓設定")) {
-                Toggle("啟用 120Hz 模擬動態模糊 (GPU 加速)", isOn: $enableMotionBlur)
-                Text("這會在車速超過 40km/h 時自動產生殘影，並強制啟動 Metal 晶片渲染，大幅減少舊機型 (如 iPhone 11) 的畫面卡頓。")
-                    .font(.system(size: 11))
-                    .foregroundColor(.gray)
-            }
-            
             Section(header: Text("霓虹邊框與燈條設定")) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("霓虹燈條粗度: \(Int(borderWidth)) pt")
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                     Slider(value: $borderWidth, in: 2...12, step: 1)
                 }
-                
                 VStack(alignment: .leading, spacing: 8) {
                     Text("霓虹旋轉速度: \(Int(animSpeed)) 級")
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                     Slider(value: $animSpeed, in: 1...5, step: 1)
                 }
             }
-            
-            Section(header: Text("語音播報與多國語系 (i18n)")) {
+            Section(header: Text("語音播報")) {
                 Picker("語音語言", selection: $vehicleManager.speechManager.currentLanguage) {
                     Text("繁體中文").tag("zh-TW")
                     Text("English").tag("en-US")
                     Text("日本語").tag("ja-JP")
                 }
                 .pickerStyle(SegmentedPickerStyle())
-                
-                Button(action: {
+                Button("測試語音播報") {
                     vehicleManager.speechManager.announceWarning(speedLimit: 60, isOverspeed: true)
-                }) {
-                    Text("測試語音播報效果")
-                        .foregroundColor(.blue)
-                }
+                }.foregroundColor(.blue)
             }
-            
             Section(header: Text("測速點位管理")) {
                 Button("新增目前位置為測速點") {
-                    vehicleManager.addCurrentLocationAsCamera(speedLimit: speedLimit, description: "手動回報測速點")
+                    vehicleManager.addCurrentLocationAsCamera(speedLimit: speedLimit, description: "手動回報")
                 }
                 Button("移除最近測速點 (150m內)") {
                     vehicleManager.removeNearestCamera()
-                }
-                .foregroundColor(.red)
+                }.foregroundColor(.red)
             }
-            
-            Section(header: Text("視覺主題與風格")) {
+            Section(header: Text("視覺主題")) {
                 Picker("佈景主題", selection: $selectedTheme) {
-                    ForEach(DashboardTheme.allCases) { theme in
-                        Text(theme.rawValue).tag(theme)
-                    }
+                    ForEach(DashboardTheme.allCases) { t in Text(t.rawValue).tag(t) }
                 }
                 .pickerStyle(SegmentedPickerStyle())
-                
                 Toggle("啟用自定義霓虹色", isOn: $useCustomColor)
-                if useCustomColor {
-                    ColorPicker("自定義主色調", selection: $customColor)
-                }
+                if useCustomColor { ColorPicker("自定義主色調", selection: $customColor) }
             }
-            
             if selectedTheme == .sakura {
-                Section(header: Text("日本櫻花風動態背景設定")) {
-                    Toggle("啟用主畫面櫻花飄落背景", isOn: $enableSakuraBackground)
+                Section(header: Text("日本櫻花背景")) {
+                    Toggle("啟用櫻花飄落背景", isOn: $enableSakuraBackground)
                     if enableSakuraBackground {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("櫻花飄落密度: \(Int(sakuraDensity)) 片").font(.system(size: 13, weight: .bold))
+                            Text("密度: \(Int(sakuraDensity)) 片")
+                                .font(.system(size: 13, weight: .bold))
                             Slider(value: $sakuraDensity, in: 5...50, step: 5)
                         }
                     }
                 }
             }
-            
-            Section(header: Text("模擬速度測試（用於即時畫面測試）")) {
+            Section(header: Text("模擬速度測試")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("模擬車速: \(Int(simulatedSpeed)) km/h").font(.system(size: 14, weight: .bold, design: .monospaced))
+                    Text("模擬車速: \(Int(simulatedSpeed)) km/h")
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
                     Slider(value: $simulatedSpeed, in: 0...220, step: 5)
                 }
             }
-            
-            Section(header: Text("速限與警告設定")) {
+            Section(header: Text("速限與警告")) {
                 VStack(alignment: .leading) {
-                    Text("超速警告閾值: \(Int(speedLimit)) km/h").font(.system(size: 14, weight: .bold, design: .monospaced))
+                    Text("超速閾值: \(Int(speedLimit)) km/h")
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
                     Slider(value: $speedLimit, in: 10...180, step: 5)
                 }
             }
-            
             Section(header: Text("導航與定位")) {
-                Toggle("網路定位增強精確度", isOn: $isNetworkBoostEnabled)
+                Toggle("網路定位增強", isOn: $isNetworkBoostEnabled)
             }
-            
             Section(header: Text("顯示模式")) {
-                Toggle("HUD 投影模式 (鏡像反轉)", isOn: $isHudMode)
+                Toggle("HUD 投影模式 (鏡像)", isOn: $isHudMode)
             }
         }
         .navigationTitle("儀表板設定")
     }
 }
 
-// MARK: - 16. 主畫面 ContentView
+// MARK: - ★ 主畫面 ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
+    @StateObject private var animClock = AnimationClock()  // ★ 統一動畫時鐘
     @State private var isBootLoaded: Bool = false
-    
+
     @AppStorage("selectedTheme") private var storedThemeRaw: String = DashboardTheme.sakura.rawValue
     @AppStorage("speedLimit") private var speedLimit: Double = 120.0
     @AppStorage("isHudMode") private var isHudMode: Bool = false
@@ -1776,64 +1849,49 @@ struct ContentView: View {
     @AppStorage("useCustomColor") private var useCustomColor: Bool = false
     @AppStorage("customColorRaw") private var customColorRaw: String = "1.0,0.3,0.4"
     @AppStorage("isNetworkBoostEnabled") private var isNetworkBoostEnabled: Bool = false
-    
     @AppStorage("enableSakuraBackground") private var enableSakuraBackground: Bool = true
     @AppStorage("sakuraDensity") private var sakuraDensity: Double = 20.0
-    
     @AppStorage("borderWidth") private var borderWidth: Double = 4.0
     @AppStorage("animSpeed") private var animSpeed: Double = 3.0
-    
-    // [新增] 儲存動態模糊的開關狀態
-    @AppStorage("enableMotionBlur") private var enableMotionBlur: Bool = true
-    
+
     @State private var overspeedLogs: [OverspeedRecord] = []
     @State private var historyRecords: [HistoryRecord] = []
-    
     @State private var showSettings: Bool = false
     @State private var showHistoryRecords: Bool = false
     @State private var showPerformanceView: Bool = false
     @State private var flashWarning: Bool = false
-    
     @State private var simulatedSpeed: Double = 0.0
-    
     @State private var showJapaneseOverspeedAlert: Bool = false
     @State private var overspeedTimer: Timer? = nil
-    
+
     var customColor: Color {
         get { Color(rawValue: customColorRaw) ?? Color(red: 1.0, green: 0.3, blue: 0.4) }
         set { customColorRaw = newValue.rawValue }
     }
-    
-    var effectiveSpeed: Double {
-        return simulatedSpeed > 0 ? simulatedSpeed : vehicleManager.speed
-    }
-    
+    var effectiveSpeed: Double { simulatedSpeed > 0 ? simulatedSpeed : vehicleManager.speed }
     var selectedTheme: DashboardTheme {
         get { DashboardTheme(rawValue: storedThemeRaw) ?? .sakura }
         set { storedThemeRaw = newValue.rawValue }
     }
-    
     var currentPrimaryColor: Color {
         selectedTheme.primaryColor(custom: useCustomColor ? customColor : nil)
     }
-    
+
     var body: some View {
-        // [新增] 根據時速計算動態模糊殘影強度 (時速超過40開始產生)
-        let blurIntensity = enableMotionBlur && effectiveSpeed > 40.0 ? CGFloat(min((effectiveSpeed - 40.0) / 180.0, 1.0)) : 0.0
-        
         NavigationView {
             ZStack {
+                // ★ 升級背景（統一動畫時鐘）
                 AnimatedBackgroundView(
                     themeColors: selectedTheme.backgroundGradientColors,
-                    primaryColor: currentPrimaryColor
+                    primaryColor: currentPrimaryColor,
+                    theme: selectedTheme,
+                    clock: animClock
                 )
-                
+
                 if selectedTheme == .sakura && enableSakuraBackground {
-                    SakuraFallingView(density: sakuraDensity)
-                        .ignoresSafeArea(.all, edges: .all)
-                        .zIndex(1)
+                    SakuraFallingView(density: sakuraDensity).ignoresSafeArea().zIndex(1)
                 }
-                
+
                 if !isBootLoaded {
                     MultiThemeBootLoadingView(
                         isFinished: $isBootLoaded,
@@ -1846,43 +1904,49 @@ struct ContentView: View {
                     .zIndex(50)
                 } else {
                     ZStack {
-                        BackgroundNeonFlowView(primaryColor: currentPrimaryColor, borderWidth: borderWidth, animSpeed: animSpeed)
-                            .ignoresSafeArea(.all, edges: .all)
-                            .zIndex(0)
-                        
+                        BackgroundNeonFlowView(
+                            primaryColor: currentPrimaryColor,
+                            borderWidth: borderWidth,
+                            animSpeed: animSpeed
+                        )
+                        .ignoresSafeArea().zIndex(0)
+
                         if flashWarning {
-                            Color.red.opacity(0.35)
-                                .ignoresSafeArea(.all, edges: .all)
-                                .zIndex(10)
+                            Color.red.opacity(0.3).ignoresSafeArea().zIndex(10)
                         }
-                        
+
+                        // ★ 超速警報（升級樣式）
                         if showJapaneseOverspeedAlert {
                             VStack {
                                 Spacer()
-                                VStack(spacing: 6) {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "exclamationmark.triangle.fill")
-                                            .foregroundColor(.yellow)
-                                            .font(.system(size: 20))
+                                HStack(spacing: 10) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.yellow).font(.system(size: 22))
+                                    VStack(alignment: .leading, spacing: 3) {
                                         Text("オービス警報発動")
-                                            .font(.system(size: 16, weight: .black, design: .monospaced))
+                                            .font(.system(size: 15, weight: .black, design: .monospaced))
                                             .foregroundColor(.white)
+                                        Text("速度超過！減速してください！")
+                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.orange)
                                     }
-                                    Text("速度超過です！減速してください！")
-                                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                        .foregroundColor(.orange)
                                 }
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 14)
-                                .background(Color.black.opacity(0.92))
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red, lineWidth: 2))
-                                .cornerRadius(12)
-                                .shadow(color: .red.opacity(0.9), radius: 12)
+                                .padding(.horizontal, 22).padding(.vertical, 13)
+                                .background(
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.93))
+                                        LinearGradient(colors: [Color.white.opacity(0.06), .clear],
+                                                       startPoint: .top, endPoint: .bottom)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    }
+                                )
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.red, lineWidth: 2))
+                                .shadow(color: .red.opacity(0.85), radius: 16)
                                 .padding(.bottom, 60)
                             }
                             .zIndex(60)
                         }
-                        
+
                         ZStack(alignment: .top) {
                             if showMap {
                                 ZStack(alignment: .topLeading) {
@@ -1891,10 +1955,10 @@ struct ContentView: View {
                                         routePolyline: vehicleManager.routePolyline,
                                         destinationCoordinate: vehicleManager.destinationCoordinate,
                                         isInteractive: true,
-                                        onMapTap: { clickedCoord in vehicleManager.setDestination(clickedCoord) }
+                                        onMapTap: { vehicleManager.setDestination($0) }
                                     )
-                                    .ignoresSafeArea(.all, edges: .all)
-                                    
+                                    .ignoresSafeArea()
+
                                     HStack(alignment: .top, spacing: 12) {
                                         Button(action: { showMap.toggle() }) {
                                             Image(systemName: "gauge.with.needle")
@@ -1905,7 +1969,6 @@ struct ContentView: View {
                                                 .cornerRadius(22)
                                                 .overlay(Circle().stroke(currentPrimaryColor, lineWidth: 2))
                                         }
-                                        
                                         HStack(spacing: 6) {
                                             Text(String(format: "%.0f", effectiveSpeed))
                                                 .font(.system(size: 22, weight: .black, design: .monospaced))
@@ -1914,104 +1977,71 @@ struct ContentView: View {
                                                 .font(.system(size: 8, weight: .bold, design: .monospaced))
                                                 .foregroundColor(currentPrimaryColor)
                                         }
-                                        .padding(.horizontal, 14)
-                                        .frame(height: 44)
+                                        .padding(.horizontal, 14).frame(height: 44)
                                         .background(Color.black.opacity(0.85))
                                         .cornerRadius(22)
-                                        .overlay(RoundedRectangle(cornerRadius: 22).stroke(currentPrimaryColor, lineWidth: 1))
-                                        
+                                        .overlay(RoundedRectangle(cornerRadius: 22)
+                                            .stroke(currentPrimaryColor, lineWidth: 1))
+
                                         if vehicleManager.isNavigating {
                                             Button(action: { vehicleManager.cancelNavigation() }) {
                                                 Image(systemName: "xmark.circle.fill")
                                                     .font(.system(size: 16, weight: .bold))
                                                     .frame(width: 44, height: 44)
                                                     .background(Color.red.opacity(0.85))
-                                                    .foregroundColor(.white)
-                                                    .cornerRadius(22)
+                                                    .foregroundColor(.white).cornerRadius(22)
                                             }
                                         }
                                     }
-                                    .padding(.top, 24)
-                                    .padding(.leading, 24)
+                                    .padding(.top, 24).padding(.leading, 24)
                                 }
-                                .ignoresSafeArea(.all, edges: .all)
+                                .ignoresSafeArea()
+
                             } else {
-                                // [新增] 將核心儀表板套上「120Hz 動態模糊與 GPU 加速」特效
+                                // ★ 主儀表板
                                 HStack(spacing: 12) {
+
+                                    // 左側功能按鈕
                                     VStack(spacing: 10) {
-                                        Button(action: { showMap.toggle() }) {
-                                            VStack(spacing: 3) {
-                                                Image(systemName: "map.fill").font(.system(size: 14))
-                                                Text("地圖").font(.system(size: 8, weight: .bold, design: .monospaced))
-                                            }
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.white.opacity(0.12))
-                                            .foregroundColor(.white)
-                                            .cornerRadius(14)
+                                        sideButton(icon: "map.fill", label: "地圖",
+                                                   bg: Color.white.opacity(0.12), fg: .white) {
+                                            showMap.toggle()
                                         }
-                                        
-                                        Button(action: { showSettings = true }) {
-                                            VStack(spacing: 3) {
-                                                Image(systemName: "gearshape.fill").font(.system(size: 14))
-                                                Text("設定").font(.system(size: 8, weight: .bold, design: .monospaced))
-                                            }
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.white.opacity(0.12))
-                                            .foregroundColor(currentPrimaryColor)
-                                            .cornerRadius(14)
-                                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(currentPrimaryColor.opacity(0.6), lineWidth: 1))
+                                        sideButton(icon: "gearshape.fill", label: "設定",
+                                                   bg: currentPrimaryColor.opacity(0.15),
+                                                   fg: currentPrimaryColor,
+                                                   border: currentPrimaryColor.opacity(0.5)) {
+                                            showSettings = true
                                         }
-                                        
-                                        Button(action: { showPerformanceView = true }) {
-                                            VStack(spacing: 3) {
-                                                Image(systemName: "timer").font(.system(size: 14))
-                                                Text("測試").font(.system(size: 8, weight: .bold, design: .monospaced))
-                                            }
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.orange.opacity(0.25))
-                                            .foregroundColor(.orange)
-                                            .cornerRadius(14)
+                                        sideButton(icon: "timer", label: "測試",
+                                                   bg: Color.orange.opacity(0.2), fg: .orange) {
+                                            showPerformanceView = true
                                         }
-                                        
-                                        Button(action: { showHistoryRecords = true }) {
-                                            VStack(spacing: 3) {
-                                                Image(systemName: "list.bullet.rectangle.portrait.fill").font(.system(size: 14))
-                                                Text("紀錄").font(.system(size: 8, weight: .bold, design: .monospaced))
-                                            }
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.white.opacity(0.12))
-                                            .foregroundColor(.white)
-                                            .cornerRadius(14)
+                                        sideButton(icon: "list.bullet.rectangle.portrait.fill", label: "紀錄",
+                                                   bg: Color.white.opacity(0.12), fg: .white) {
+                                            showHistoryRecords = true
                                         }
-                                        
+
                                         Spacer()
-                                        
-                                        Button(action: {
-                                            let history = HistoryRecord(
-                                                id: UUID(),
-                                                date: Date(),
+
+                                        sideButton(icon: "arrow.counterclockwise.circle.fill", label: "重置",
+                                                   bg: Color.red.opacity(0.2), fg: .red) {
+                                            let h = HistoryRecord(
+                                                id: UUID(), date: Date(),
                                                 maxSpeed: vehicleManager.maxSpeed,
                                                 zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime,
                                                 maxGForce: vehicleManager.maxGForce,
                                                 tripDistance: vehicleManager.tripDistance,
                                                 routeCoordinates: vehicleManager.recordedPath.map { CodableCoordinate($0) }
                                             )
-                                            historyRecords.append(history)
+                                            historyRecords.append(h)
                                             vehicleManager.resetData()
-                                            simulatedSpeed = 0.0
-                                        }) {
-                                            VStack(spacing: 3) {
-                                                Image(systemName: "arrow.counterclockwise.circle.fill").font(.system(size: 14))
-                                                Text("重置").font(.system(size: 8, weight: .bold, design: .monospaced))
-                                            }
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.red.opacity(0.25))
-                                            .foregroundColor(.red)
-                                            .cornerRadius(14)
+                                            simulatedSpeed = 0
                                         }
                                     }
                                     .frame(width: 54)
-                                    
+
+                                    // 中央速度儀表
                                     ZStack {
                                         NeonSpeedGaugeRing(
                                             speed: effectiveSpeed,
@@ -2019,95 +2049,99 @@ struct ContentView: View {
                                             outerBorderWidth: borderWidth,
                                             animSpeed: animSpeed
                                         )
-                                        
+
                                         VStack(spacing: 4) {
-                                            Text(simulatedSpeed > 0 ? "SIMULATED SPEED" : "GPS SPEED")
-                                                .font(.system(size: 10, weight: .black, design: .monospaced))
+                                            Text(simulatedSpeed > 0 ? "SIMULATED" : "GPS SPEED")
+                                                .font(.system(size: 9, weight: .black, design: .monospaced))
                                                 .foregroundColor(simulatedSpeed > 0 ? .orange : .gray)
                                                 .kerning(2)
-                                            
+
                                             Text(String(format: "%.0f", effectiveSpeed))
-                                                .font(.system(size: 78, weight: .black, design: .monospaced))
+                                                .font(.system(size: 80, weight: .black, design: .monospaced))
                                                 .foregroundColor(.white)
-                                                .shadow(color: currentPrimaryColor, radius: 12)
-                                                // [新增] 時速跳動時的平滑過渡 (防卡頓瞬移)
-                                                .animation(.easeOut(duration: 0.35), value: effectiveSpeed)
-                                            
+                                                .shadow(color: currentPrimaryColor, radius: 14)
+                                                .shadow(color: currentPrimaryColor.opacity(0.4), radius: 28)
+
                                             Text("KM/H")
                                                 .font(.system(size: 13, weight: .bold, design: .monospaced))
                                                 .foregroundColor(currentPrimaryColor)
+                                                .shadow(color: currentPrimaryColor, radius: 6)
                                         }
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    
-                                    VStack(spacing: 10) {
+
+                                    // 右側 HUD 資訊
+                                    VStack(spacing: 8) {
                                         MiniMapView(
                                             coordinate: vehicleManager.currentLocation,
                                             routePolyline: vehicleManager.routePolyline,
                                             destinationCoordinate: vehicleManager.destinationCoordinate,
                                             primaryColor: currentPrimaryColor
                                         ) { showMap = true }
-                                        
-                                        VStack(spacing: 4) {
+
+                                        VStack(spacing: 3) {
                                             ShiftLightsView(speed: effectiveSpeed)
-                                            Text("RPM SHIFT LIGHTS").font(.system(size: 7, weight: .bold, design: .monospaced)).foregroundColor(.gray)
+                                            Text("RPM SHIFT")
+                                                .font(.system(size: 7, weight: .bold, design: .monospaced))
+                                                .foregroundColor(.gray)
                                         }
-                                        
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack {
-                                                Text("0-100加速:").foregroundColor(.gray)
-                                                Spacer()
-                                                Text(String(format: "%.2fs", vehicleManager.zeroToOneHundredTime))
-                                                    .foregroundColor(vehicleManager.isTesting0_100 ? .yellow : currentPrimaryColor)
-                                            }
-                                            HStack {
-                                                Text("0-100m距:").foregroundColor(.gray)
-                                                Spacer()
-                                                Text(String(format: "%.2fs", vehicleManager.zeroTo100mTime))
-                                                    .foregroundColor(vehicleManager.isTesting0_100m ? .yellow : .orange)
-                                            }
-                                            HStack {
-                                                Text("行車里程:").foregroundColor(.gray)
-                                                Spacer()
-                                                Text(String(format: "%.2fkm", vehicleManager.tripDistance))
-                                                    .foregroundColor(.green)
-                                            }
-                                            HStack {
-                                                Text("最高極速:").foregroundColor(.gray)
-                                                Spacer()
-                                                Text(String(format: "%.0fkm/h", max(vehicleManager.maxSpeed, simulatedSpeed)))
-                                                    .foregroundColor(.white)
-                                            }
+
+                                        // ★ 升級版玻璃態資訊卡
+                                        VStack(spacing: 5) {
+                                            GlassInfoCard(
+                                                title: "0-100加速",
+                                                value: String(format: "%.2fs", vehicleManager.zeroToOneHundredTime),
+                                                valueColor: vehicleManager.isTesting0_100 ? .yellow : currentPrimaryColor,
+                                                icon: "speedometer",
+                                                isActive: vehicleManager.isTesting0_100
+                                            )
+                                            GlassInfoCard(
+                                                title: "0-100m距",
+                                                value: String(format: "%.2fs", vehicleManager.zeroTo100mTime),
+                                                valueColor: vehicleManager.isTesting0_100m ? .yellow : .orange,
+                                                icon: "flag.checkered",
+                                                isActive: vehicleManager.isTesting0_100m
+                                            )
+                                            GlassInfoCard(
+                                                title: "行車里程",
+                                                value: String(format: "%.2fkm", vehicleManager.tripDistance),
+                                                valueColor: .green,
+                                                icon: "road.lanes"
+                                            )
+                                            GlassInfoCard(
+                                                title: "最高極速",
+                                                value: String(format: "%.0fkm/h", max(vehicleManager.maxSpeed, simulatedSpeed)),
+                                                valueColor: .white,
+                                                icon: "flame.fill"
+                                            )
                                         }
-                                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                        .padding(8)
-                                        .background(Color.white.opacity(0.06))
-                                        .cornerRadius(12)
-                                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
-                                        
+
                                         Spacer()
                                     }
                                     .frame(width: 135)
                                 }
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 14)
-                                // [新增] 套用動態模糊與硬體加速！
-                                .dynamicMotionBlur(isEnabled: enableMotionBlur, intensity: blurIntensity)
                             }
-                            
-                            if let cameraAlert = vehicleManager.nearestCameraAlert {
+
+                            // 測速攝影機警報
+                            if let alert = vehicleManager.nearestCameraAlert {
                                 HStack(spacing: 8) {
-                                    Image(systemName: "camera.fill")
-                                        .foregroundColor(.yellow)
-                                    Text(cameraAlert)
+                                    Image(systemName: "camera.fill").foregroundColor(.yellow)
+                                    Text(alert)
                                         .font(.system(size: 12, weight: .bold, design: .monospaced))
                                         .foregroundColor(.white)
                                 }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 9)
-                                .background(Color.red.opacity(0.92))
-                                .cornerRadius(16)
-                                .shadow(color: .red, radius: 10)
+                                .padding(.horizontal, 16).padding(.vertical, 9)
+                                .background(
+                                    ZStack {
+                                        Capsule().fill(Color.red.opacity(0.93))
+                                        LinearGradient(colors: [Color.white.opacity(0.12), .clear],
+                                                       startPoint: .top, endPoint: .bottom)
+                                        .clipShape(Capsule())
+                                    }
+                                )
+                                .shadow(color: .red, radius: 12)
                                 .padding(.top, 16)
                                 .zIndex(50)
                             }
@@ -2118,7 +2152,7 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationBarHidden(true)
             .statusBarHidden(true)
-            .ignoresSafeArea(.all, edges: .all)
+            .ignoresSafeArea()
             .scaleEffect(x: isHudMode ? -1.0 : 1.0, y: 1.0)
             .onAppear {
                 vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: isNetworkBoostEnabled)
@@ -2129,16 +2163,10 @@ struct ContentView: View {
                     AudioServicesPlaySystemSound(1005)
                     overspeedLogs.append(OverspeedRecord(id: UUID(), date: Date(), speed: newVal, speedLimit: speedLimit))
                     vehicleManager.overspeedDurationSeconds += 1.0
-                    
                     overspeedTimer?.invalidate()
-                    withAnimation {
-                        showJapaneseOverspeedAlert = true
-                    }
-                    
+                    withAnimation { showJapaneseOverspeedAlert = true }
                     overspeedTimer = Timer.scheduledTimer(withTimeInterval: 7.0, repeats: false) { _ in
-                        withAnimation {
-                            showJapaneseOverspeedAlert = false
-                        }
+                        withAnimation { showJapaneseOverspeedAlert = false }
                     }
                 } else {
                     flashWarning = false
@@ -2148,26 +2176,22 @@ struct ContentView: View {
                 Group {
                     NavigationLink(destination: SettingsView(
                         vehicleManager: vehicleManager,
-                        selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }),
+                        selectedTheme: Binding(get: { selectedTheme }, set: { storedThemeRaw = $0.rawValue }),
                         speedLimit: $speedLimit,
                         isHudMode: $isHudMode,
                         useCustomColor: $useCustomColor,
                         customColor: Binding(
-                            get: { Color(rawValue: self.customColorRaw) ?? Color(red: 1.0, green: 0.3, blue: 0.4) },
-                            set: { self.customColorRaw = $0.rawValue }
+                            get: { Color(rawValue: customColorRaw) ?? Color(red: 1.0, green: 0.3, blue: 0.4) },
+                            set: { customColorRaw = $0.rawValue }
                         ),
                         isNetworkBoostEnabled: $isNetworkBoostEnabled,
                         simulatedSpeed: $simulatedSpeed,
                         enableSakuraBackground: $enableSakuraBackground,
                         sakuraDensity: $sakuraDensity,
                         borderWidth: $borderWidth,
-                        animSpeed: $animSpeed,
-                        // 傳遞動態模糊設定至頁面
-                        enableMotionBlur: $enableMotionBlur
+                        animSpeed: $animSpeed
                     ), isActive: $showSettings) { EmptyView() }
-                    
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
-                    
                     NavigationLink(destination: PerformanceTestDashboardView(vehicleManager: vehicleManager, primaryColor: currentPrimaryColor), isActive: $showPerformanceView) { EmptyView() }
                 }
             )
@@ -2175,6 +2199,28 @@ struct ContentView: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .statusBarHidden(true)
-        .ignoresSafeArea(.all, edges: .all)
+        .ignoresSafeArea()
+    }
+
+    // ★ 輔助：側邊按鈕
+    @ViewBuilder
+    private func sideButton(icon: String, label: String, bg: Color, fg: Color, border: Color? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: icon).font(.system(size: 14))
+                Text(label).font(.system(size: 8, weight: .bold, design: .monospaced))
+            }
+            .frame(width: 50, height: 50)
+            .background(bg)
+            .foregroundColor(fg)
+            .cornerRadius(14)
+            .overlay(
+                Group {
+                    if let b = border {
+                        RoundedRectangle(cornerRadius: 14).stroke(b, lineWidth: 1)
+                    }
+                }
+            )
+        }
     }
 }
