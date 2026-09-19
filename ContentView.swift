@@ -20,6 +20,53 @@ extension UIColor {
     }
 }
 
+// MARK: - [新增] 動態模糊與 120Hz 順暢化模組 (Metal GPU 加速)
+struct DynamicMotionBlurModifier: ViewModifier {
+    var isEnabled: Bool
+    var intensity: CGFloat // 根據速度動態決定模糊與殘影程度
+
+    func body(content: Content) -> some View {
+        if isEnabled && intensity > 0 {
+            ZStack {
+                // 殘影層 1 (向外擴展 + 模糊)
+                content
+                    .opacity(0.35 * Double(intensity))
+                    .scaleEffect(1.0 + (intensity * 0.025))
+                    .blur(radius: intensity * 3.0)
+                    .offset(x: -intensity * 3, y: intensity * 2)
+                
+                // 殘影層 2 (反向錯位)
+                content
+                    .opacity(0.2 * Double(intensity))
+                    .scaleEffect(1.0 + (intensity * 0.015))
+                    .blur(radius: intensity * 5.0)
+                    .offset(x: intensity * 4, y: -intensity * 2)
+
+                // 主體層
+                content
+            }
+            // 啟用 Metal GPU 渲染，大幅降低 iPhone 11 CPU 負擔，防止掉幀
+            .drawingGroup() 
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func dynamicMotionBlur(isEnabled: Bool, intensity: CGFloat) -> some View {
+        self.modifier(DynamicMotionBlurModifier(isEnabled: isEnabled, intensity: intensity))
+    }
+    
+    // 單純開啟 Metal 加速，用於靜態但複雜的向量圖形
+    func metalAcceleration(isEnabled: Bool = true) -> some View {
+        Group {
+            if isEnabled { self.drawingGroup() }
+            else { self }
+        }
+    }
+}
+
 // MARK: - 1. 資料模型與歷史紀錄
 struct OverspeedRecord: Identifiable, Codable {
     let id: UUID
@@ -148,6 +195,7 @@ struct AnimatedBackgroundView: View {
             .blur(radius: 30)
             .ignoresSafeArea(.all, edges: .all)
         }
+        .metalAcceleration() // 加入 GPU 加速
         .onAppear {
             withAnimation(Animation.easeInOut(duration: 6.0).repeatForever(autoreverses: true)) {
                 startPoint = UnitPoint(x: 1, y: 0)
@@ -396,7 +444,10 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         recordedPath.append(newLocation.coordinate)
         
         let speedKmh = max(0, newLocation.speed * 3.6)
-        self.speed = speedKmh
+        // 透過 SwiftUI Animation 讓速度變動平滑化，不卡頓
+        withAnimation(.easeOut(duration: 0.3)) {
+            self.speed = speedKmh
+        }
         
         let speedDelta = speedKmh - lastRecordedSpeed
         if speedDelta > 18.0 {
@@ -597,6 +648,7 @@ struct MajesticWhiteFoxFaceView: View {
                 .shadow(color: .orange, radius: 6)
         }
         .frame(width: 300, height: 320)
+        .metalAcceleration() // 向量圖 GPU 渲染優化
     }
 }
 
@@ -1204,7 +1256,6 @@ private struct BootParticlesView: View {
     }
 }
 
-
 // MARK: - 7. 櫻花飄落背景
 struct SakuraFallingView: View {
     var density: Double
@@ -1243,6 +1294,7 @@ private struct SakuraFallingContentView: View {
         }
         .allowsHitTesting(false)
         .ignoresSafeArea(.all, edges: .all)
+        .metalAcceleration() // 讓高密度櫻花交給 GPU 運算，防卡頓
     }
 }
 
@@ -1267,6 +1319,7 @@ struct BackgroundNeonFlowView: View {
             .shadow(color: primaryColor, radius: 10)
             .allowsHitTesting(false)
             .ignoresSafeArea(.all, edges: .all)
+            .metalAcceleration() // GPU 加速渲染霓虹漸層
             .onAppear {
                 let duration = max(0.5, 6.0 - animSpeed)
                 withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
@@ -1391,6 +1444,8 @@ struct NeonSpeedGaugeRing: View {
                 .frame(width: 255, height: 255)
                 .rotationEffect(.degrees(-90))
                 .shadow(color: color, radius: 10)
+                // 加入 120Hz 順暢化的平滑動畫插值，防止每秒指針瞬跳
+                .animation(.easeOut(duration: 0.35), value: speed)
             
             ForEach(0..<12, id: \.self) { i in
                 Rectangle()
@@ -1398,8 +1453,11 @@ struct NeonSpeedGaugeRing: View {
                     .frame(width: 3, height: 10)
                     .offset(y: -120)
                     .rotationEffect(.degrees(Double(i) * 30))
+                    // 同步套用平滑插值
+                    .animation(.easeOut(duration: 0.35), value: speed)
             }
         }
+        .metalAcceleration() // 讓大量圓環使用 GPU 加速繪製
         .onAppear {
             let duration = max(0.5, 6.0 - animSpeed)
             withAnimation(Animation.linear(duration: duration).repeatForever(autoreverses: false)) {
@@ -1423,6 +1481,8 @@ struct ShiftLightsView: View {
                     .shadow(color: lightColor(for: index), radius: isLit(index) ? 6 : 0)
             }
         }
+        // 燈號隨速度變化時，也帶有微小漸變
+        .animation(.linear(duration: 0.2), value: speed)
     }
     
     private func isLit(_ index: Int) -> Bool { speed >= Double(index + 1) * 25.0 }
@@ -1600,8 +1660,18 @@ struct SettingsView: View {
     @Binding var borderWidth: Double
     @Binding var animSpeed: Double
     
+    // [新增] 動態模糊控制綁定
+    @Binding var enableMotionBlur: Bool
+    
     var body: some View {
         Form {
+            Section(header: Text("視覺特效與 120Hz 防卡頓設定")) {
+                Toggle("啟用 120Hz 模擬動態模糊 (GPU 加速)", isOn: $enableMotionBlur)
+                Text("這會在車速超過 40km/h 時自動產生殘影，並強制啟動 Metal 晶片渲染，大幅減少舊機型 (如 iPhone 11) 的畫面卡頓。")
+                    .font(.system(size: 11))
+                    .foregroundColor(.gray)
+            }
+            
             Section(header: Text("霓虹邊框與燈條設定")) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("霓虹燈條粗度: \(Int(borderWidth)) pt")
@@ -1713,6 +1783,9 @@ struct ContentView: View {
     @AppStorage("borderWidth") private var borderWidth: Double = 4.0
     @AppStorage("animSpeed") private var animSpeed: Double = 3.0
     
+    // [新增] 儲存動態模糊的開關狀態
+    @AppStorage("enableMotionBlur") private var enableMotionBlur: Bool = true
+    
     @State private var overspeedLogs: [OverspeedRecord] = []
     @State private var historyRecords: [HistoryRecord] = []
     
@@ -1745,6 +1818,9 @@ struct ContentView: View {
     }
     
     var body: some View {
+        // [新增] 根據時速計算動態模糊殘影強度 (時速超過40開始產生)
+        let blurIntensity = enableMotionBlur && effectiveSpeed > 40.0 ? CGFloat(min((effectiveSpeed - 40.0) / 180.0, 1.0)) : 0.0
+        
         NavigationView {
             ZStack {
                 AnimatedBackgroundView(
@@ -1860,6 +1936,7 @@ struct ContentView: View {
                                 }
                                 .ignoresSafeArea(.all, edges: .all)
                             } else {
+                                // [新增] 將核心儀表板套上「120Hz 動態模糊與 GPU 加速」特效
                                 HStack(spacing: 12) {
                                     VStack(spacing: 10) {
                                         Button(action: { showMap.toggle() }) {
@@ -1953,6 +2030,8 @@ struct ContentView: View {
                                                 .font(.system(size: 78, weight: .black, design: .monospaced))
                                                 .foregroundColor(.white)
                                                 .shadow(color: currentPrimaryColor, radius: 12)
+                                                // [新增] 時速跳動時的平滑過渡 (防卡頓瞬移)
+                                                .animation(.easeOut(duration: 0.35), value: effectiveSpeed)
                                             
                                             Text("KM/H")
                                                 .font(.system(size: 13, weight: .bold, design: .monospaced))
@@ -2012,6 +2091,8 @@ struct ContentView: View {
                                 }
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 14)
+                                // [新增] 套用動態模糊與硬體加速！
+                                .dynamicMotionBlur(isEnabled: enableMotionBlur, intensity: blurIntensity)
                             }
                             
                             if let cameraAlert = vehicleManager.nearestCameraAlert {
@@ -2080,7 +2161,9 @@ struct ContentView: View {
                         enableSakuraBackground: $enableSakuraBackground,
                         sakuraDensity: $sakuraDensity,
                         borderWidth: $borderWidth,
-                        animSpeed: $animSpeed
+                        animSpeed: $animSpeed,
+                        // 傳遞動態模糊設定至頁面
+                        enableMotionBlur: $enableMotionBlur
                     ), isActive: $showSettings) { EmptyView() }
                     
                     NavigationLink(destination: HistoryRecordsView(records: $historyRecords), isActive: $showHistoryRecords) { EmptyView() }
