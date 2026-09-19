@@ -2245,23 +2245,26 @@ struct ContentView: View {
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showSettings) {
-                NavigationView {
-                    SettingsView(
-                        vehicleManager: vehicleManager,
-                        selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }),
-                        speedLimit: $speedLimit,
-                        isHudMode: $isHudMode,
-                        useCustomColor: $useCustomColor,
-                        customColor: Binding(get: { self.customColor }, set: { self.customColor = $0 }),
-                        isNetworkBoostEnabled: $isNetworkBoostEnabled,
-                        simulatedSpeed: $simulatedSpeed,
-                        enableSakuraBackground: $enableSakuraBackground,
-                        sakuraDensity: $sakuraDensity,
-                        borderWidth: $borderWidth,
-                        animSpeed: $animSpeed
-                    )
-                }
-            }
+    NavigationView {
+        SettingsView(
+            vehicleManager: vehicleManager,
+            selectedTheme: Binding(
+                get: { selectedTheme },
+                set: { storedThemeRaw = $0.rawValue }
+            ),
+            speedLimit: $speedLimit,
+            isHudMode: $isHudMode,
+            useCustomColor: $useCustomColor,
+            customColor: $customColor,
+            isNetworkBoostEnabled: $isNetworkBoostEnabled,
+            simulatedSpeed: $simulatedSpeed,
+            enableSakuraBackground: $enableSakuraBackground,
+            sakuraDensity: $sakuraDensity,
+            borderWidth: $borderWidth,
+            animSpeed: $animSpeed
+        )
+    }
+}
             .sheet(isPresented: $showHistoryRecords) {
                 NavigationView { HistoryRecordsView(records: $historyRecords) }
             }
