@@ -2206,14 +2206,14 @@ struct ContentView: View {
                 NavigationView {
                     SettingsView(
                         vehicleManager: vehicleManager,
-                        selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }),
+                       selectedTheme: $selectedTheme,
                         speedLimit: $speedLimit,
                         isHudMode: $isHudMode,
                         useCustomColor: $useCustomColor,
-                        customColor: Binding(get: { self.customColor }, set: { self.customColor = $0 }),
+                        customColor: $customColor,
                         isNetworkBoostEnabled: $isNetworkBoostEnabled,
                         simulatedSpeed: $simulatedSpeed,
-                        enableSakuraBackground: $enableSakuraBackground,
+                        enablesSakuraBackground: $enablesSakuraBackground,
                         sakuraDensity: $sakuraDensity,
                         borderWidth: $borderWidth,
                         animSpeed: $animSpeed
