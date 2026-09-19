@@ -602,14 +602,22 @@ struct MajesticWhiteFoxFaceView: View {
 
 // MARK: - 6. 三種風格獨立開場動畫
 struct MultiThemeBootLoadingView: View {
+    @Binding var isFinished: Bool
+    @Binding var selectedTheme: DashboardTheme
+
     enum BootTheme {
         case skull
         case cyberpunk
         case sakura
     }
 
-    let theme: BootTheme
-    let onFinish: () -> Void
+    private var theme: BootTheme {
+        switch selectedTheme {
+        case .skull: return .skull
+        case .cyberpunk: return .cyberpunk
+        case .sakura: return .sakura
+        }
+    }
 
     @State private var bootStep = 0
     @State private var rotation: Double = 0
@@ -672,13 +680,13 @@ struct MultiThemeBootLoadingView: View {
                     HStack {
                         Spacer()
                         Button("SKIP") {
-                            onFinish()
+                            finishBoot()
                         }
                         .font(.system(size: 11, weight: .black, design: .monospaced))
                         .foregroundColor(.white.opacity(0.78))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(.black.opacity(0.55))
+                        .background(Color.black.opacity(0.55))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(themeColor.opacity(0.5), lineWidth: 1)
@@ -722,13 +730,7 @@ struct MultiThemeBootLoadingView: View {
 
             Image(systemName: "skull.fill")
                 .font(.system(size: min(size.width, size.height) * 0.20, weight: .black))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.white, .red],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .foregroundColor(.white)
                 .scaleEffect(logoScale)
                 .opacity(logoOpacity)
                 .blur(radius: logoBlur)
@@ -925,6 +927,13 @@ struct MultiThemeBootLoadingView: View {
         }
     }
 
+    // MARK: Finish
+    private func finishBoot() {
+        withAnimation(.easeOut(duration: 0.32)) {
+            isFinished = true
+        }
+    }
+
     // MARK: Animation
     private func startBoot() {
         bootStep = 0
@@ -1050,7 +1059,7 @@ struct MultiThemeBootLoadingView: View {
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.48) {
-                onFinish()
+                finishBoot()
             }
         } else {
             // 其他兩個主題維持短版高速啟動
@@ -1068,7 +1077,7 @@ struct MultiThemeBootLoadingView: View {
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.43) {
-                onFinish()
+                finishBoot()
             }
         }
     }
