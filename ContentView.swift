@@ -600,101 +600,107 @@ struct MajesticWhiteFoxFaceView: View {
     }
 }
 
-// MARK: - 6. 三種風格獨立開場動畫（電影級穩定版）
+// MARK: - 6. 三種風格獨立開場動畫
 struct MultiThemeBootLoadingView: View {
-    @Binding var isFinished: Bool
-    @Binding var selectedTheme: DashboardTheme
+    enum BootTheme {
+        case skull
+        case cyberpunk
+        case sakura
+    }
 
-    @State private var bootStep: Int = 0
-    @State private var rotateAngle: Double = 0
-    @State private var panelScale: CGFloat = 0.72
-    @State private var panelOpacity: Double = 0
-    @State private var foxScale: CGFloat = 0.12
-    @State private var foxOpacity: Double = 0
-    @State private var foxBlur: CGFloat = 12
-    @State private var titleScale: CGFloat = 0.86
-    @State private var titleOpacity: Double = 0
-    @State private var screenFlash: Double = 0
-    @State private var scanOffset: CGFloat = -0.7
+    let theme: BootTheme
+    let onFinish: () -> Void
+
+    @State private var bootStep = 0
+    @State private var rotation: Double = 0
+    @State private var speed: CGFloat = 0
+    @State private var logoScale: CGFloat = 0.72
+    @State private var logoOpacity: Double = 0
+    @State private var logoBlur: CGFloat = 12
+    @State private var flashOpacity: Double = 0
+    @State private var shake: CGFloat = 0
+    @State private var ringScale: CGFloat = 0.25
+    @State private var ringOpacity: Double = 0
+    @State private var scanOffset: CGFloat = 0
     @State private var pulse = false
-    @State private var particlesVisible = false
     @State private var particleProgress: CGFloat = 0
+    @State private var showParticles = false
+    @State private var didStart = false
 
-    private let particleCount = 32
-
-    var themeColor: Color {
-        switch selectedTheme {
+    private var themeColor: Color {
+        switch theme {
         case .skull: return .red
         case .cyberpunk: return .safeCyan
-        case .sakura: return Color(red: 1.0, green: 0.2, blue: 0.3)
-        }
-    }
-
-    private func triggerHaptic(style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let generator = UIImpactFeedbackGenerator(style: style)
-        generator.prepare()
-        generator.impactOccurred()
-    }
-
-    private func finishBoot() {
-        withAnimation(.easeOut(duration: 0.35)) {
-            isFinished = true
+        case .sakura: return .red
         }
     }
 
     var body: some View {
-        GeometryReader { proxy in
+        GeometryReader { geo in
             ZStack {
                 Color.black.ignoresSafeArea()
 
-                switch selectedTheme {
+                switch theme {
                 case .skull:
-                    skullBoot
+                    skullBoot(in: geo.size)
                 case .cyberpunk:
-                    cyberBoot
+                    cyberBoot(in: geo.size)
                 case .sakura:
-                    sakuraBoot
+                    sakuraBoot(in: geo.size)
                 }
 
-                if screenFlash > 0 {
-                    Color.white
-                        .opacity(screenFlash)
+                ScanlineOverlay(color: themeColor, offset: scanOffset)
+                    .allowsHitTesting(false)
+
+                if flashOpacity > 0 {
+                    Rectangle()
+                        .fill(Color.white)
+                        .opacity(flashOpacity)
                         .ignoresSafeArea()
                         .allowsHitTesting(false)
                 }
 
-                // 細緻掃描線，讓整個開場更像儀表/電影 UI
-                ScanlineOverlay(color: themeColor, offset: scanOffset)
+                if showParticles {
+                    BootParticlesView(
+                        color: themeColor,
+                        progress: particleProgress
+                    )
+                    .allowsHitTesting(false)
+                }
 
                 VStack {
                     HStack {
                         Spacer()
-                        Button("SKIP ❯❯") {
-                            finishBoot()
+                        Button("SKIP") {
+                            onFinish()
                         }
-                        .font(.system(size: 12, weight: .black, design: .monospaced))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 9)
-                        .background(Color.black.opacity(0.72))
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(themeColor.opacity(0.9), lineWidth: 1.5))
-                        .padding(.trailing, 24)
-                        .padding(.top, 24)
+                        .font(.system(size: 11, weight: .black, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.78))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.black.opacity(0.55))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(themeColor.opacity(0.5), lineWidth: 1)
+                        )
+                        .padding(.top, 18)
+                        .padding(.trailing, 18)
                     }
                     Spacer()
                 }
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .ignoresSafeArea()
-        .onAppear {
-            startBoot()
+            .offset(x: shake)
+            .onAppear {
+                guard !didStart else { return }
+                didStart = true
+                startBoot()
+            }
         }
     }
 
-    // MARK: - 骷髏
-    private var skullBoot: some View {
+    // MARK: Skull
+    @ViewBuilder
+    private func skullBoot(in size: CGSize) -> some View {
         ZStack {
             Circle()
                 .stroke(
@@ -702,408 +708,493 @@ struct MultiThemeBootLoadingView: View {
                         gradient: Gradient(colors: [.clear, .red, .white, .red, .clear]),
                         center: .center
                     ),
-                    lineWidth: 7
+                    lineWidth: 3
                 )
-                .frame(width: 260, height: 260)
-                .rotationEffect(.degrees(rotateAngle))
-                .scaleEffect(panelScale)
-                .opacity(panelOpacity)
-                .shadow(color: .red, radius: 18)
+                .frame(width: min(size.width, size.height) * 0.68)
+                .rotationEffect(.degrees(rotation))
+                .opacity(0.75)
 
             Circle()
-                .stroke(Color.red.opacity(0.28), lineWidth: 1)
-                .frame(width: 340, height: 340)
-                .rotationEffect(.degrees(-rotateAngle * 0.55))
-                .scaleEffect(panelScale * 0.92)
-                .opacity(panelOpacity)
+                .stroke(Color.red.opacity(0.35), lineWidth: 1)
+                .frame(width: min(size.width, size.height) * 0.86)
+                .scaleEffect(ringScale)
+                .opacity(ringOpacity)
 
-            VStack(spacing: 10) {
-                Image(systemName: "skull.fill")
-                    .font(.system(size: 74, weight: .black))
-                    .foregroundColor(.white)
-                    .shadow(color: .red, radius: 16)
+            Image(systemName: "skull.fill")
+                .font(.system(size: min(size.width, size.height) * 0.20, weight: .black))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.white, .red],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .scaleEffect(logoScale)
+                .opacity(logoOpacity)
+                .blur(radius: logoBlur)
 
-                Text("SYSTEM INITIALIZING")
-                    .font(.system(size: 13, weight: .black, design: .monospaced))
+            VStack(spacing: 5) {
+                Spacer().frame(height: min(size.width, size.height) * 0.43)
+                Text("CHEN")
+                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .tracking(9)
+                Text("SYSTEM ONLINE")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(4)
                     .foregroundColor(.red)
-
-                Text("DANGER / PERFORMANCE MODE")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(.gray)
             }
-            .scaleEffect(titleScale)
-            .opacity(titleOpacity)
+            .opacity(logoOpacity)
         }
     }
 
-    // MARK: - 賽博
-    private var cyberBoot: some View {
+    // MARK: Cyberpunk
+    @ViewBuilder
+    private func cyberBoot(in size: CGSize) -> some View {
         ZStack {
-            ForEach(0..<5, id: \.self) { i in
-                CyberSquareBorder(index: i, rotateAngle: rotateAngle, panelScale: panelScale, panelOpacity: panelOpacity)
-            }
+            RoundedRectangle(cornerRadius: 26)
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(colors: [.clear, .safeCyan, .white, .safeCyan, .clear]),
+                        center: .center
+                    ),
+                    lineWidth: 2
+                )
+                .frame(
+                    width: min(size.width * 0.82, 430),
+                    height: min(size.height * 0.54, 420)
+                )
+                .rotationEffect(.degrees(rotation * 0.45))
+                .opacity(0.8)
 
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 Text("CHEN // DRIVE")
-                    .font(.system(size: 26, weight: .black, design: .monospaced))
-                    .foregroundColor(.white)
-                    .shadow(color: .safeCyan, radius: 12)
-
-                Text("NEURAL VEHICLE INTERFACE")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.system(size: 29, weight: .black, design: .monospaced))
+                    .tracking(3)
                     .foregroundColor(.safeCyan)
 
-                Rectangle()
-                    .fill(Color.safeCyan)
-                    .frame(width: 150, height: 2)
-                    .scaleEffect(x: pulse ? 1.0 : 0.25, y: 1)
-            }
-            .scaleEffect(titleScale)
-            .opacity(titleOpacity)
-        }
-    }
+                Text("NEURAL VEHICLE INTERFACE")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(3)
+                    .foregroundColor(.white.opacity(0.6))
 
-    // MARK: - 日本櫻花 / 白狐
-    private var sakuraBoot: some View {
-        ZStack {
-            // 紅黑速度線
-            ForEach(0..<7, id: \.self) { i in
                 Rectangle()
                     .fill(
                         LinearGradient(
-                            gradient: Gradient(colors: [.clear, Color.red.opacity(0.8), .white, Color.red.opacity(0.15), .clear]),
+                            colors: [.clear, .safeCyan, .white, .safeCyan, .clear],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    .frame(width: 430, height: i == 3 ? 3 : 1)
-                    .rotationEffect(.degrees(Double(i) * 8 - 28))
-                    .offset(x: scanOffset * CGFloat(260 + i * 24))
-                    .opacity(bootStep >= 1 ? 0.8 : 0.25)
-            }
+                    .frame(width: min(size.width * 0.68, 330), height: 2)
+                    .scaleEffect(x: 0.4 + speed * 0.6, y: 1)
 
-            if bootStep == 0 || bootStep == 1 {
-                VStack(spacing: 18) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(Color.black.opacity(0.94))
-
-                        RoundedRectangle(cornerRadius: 18)
-                            .stroke(
-                                AngularGradient(
-                                    gradient: Gradient(colors: [.red, .black, .red, .white, .red]),
-                                    center: .center
-                                ),
-                                lineWidth: 5
-                            )
-                            .rotationEffect(.degrees(rotateAngle))
-
-                        VStack(spacing: 11) {
-                            HStack {
-                                Text("⚠ WARNING")
-                                    .font(.system(size: 16, weight: .black, design: .monospaced))
-                                    .foregroundColor(.red)
-                                Spacer()
-                                Text("極速領域")
-                                    .font(.system(size: 11, weight: .black, design: .monospaced))
-                                    .foregroundColor(.gray)
-                            }
-
-                            Rectangle()
-                                .fill(Color.red.opacity(0.8))
-                                .frame(height: 1)
-
-                            Text("超速走行禁止")
-                                .font(.system(size: 31, weight: .black, design: .monospaced))
-                                .foregroundColor(.black)
-                                .padding(.horizontal, 13)
-                                .padding(.vertical, 6)
-                                .background(Color.red)
-                                .clipShape(RoundedRectangle(cornerRadius: 5))
-
-                            Text("AUTOMATIC SPEED RADAR ACTIVE")
-                                .font(.system(size: 9, weight: .black, design: .monospaced))
-                                .foregroundColor(.white)
-                        }
-                        .padding(18)
-                    }
-                    .frame(width: 330, height: 178)
-                    .scaleEffect(panelScale)
-                    .opacity(panelOpacity)
-
-                    Text("PLEASE DRIVE SAFELY")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundColor(.gray)
-                        .opacity(panelOpacity)
+                HStack(spacing: 20) {
+                    metric("BOOST", "MAX")
+                    metric("RADAR", "ONLINE")
+                    metric("GPS", "LOCK")
                 }
             }
+            .scaleEffect(logoScale)
+            .opacity(logoOpacity)
+            .blur(radius: logoBlur)
+        }
+    }
 
-            if bootStep == 2 {
+    private func metric(_ title: String, _ value: String) -> some View {
+        VStack(spacing: 3) {
+            Text(title)
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundColor(.white.opacity(0.45))
+            Text(value)
+                .font(.system(size: 11, weight: .black, design: .monospaced))
+                .foregroundColor(.safeCyan)
+        }
+    }
+
+    // MARK: Sakura / Racing
+    @ViewBuilder
+    private func sakuraBoot(in size: CGSize) -> some View {
+        ZStack {
+            RacingSpeedLines(
+                color: .red,
+                progress: speed,
+                intensity: bootStep >= 2 ? 1 : 0.45
+            )
+
+            // 黑底紅框警示面板
+            if bootStep <= 1 {
                 VStack(spacing: 10) {
-                    MajesticWhiteFoxFaceView()
-                        .scaleEffect(foxScale)
-                        .opacity(foxOpacity)
-                        .blur(radius: foxBlur)
-                        .shadow(color: Color.red.opacity(0.9), radius: 30)
+                    Text("⚠ WARNING")
+                        .font(.system(size: 17, weight: .black, design: .monospaced))
+                        .foregroundColor(.red)
 
-                    Text("白狐靈威 • 極速領域")
-                        .font(.system(size: 20, weight: .black, design: .monospaced))
+                    Text("極速領域")
+                        .font(.system(size: 40, weight: .black, design: .rounded))
                         .foregroundColor(.white)
-                        .shadow(color: .red, radius: 12)
-                        .scaleEffect(titleScale)
-                        .opacity(titleOpacity)
+                        .tracking(5)
+
+                    Text("超速走行禁止")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundColor(.red)
+                        .tracking(4)
+
+                    Text("AUTOMATIC SPEED RADAR ACTIVE")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.55))
+                        .tracking(2)
                 }
-            }
-
-            if bootStep >= 3 {
-                VStack(spacing: 20) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(Color.black.opacity(0.96))
-
-                        RoundedRectangle(cornerRadius: 18)
-                            .stroke(
-                                AngularGradient(
-                                    gradient: Gradient(colors: [.red, .black, .red, .white, .red]),
-                                    center: .center
-                                ),
-                                lineWidth: 5
-                            )
-                            .rotationEffect(.degrees(rotateAngle))
-
-                        VStack(spacing: 11) {
-                            Text("速度取締重点路線")
-                                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                .foregroundColor(.red)
-
-                            Text("全系統啟動")
-                                .font(.system(size: 31, weight: .black, design: .monospaced))
-                                .foregroundColor(.black)
-                                .padding(.horizontal, 15)
-                                .padding(.vertical, 6)
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 7))
-                                .shadow(color: .red, radius: 10)
-
-                            Text("PLEASE DRIVE SAFELY")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundColor(.gray)
-                        }
-                        .padding(20)
-                    }
-                    .frame(width: 320, height: 160)
-                    .scaleEffect(titleScale)
-                    .opacity(titleOpacity)
-                }
-            }
-
-            if particlesVisible {
-                BootParticlesView(
-                    progress: particleProgress,
-                    color: .red
+                .padding(.horizontal, 28)
+                .padding(.vertical, 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color.black.opacity(0.92))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.red.opacity(pulse ? 1 : 0.38), lineWidth: pulse ? 3 : 1)
+                        )
                 )
+                .scaleEffect(logoScale)
+                .opacity(logoOpacity)
+                .blur(radius: logoBlur)
+            }
+
+            // 狐狸 Logo：從高速模糊中衝出，避免放大裁切
+            if bootStep == 2 {
+                ZStack {
+                    Circle()
+                        .stroke(Color.red.opacity(0.8), lineWidth: 2)
+                        .frame(width: min(size.width * 0.66, 360))
+                        .scaleEffect(ringScale)
+                        .opacity(ringOpacity)
+
+                    MajesticWhiteFoxFaceView()
+                        .frame(
+                            width: min(size.width * 0.64, 330),
+                            height: min(size.width * 0.64, 330)
+                        )
+                        .scaleEffect(1.0 + speed * 0.035)
+                        .opacity(logoOpacity)
+                        .blur(radius: logoBlur)
+                        .shadow(color: .red.opacity(0.75), radius: 22)
+                }
+
+                VStack {
+                    Spacer()
+                    Text("CHEN")
+                        .font(.system(size: 30, weight: .black, design: .rounded))
+                        .tracking(10)
+                        .foregroundColor(.white)
+
+                    Text("EXTREME MODE")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .tracking(5)
+                        .foregroundColor(.red)
+                        .padding(.top, 3)
+                        .padding(.bottom, 55)
+                }
+                .opacity(logoOpacity)
+            }
+
+            // 最後一拍：Logo → 系統啟動
+            if bootStep >= 3 {
+                VStack(spacing: 9) {
+                    Text("SYSTEM")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .tracking(5)
+                        .foregroundColor(.red.opacity(0.8))
+
+                    Text("全系統啟動")
+                        .font(.system(size: 32, weight: .black, design: .rounded))
+                        .foregroundColor(.white)
+
+                    HStack(spacing: 8) {
+                        Capsule().fill(Color.red).frame(width: 34, height: 3)
+                        Capsule().fill(Color.white).frame(width: 34, height: 3)
+                        Capsule().fill(Color.red).frame(width: 34, height: 3)
+                    }
+
+                    Text("DRIVE • RADAR • GPS • PERFORMANCE")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.5))
+                        .tracking(2)
+                }
+                .scaleEffect(logoScale)
+                .opacity(logoOpacity)
+                .blur(radius: logoBlur)
             }
         }
     }
 
+    // MARK: Animation
     private func startBoot() {
         bootStep = 0
-        panelScale = 0.72
-        panelOpacity = 0
-        foxScale = 0.12
-        foxOpacity = 0
-        foxBlur = 12
-        titleScale = 0.86
-        titleOpacity = 0
-        screenFlash = 0
-        particlesVisible = false
+        speed = 0
+        logoScale = 0.72
+        logoOpacity = 0
+        logoBlur = 12
+        flashOpacity = 0
+        shake = 0
+        ringScale = 0.25
+        ringOpacity = 0
+        scanOffset = 0
+        pulse = false
         particleProgress = 0
+        showParticles = false
 
-        withAnimation(.linear(duration: 2.2).repeatForever(autoreverses: false)) {
-            rotateAngle = 360
+        withAnimation(.linear(duration: 1.15).repeatForever(autoreverses: false)) {
+            rotation = 360
         }
 
-        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+        withAnimation(.linear(duration: 0.95).repeatForever(autoreverses: true)) {
+            scanOffset = 1
+        }
+
+        withAnimation(.easeInOut(duration: 0.24).repeatForever(autoreverses: true)) {
             pulse = true
         }
 
-        withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-            scanOffset = 1.4
+        // 第一拍：黑底警示
+        withAnimation(.easeOut(duration: 0.38)) {
+            logoOpacity = 1
+            logoScale = 1.0
+            logoBlur = 0
         }
 
-        switch selectedTheme {
-        case .sakura:
-            startSakuraBoot()
-        default:
-            withAnimation(.spring(response: 0.65, dampingFraction: 0.82)) {
-                panelScale = 1
-                panelOpacity = 1
-                titleScale = 1
-                titleOpacity = 1
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.55) {
-                guard !isFinished else { return }
-                finishBoot()
-            }
-        }
-    }
-
-    private func startSakuraBoot() {
-        AudioServicesPlaySystemSound(1022)
-
-        withAnimation(.spring(response: 0.65, dampingFraction: 0.82)) {
-            panelScale = 1
-            panelOpacity = 1
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
-            guard !isFinished else { return }
-            triggerHaptic(style: .heavy)
-            withAnimation(.easeInOut(duration: 0.16)) {
-                screenFlash = 0.65
-                bootStep = 1
-            }
-            withAnimation(.easeOut(duration: 0.32)) {
-                screenFlash = 0
+        // 第二拍：加速、紅色速度線
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) {
+            withAnimation(.easeIn(duration: 0.28)) {
+                speed = 1
             }
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.45) {
-            guard !isFinished else { return }
-            AudioServicesPlaySystemSound(1104)
-            triggerHaptic(style: .heavy)
-
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.72)) {
+        if theme == .sakura {
+            // 0.95s：狐狸高速衝入
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.95) {
                 bootStep = 2
-                foxScale = 1.0
-                foxOpacity = 1
-                foxBlur = 0
-                titleScale = 1
-                titleOpacity = 1
+                ringScale = 1.0
+                ringOpacity = 1
+                logoScale = 1.0
+                logoOpacity = 0
+                logoBlur = 18
+
+                withAnimation(.easeOut(duration: 0.24)) {
+                    logoOpacity = 1
+                    logoBlur = 0
+                    ringScale = 1.18
+                    ringOpacity = 0
+                }
+
+                // 模擬高速鏡頭震動
+                withAnimation(.easeOut(duration: 0.06)) {
+                    shake = -7
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+                    withAnimation(.easeOut(duration: 0.06)) {
+                        shake = 6
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                    withAnimation(.easeOut(duration: 0.08)) {
+                        shake = -3
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) {
+                    withAnimation(.easeOut(duration: 0.10)) {
+                        shake = 0
+                    }
+                }
+
+                withAnimation(.easeOut(duration: 0.18)) {
+                    flashOpacity = 0.8
+                }
+                withAnimation(.easeIn(duration: 0.28).delay(0.05)) {
+                    flashOpacity = 0
+                }
             }
 
-            withAnimation(.easeOut(duration: 0.22)) {
-                screenFlash = 0.45
+            // 2.0s：Logo 短暫定格後進入系統
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    bootStep = 3
+                    logoScale = 0.92
+                    logoOpacity = 1
+                    logoBlur = 0
+                    speed = 0.25
+                }
             }
-            withAnimation(.easeOut(duration: 0.45).delay(0.22)) {
-                screenFlash = 0
-            }
-        }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.55) {
-            guard !isFinished else { return }
-            triggerHaptic(style: .rigid)
+            // 2.55s：紅色爆閃 + 粒子
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.55) {
+                showParticles = true
+                particleProgress = 0
 
-            withAnimation(.easeInOut(duration: 0.32)) {
-                bootStep = 3
-                titleScale = 0.94
-                titleOpacity = 1
+                withAnimation(.easeOut(duration: 0.12)) {
+                    flashOpacity = 1
+                    shake = 4
+                }
+                withAnimation(.easeIn(duration: 0.34).delay(0.02)) {
+                    flashOpacity = 0
+                    shake = 0
+                }
+                withAnimation(.easeOut(duration: 0.55)) {
+                    particleProgress = 1
+                }
             }
-        }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.55) {
-            guard !isFinished else { return }
-            particlesVisible = true
-            withAnimation(.easeOut(duration: 0.72)) {
-                particleProgress = 1
-                screenFlash = 0.9
+            // 3.15s：淡出後進主畫面
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.15) {
+                withAnimation(.easeIn(duration: 0.32)) {
+                    logoOpacity = 0
+                    logoBlur = 8
+                }
             }
-            withAnimation(.easeOut(duration: 0.55).delay(0.15)) {
-                screenFlash = 0
-            }
-        }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.05) {
-            guard !isFinished else { return }
-            finishBoot()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.48) {
+                onFinish()
+            }
+        } else {
+            // 其他兩個主題維持短版高速啟動
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.65) {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    logoScale = 1.04
+                }
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.15) {
+                withAnimation(.easeIn(duration: 0.24)) {
+                    flashOpacity = 0.85
+                    logoOpacity = 0
+                }
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.43) {
+                onFinish()
+            }
         }
     }
 }
 
-// 輔助 Cyber 動畫方形邊框組件 (避開內部複雜多層型態檢查)
-private struct CyberSquareBorder: View {
-    let index: Int
-    let rotateAngle: Double
-    let panelScale: CGFloat
-    let panelOpacity: Double
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 18)
-            .stroke(
-                AngularGradient(
-                    gradient: Gradient(colors: [.clear, .safeCyan, .white, .safeCyan, .clear]),
-                    center: .center
-                ),
-                lineWidth: index == 0 ? 4 : 1.5
-            )
-            .frame(
-                width: CGFloat(150 + index * 62),
-                height: CGFloat(150 + index * 62)
-            )
-            .rotationEffect(.degrees(rotateAngle * (index.isMultiple(of: 2) ? 1 : -0.7)))
-            .scaleEffect(panelScale)
-            .opacity(panelOpacity * (1.0 - Double(index) * 0.08))
-            .shadow(color: Color.safeCyan.opacity(0.7), radius: index == 0 ? 16 : 5)
-    }
-}
-
-// MARK: - 穩定掃描線
+// MARK: - 掃描線
 private struct ScanlineOverlay: View {
     let color: Color
     let offset: CGFloat
 
     var body: some View {
-        GeometryReader { proxy in
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [.clear, color.opacity(0.0), color.opacity(0.18), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(height: 80)
-                .offset(y: offset * proxy.size.height)
-                .blendMode(.screen)
-                .allowsHitTesting(false)
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                ForEach(0..<80, id: \.self) { _ in
+                    Rectangle()
+                        .fill(color.opacity(0.045))
+                        .frame(height: 1)
+                    Spacer(minLength: 7)
+                }
+            }
+            .offset(y: offset * geo.size.height)
         }
-        .ignoresSafeArea()
+        .blendMode(.screen)
+        .allowsHitTesting(false)
     }
 }
 
-// MARK: - 穩定粒子爆發
-private struct BootParticlesView: View {
-    let progress: CGFloat
+// MARK: - 賽車高速線
+private struct RacingSpeedLines: View {
     let color: Color
+    let progress: CGFloat
+    let intensity: CGFloat
 
-    private let particles: [(x: CGFloat, y: CGFloat, size: CGFloat, delay: Double)] = (0..<32).map { i in
-        let angle = Double(i) * 0.82
-        let radius = 90.0 + Double((i * 37) % 180)
-        let x = CGFloat(cos(angle) * radius)
-        let y = CGFloat(sin(angle) * radius)
-        let size = CGFloat(4 + (i % 4))
-        return (x, y, size, Double(i % 8) * 0.025)
+    private let lines: [SpeedLine] = (0..<34).map { i in
+        let x = CGFloat((i * 37) % 100) / 100.0
+        let y = CGFloat((i * 61) % 100) / 100.0
+        let length = CGFloat(70 + ((i * 29) % 150))
+        let thickness = CGFloat(1 + (i % 3))
+        let delay = CGFloat((i * 17) % 100) / 100.0
+        return SpeedLine(x: x, y: y, length: length, thickness: thickness, delay: delay)
     }
 
     var body: some View {
-        ZStack {
-            ForEach(Array(particles.enumerated()), id: \.offset) { _, p in
-                Circle()
-                    .fill(color)
-                    .frame(width: p.size, height: p.size)
-                    .shadow(color: color, radius: 7)
-                    .offset(
-                        x: p.x * progress,
-                        y: p.y * progress
-                    )
-                    .opacity(Double(1 - progress * 0.85))
-                    .scaleEffect(1.0 - progress * 0.25)
+        GeometryReader { geo in
+            ZStack {
+                ForEach(lines) { line in
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    .clear,
+                                    color.opacity(0.18 * intensity),
+                                    color.opacity(0.9 * intensity),
+                                    .clear
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: line.length, height: line.thickness)
+                        .position(
+                            x: geo.size.width * line.x,
+                            y: geo.size.height * (line.y + progress * (0.25 + line.delay * 0.35))
+                        )
+                        .rotationEffect(.degrees(-8))
+                        .blur(radius: 0.4)
+                }
+            }
+        }
+        .clipped()
+        .allowsHitTesting(false)
+    }
+
+    private struct SpeedLine: Identifiable {
+        let id = UUID()
+        let x: CGFloat
+        let y: CGFloat
+        let length: CGFloat
+        let thickness: CGFloat
+        let delay: CGFloat
+    }
+}
+
+// MARK: - 爆閃粒子
+private struct BootParticlesView: View {
+    let color: Color
+    let progress: CGFloat
+
+    private let particles: [Particle] = (0..<36).map { i in
+        let angle = Double(i) * (Double.pi * 2.0 / 36.0)
+        let radius = CGFloat(90 + ((i * 31) % 180))
+        let size = CGFloat(1.5 + Double(i % 4))
+        return Particle(
+            angle: angle,
+            radius: radius,
+            size: size,
+            delay: CGFloat(i % 7) / 7.0
+        )
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                ForEach(particles) { p in
+                    Circle()
+                        .fill(color.opacity(max(0, 1 - progress)))
+                        .frame(width: p.size, height: p.size)
+                        .position(
+                            x: geo.size.width / 2 + cos(p.angle) * p.radius * progress,
+                            y: geo.size.height / 2 + sin(p.angle) * p.radius * progress
+                        )
+                }
             }
         }
         .allowsHitTesting(false)
     }
+
+    private struct Particle: Identifiable {
+        let id = UUID()
+        let angle: Double
+        let radius: CGFloat
+        let size: CGFloat
+        let delay: CGFloat
+    }
 }
+
 
 // MARK: - 7. 櫻花飄落背景
 struct SakuraFallingView: View {
@@ -1701,7 +1792,7 @@ struct ContentView: View {
                                 .background(Color.black.opacity(0.92))
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red, lineWidth: 2))
                                 .cornerRadius(12)
-                                .shadow(color: Color.red.opacity(0.9), radius: 12)
+                                .shadow(color: .red.opacity(0.9), radius: 12)
                                 .padding(.bottom, 60)
                             }
                             .zIndex(60)
