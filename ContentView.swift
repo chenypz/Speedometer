@@ -5,12 +5,27 @@ import MapKit
 import AVFoundation
 import UIKit
 
+// MARK: - Color Extensions
 extension Color {
     static var safeCyan: Color {
         if #available(iOS 15.0, *) { return Color.cyan }
         else { return Color(red: 0.0, green: 0.75, blue: 1.0) }
     }
+    
+    init?(rgbString: String) {
+        let c = rgbString.components(separatedBy: ",")
+        guard c.count == 3, let r = Double(c[0]), let g = Double(c[1]), let b = Double(c[2]) else { return nil }
+        self.init(red: r, green: g, blue: b)
+    }
+    
+    var rgbString: String {
+        let u = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        u.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return "\(r),\(g),\(b)"
+    }
 }
+
 extension UIColor {
     static var safeSystemCyan: UIColor {
         if #available(iOS 15.0, *) { return UIColor.systemCyan }
@@ -21,33 +36,53 @@ extension UIColor {
     }
 }
 
+// MARK: - Models
 struct OverspeedRecord: Identifiable, Codable {
-    let id: UUID; let date: Date; let speed: Double; let speedLimit: Double
+    let id: UUID
+    let date: Date
+    let speed: Double
+    let speedLimit: Double
 }
+
 struct HistoryRecord: Identifiable, Codable {
-    let id: UUID; let date: Date; let maxSpeed: Double
-    let zeroToOneHundredTime: Double; let maxGForce: Double
-    let tripDistance: Double; let routeCoordinates: [CodableCoordinate]
+    let id: UUID
+    let date: Date
+    let maxSpeed: Double
+    let zeroToOneHundredTime: Double
+    let maxGForce: Double
+    let tripDistance: Double
+    let routeCoordinates: [CodableCoordinate]
 }
+
 struct CodableCoordinate: Codable {
-    let latitude: Double; let longitude: Double
+    let latitude: Double
+    let longitude: Double
     init(_ c: CLLocationCoordinate2D) { latitude = c.latitude; longitude = c.longitude }
     var coordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
 }
+
 struct SpeedCamera: Identifiable, Codable {
     var id: UUID = UUID()
-    let latitude: Double; let longitude: Double
-    let speedLimit: Double; let description: String
+    let latitude: Double
+    let longitude: Double
+    let speedLimit: Double
+    let description: String
     var isTemporary: Bool = false
+    
     enum CodingKeys: String, CodingKey { case latitude, longitude, speedLimit, description, isTemporary }
+    
     init(latitude: Double, longitude: Double, speedLimit: Double, description: String, isTemporary: Bool = false) {
         self.latitude = latitude; self.longitude = longitude
         self.speedLimit = speedLimit; self.description = description; self.isTemporary = isTemporary
     }
     var coordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
 }
+
 struct MapSearchResult: Identifiable {
-    let id = UUID(); let title: String; let subtitle: String; let coordinate: CLLocationCoordinate2D
+    let id = UUID()
+    let title: String
+    let subtitle: String
+    let coordinate: CLLocationCoordinate2D
 }
 
 enum DashboardTheme: String, CaseIterable, Identifiable {
@@ -55,6 +90,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
     case cyberpunk = "賽伯戰爭風"
     case sakura = "日本櫻花風"
     var id: String { rawValue }
+    
     func primaryColor(custom: Color?) -> Color {
         if let c = custom { return c }
         switch self {
@@ -63,44 +99,41 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
         case .sakura:    return Color(red: 1.0, green: 0.3, blue: 0.4)
         }
     }
+    
     var backgroundGradientColors: [Color] {
         switch self {
-        case .skull:    return [Color(red:0.18,green:0,blue:0), Color.black, Color(red:0.08,green:0,blue:0.02)]
+        case .skull:     return [Color(red:0.18,green:0,blue:0), Color.black, Color(red:0.08,green:0,blue:0.02)]
         case .cyberpunk: return [Color(red:0.01,green:0.04,blue:0.16), Color.black, Color(red:0.04,green:0,blue:0.14)]
-        case .sakura:   return [Color(red:0.14,green:0.02,blue:0.05), Color(red:0.03,green:0.01,blue:0.03), Color.black]
+        case .sakura:    return [Color(red:0.14,green:0.02,blue:0.05), Color(red:0.03,green:0.01,blue:0.03), Color.black]
         }
     }
 }
 
-extension Color: @retroactive RawRepresentable {
-    public init?(rawValue: String) {
-        let c = rawValue.components(separatedBy: ",")
-        guard c.count == 3, let r = Double(c[0]), let g = Double(c[1]), let b = Double(c[2]) else { return nil }
-        self.init(red: r, green: g, blue: b)
-    }
-    public var rawValue: String {
-        let u = UIColor(self); var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        u.getRed(&r, green: &g, blue: &b, alpha: &a); return "\(r),\(g),\(b)"
-    }
-}
-
+// MARK: - Managers
+@MainActor
 class AnimationClock: ObservableObject {
     @Published var tick: Double = 0
     private var displayLink: CADisplayLink?
     private var startTime: CFTimeInterval = 0
+    
     init() { start() }
+    
     private func start() {
         startTime = CACurrentMediaTime()
-        displayLink = CADisplayLink(target: self, selector: #selector(update))
+        let dl = CADisplayLink(target: self, selector: #selector(update))
         if #available(iOS 15.0, *) {
-            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+            dl.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         }
-        displayLink?.add(to: .main, forMode: .common)
+        dl.add(to: .main, forMode: .common)
+        self.displayLink = dl
     }
+    
     @objc private func update() { tick = CACurrentMediaTime() - startTime }
+    
     deinit { displayLink?.invalidate() }
 }
 
+@MainActor
 class MapSearchManager: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
     @Published var searchText: String = ""
     @Published var completions: [MKLocalSearchCompletion] = []
@@ -110,27 +143,40 @@ class MapSearchManager: NSObject, ObservableObject, MKLocalSearchCompleterDelega
     var currentRegion: MKCoordinateRegion = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 25.033, longitude: 121.565),
         latitudinalMeters: 5000, longitudinalMeters: 5000)
+    
     override init() {
         super.init()
         completer.delegate = self
         completer.resultTypes = [.pointOfInterest, .address]
     }
+    
     func updateSearch(_ text: String) {
         searchText = text
         if text.trimmingCharacters(in: .whitespaces).isEmpty { completions = []; return }
         completer.region = currentRegion
         completer.queryFragment = text
     }
-    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
-        DispatchQueue.main.async { self.completions = Array(completer.results.prefix(6)) }
+    
+    nonisolated func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        let results = Array(completer.results.prefix(6))
+        Task { @MainActor in
+            self.completions = results
+        }
     }
-    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) { completions = [] }
+    
+    nonisolated func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        Task { @MainActor in
+            self.completions = []
+        }
+    }
+    
     func searchFor(_ completion: MKLocalSearchCompletion, callback: @escaping (CLLocationCoordinate2D?) -> Void) {
         let req = MKLocalSearch.Request(completion: completion)
         MKLocalSearch(request: req).start { resp, _ in
             DispatchQueue.main.async { callback(resp?.mapItems.first?.placemark.coordinate) }
         }
     }
+    
     func searchByText(_ text: String, region: MKCoordinateRegion, callback: @escaping (CLLocationCoordinate2D?) -> Void) {
         let req = MKLocalSearch.Request()
         req.naturalLanguageQuery = text; req.region = region
@@ -146,6 +192,7 @@ struct MapSearchOverlayView: View {
     var primaryColor: Color
     var onSelectDestination: (CLLocationCoordinate2D, String) -> Void
     var onDismiss: () -> Void
+    
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
@@ -183,6 +230,7 @@ struct MapSearchOverlayView: View {
             }
             .padding(.horizontal, 16).padding(.top, 16)
             .padding(.bottom, searchManager.completions.isEmpty ? 16 : 8)
+            
             if !searchManager.completions.isEmpty {
                 ScrollView {
                     VStack(spacing: 0) {
@@ -233,6 +281,7 @@ struct MapSearchOverlayView: View {
 struct SearchTextField: UIViewRepresentable {
     @Binding var text: String
     var placeholder: String; var primaryColor: UIColor; var onSubmit: () -> Void
+    
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> UITextField {
         let tf = UITextField()
@@ -261,6 +310,7 @@ struct SearchTextField: UIViewRepresentable {
     }
 }
 
+// MARK: - Fog & Background Views
 struct SkullBloodFogView: View {
     let tick: Double
     var body: some View {
@@ -337,6 +387,7 @@ struct CyberpunkMatrixRainView: View {
         else { CyberpunkMatrixRainFallback(tick: tick) }
     }
 }
+
 @available(iOS 15.0, *)
 private struct CyberpunkMatrixRainCanvas: View {
     let tick: Double
@@ -366,6 +417,7 @@ private struct CyberpunkMatrixRainCanvas: View {
         .allowsHitTesting(false).ignoresSafeArea().blendMode(.screen)
     }
 }
+
 private struct CyberpunkMatrixRainFallback: View {
     let tick: Double
     var body: some View {
@@ -389,6 +441,7 @@ struct AnimatedBackgroundView: View {
     var themeColors: [Color]; var primaryColor: Color
     var theme: DashboardTheme
     @ObservedObject var clock: AnimationClock
+    
     var body: some View {
         ZStack {
             LinearGradient(colors: themeColors,
@@ -410,34 +463,35 @@ struct AnimatedBackgroundView: View {
             .blendMode(.screen).ignoresSafeArea()
             
             switch theme {
-            case .skull:
-                SkullBloodFogView(tick: clock.tick)
-            case .cyberpunk:
-                CyberpunkCyanFogView(tick: clock.tick)
-            case .sakura:
-                SakuraPinkFogView(tick: clock.tick)
+            case .skull:     SkullBloodFogView(tick: clock.tick)
+            case .cyberpunk: CyberpunkCyanFogView(tick: clock.tick)
+            case .sakura:    SakuraPinkFogView(tick: clock.tick)
             }
         }
         .drawingGroup()
     }
 }
 
+// MARK: - Speech & Vehicle Managers
+@MainActor
 class SpeechManager: ObservableObject {
     private let synthesizer = AVSpeechSynthesizer()
     @Published var currentLanguage: String = "zh-TW" {
         didSet { UserDefaults.standard.set(currentLanguage, forKey: "AppLanguage") }
     }
     init() { if let s = UserDefaults.standard.string(forKey: "AppLanguage") { currentLanguage = s } }
+    
     func speak(_ text: String) {
         if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
         let u = AVSpeechUtterance(string: text)
         u.voice = AVSpeechSynthesisVoice(language: currentLanguage)
         u.rate = 0.52; u.pitchMultiplier = 1.0; synthesizer.speak(u)
     }
+    
     func announceWarning(speedLimit: Int, isOverspeed: Bool) {
         let text: String
         if currentLanguage.starts(with: "zh") {
-            text = isOverspeed ? "注意,您已超速！前方速限 \(speedLimit) 公里" : "前方速限 \(speedLimit) 公里"
+            text = isOverspeed ? "注意，您已超速！前方速限 \(speedLimit) 公里" : "前方速限 \(speedLimit) 公里"
         } else {
             text = isOverspeed ? "Warning! Speed limit \(speedLimit). You are speeding!" : "Speed limit \(speedLimit)."
         }
@@ -445,9 +499,11 @@ class SpeechManager: ObservableObject {
     }
 }
 
+@MainActor
 class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
+    
     @Published var speed: Double = 0.0
     @Published var maxSpeed: Double = 0.0
     @Published var tripDistance: Double = 0.0
@@ -459,15 +515,18 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var isTesting0_100: Bool = false
     private var accelStartTime: Date? = nil
     private var hasReached100: Bool = false
+    
     @Published var zeroTo100mTime: Double = 0.0
     @Published var isTesting0_100m: Bool = false
     private var distanceStartTime: Date? = nil
     private var startLocationFor100m: CLLocation? = nil
     private var hasReached100m: Bool = false
+    
     @Published var harshAccelerationCount: Int = 0
     @Published var harshBrakingCount: Int = 0
     @Published var overspeedDurationSeconds: Double = 0.0
     private var lastRecordedSpeed: Double = 0.0
+    
     @Published var currentLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 25.0330, longitude: 121.5654)
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published var isNavigating: Bool = false
@@ -497,10 +556,12 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.startUpdatingHeading()
         startMotionUpdates()
     }
+    
     func updateLocationAccuracy(isNetworkBoostEnabled: Bool) {
         locationManager.desiredAccuracy = isNetworkBoostEnabled ? kCLLocationAccuracyBest : kCLLocationAccuracyBestForNavigation
         locationManager.distanceFilter = isNetworkBoostEnabled ? 1.0 : kCLDistanceFilterNone
     }
+    
     func resetData() {
         tripDistance = 0; maxSpeed = 0; maxGForce = 0
         zeroToOneHundredTime = 0; isTesting0_100 = false; hasReached100 = false; accelStartTime = nil
@@ -510,12 +571,14 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         harshAccelerationCount = 0; harshBrakingCount = 0
         overspeedDurationSeconds = 0; lastRecordedSpeed = 0
     }
+    
     func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
         let cam = SpeedCamera(latitude: currentLocation.latitude, longitude: currentLocation.longitude,
             speedLimit: speedLimit, description: description.isEmpty ? "⚠️ 手動回報測速點" : description, isTemporary: true)
         speedCameras.append(cam); nearestCameraAlert = "已成功加入目前測速點！"
         AudioServicesPlaySystemSound(1016); speechManager.speak("已成功加入目前測速點")
     }
+    
     func removeNearestCamera() {
         guard let loc = lastLocation else { speechManager.speak("目前沒有定位資訊"); return }
         if let idx = speedCameras.firstIndex(where: {
@@ -529,6 +592,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             speechManager.speak("附近沒有找到可移除的測速點")
         }
     }
+    
     func setDestination(_ coordinate: CLLocationCoordinate2D, name: String = "") {
         destinationCoordinate = coordinate; destinationName = name; isNavigating = true
         let req = MKDirections.Request()
@@ -536,34 +600,47 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         req.destination = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
         req.transportType = .automobile
         MKDirections(request: req).calculate { [weak self] resp, _ in
-            guard let self = self, let route = resp?.routes.first else {
-                self?.currentInstruction = "路線計算失敗"; return
-            }
-            self.routePolyline = route.polyline
-            if let step = route.steps.first(where: { !$0.instructions.isEmpty }) {
-                self.currentInstruction = step.instructions
-                self.distanceToNextStep = step.distance
+            Task { @MainActor in
+                guard let self = self, let route = resp?.routes.first else {
+                    self?.currentInstruction = "路線計算失敗"; return
+                }
+                self.routePolyline = route.polyline
+                if let step = route.steps.first(where: { !$0.instructions.isEmpty }) {
+                    self.currentInstruction = step.instructions
+                    self.distanceToNextStep = step.distance
+                }
             }
         }
         speechManager.speak(name.isEmpty ? "開始導航" : "導航至 \(name)")
     }
+    
     func cancelNavigation() {
         isNavigating = false; routePolyline = nil; destinationCoordinate = nil
         destinationName = ""; currentInstruction = "搜尋目的地開始導航"; distanceToNextStep = 0
         speechManager.speak("導航已結束")
     }
+    
     private func startMotionUpdates() {
         guard motionManager.isAccelerometerAvailable else { return }
         motionManager.accelerometerUpdateInterval = 0.1
         motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
-            guard let self = self, let acc = data?.acceleration else { return }
-            self.currentGForceX = acc.x; self.currentGForceY = acc.y
-            let g = sqrt(acc.x * acc.x + acc.y * acc.y)
-            if g > self.maxGForce { self.maxGForce = g }
+            Task { @MainActor in
+                guard let self = self, let acc = data?.acceleration else { return }
+                self.currentGForceX = acc.x; self.currentGForceY = acc.y
+                let g = sqrt(acc.x * acc.x + acc.y * acc.y)
+                if g > self.maxGForce { self.maxGForce = g }
+            }
         }
     }
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
+        Task { @MainActor in
+            self.handleLocationUpdate(loc)
+        }
+    }
+    
+    private func handleLocationUpdate(_ loc: CLLocation) {
         currentLocation = loc.coordinate; recordedPath.append(loc.coordinate)
         let kmh = max(0, loc.speed * 3.6); speed = kmh
         let delta = kmh - lastRecordedSpeed
@@ -573,6 +650,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if kmh > maxSpeed { maxSpeed = kmh }
         if let last = lastLocation { let d = loc.distance(from: last); if d > 0 { tripDistance += d / 1000.0 } }
         lastLocation = loc
+        
         if kmh < 5 && !isTesting0_100 && !hasReached100 {
             isTesting0_100 = true; accelStartTime = Date(); zeroToOneHundredTime = 0
         } else if isTesting0_100, let t = accelStartTime {
@@ -580,6 +658,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             if kmh >= 100 { isTesting0_100 = false; hasReached100 = true }
             else if zeroToOneHundredTime > 30 { isTesting0_100 = false }
         }
+        
         if kmh < 3 && !isTesting0_100m && !hasReached100m {
             isTesting0_100m = true; distanceStartTime = Date(); startLocationFor100m = loc; zeroTo100mTime = 0
         } else if isTesting0_100m, let sl = startLocationFor100m, let st = distanceStartTime {
@@ -588,6 +667,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             else if zeroTo100mTime > 30 { isTesting0_100m = false }
         }
     }
+    
     private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
         for cam in speedCameras {
             let camLoc = CLLocation(latitude: cam.latitude, longitude: cam.longitude)
@@ -611,14 +691,19 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             nearestCameraAlert = nil
         }
     }
-    func locationManager(_ manager: CLLocationManager, didUpdateHeading h: CLHeading) {
-        heading = h.trueHeading >= 0 ? h.trueHeading : h.magneticHeading
+    
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading h: CLHeading) {
+        let trueH = h.trueHeading >= 0 ? h.trueHeading : h.magneticHeading
+        Task { @MainActor in self.heading = trueH }
     }
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
+    
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in self.authorizationStatus = status }
     }
 }
 
+// MARK: - Visual Effect Components
 private struct CyberHoloScanFrame: View {
     let progress: CGFloat; let color: Color
     var body: some View {
@@ -626,6 +711,7 @@ private struct CyberHoloScanFrame: View {
         else { CyberHoloScanFrameFallback(progress: progress, color: color) }
     }
 }
+
 @available(iOS 15.0, *)
 private struct CyberHoloScanFrameCanvas: View {
     let progress: CGFloat; let color: Color
@@ -655,6 +741,7 @@ private struct CyberHoloScanFrameCanvas: View {
         .allowsHitTesting(false)
     }
 }
+
 private struct CyberHoloScanFrameFallback: View {
     let progress: CGFloat; let color: Color
     var body: some View {
@@ -693,6 +780,7 @@ private struct ScanlineOverlay: View {
         else { ScanlineFallback(color: color, offset: offset) }
     }
 }
+
 @available(iOS 15.0, *)
 private struct ScanlineCanvas: View {
     let color: Color; let offset: CGFloat
@@ -712,6 +800,7 @@ private struct ScanlineCanvas: View {
         .blendMode(.screen).allowsHitTesting(false).ignoresSafeArea()
     }
 }
+
 private struct ScanlineFallback: View {
     let color: Color; let offset: CGFloat
     var body: some View {
@@ -746,11 +835,13 @@ private struct RacingSpeedLines: View {
         return result
     }
     private let lines = RacingSpeedLines.makeLines()
+    
     var body: some View {
         if #available(iOS 15.0, *) { RacingSpeedLinesCanvas(color: color, progress: progress, intensity: intensity, lines: lines) }
         else { RacingSpeedLinesFallback(color: color, progress: progress, intensity: intensity, lines: lines) }
     }
 }
+
 @available(iOS 15.0, *)
 private struct RacingSpeedLinesCanvas: View {
     let color: Color; let progress: CGFloat; let intensity: CGFloat
@@ -771,6 +862,7 @@ private struct RacingSpeedLinesCanvas: View {
         .clipped().allowsHitTesting(false)
     }
 }
+
 private struct RacingSpeedLinesFallback: View {
     let color: Color; let progress: CGFloat; let intensity: CGFloat
     let lines: [RacingSpeedLines.SpeedLine]
@@ -816,6 +908,7 @@ private struct JapaneseWarningEndView: View {
                     }
                 }
                 .padding(.horizontal, 20).padding(.top, 16)
+                
                 HStack(spacing: 0) {
                     ForEach(["走行注意","安全第一","速度遵守","法規厳守"], id: \.self) { label in
                         Text(label)
@@ -837,6 +930,7 @@ private struct JapaneseWarningEndView: View {
     }
 }
 
+// MARK: - Boot Screen & Animations
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -1438,6 +1532,7 @@ struct SakuraFallingView: View {
         else { SakuraFallingFallback(density: density) }
     }
 }
+
 @available(iOS 15.0, *)
 private struct SakuraFallingContentView: View {
     var density: Double
@@ -1462,6 +1557,7 @@ private struct SakuraFallingContentView: View {
         .allowsHitTesting(false).ignoresSafeArea()
     }
 }
+
 private struct SakuraFallingFallback: View {
     var density: Double; @State private var phase: CGFloat = 0
     var body: some View {
@@ -1510,6 +1606,7 @@ struct BackgroundNeonFlowView: View {
     }
 }
 
+// MARK: - Map & Gauge UI Controls
 struct InteractiveNavigationMapView: UIViewRepresentable {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?
@@ -1517,6 +1614,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
     var historyPath: [CLLocationCoordinate2D]?
     var isInteractive: Bool = true
     var onMapTap: (CLLocationCoordinate2D) -> Void
+    
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
@@ -1686,6 +1784,7 @@ struct GlassInfoCard: View {
     let title: String; let value: String; let valueColor: Color; let icon: String
     var isActive: Bool = false
     @State private var breathe = false
+    
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 9, weight: .bold))
@@ -1715,6 +1814,7 @@ struct MiniMapView: View {
     let coordinate: CLLocationCoordinate2D
     var routePolyline: MKPolyline?; var destinationCoordinate: CLLocationCoordinate2D?
     var primaryColor: Color; var onTap: () -> Void
+    
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .bottomTrailing) {
@@ -1734,6 +1834,7 @@ struct MiniMapView: View {
     }
 }
 
+// MARK: - Subviews & Forms
 struct PerformanceTestDashboardView: View {
     @ObservedObject var vehicleManager: VehicleManager; var primaryColor: Color
     var body: some View {
@@ -1754,6 +1855,7 @@ struct PerformanceTestDashboardView: View {
                         .font(.system(size: 12, design: .monospaced)).foregroundColor(.gray)
                 }
             }.tabItem { Label("0-100加速", systemImage: "timer") }
+            
             ZStack {
                 Color.black.ignoresSafeArea()
                 VStack(spacing: 24) {
@@ -1819,6 +1921,7 @@ struct SettingsView: View {
     @Binding var isNetworkBoostEnabled: Bool; @Binding var simulatedSpeed: Double
     @Binding var enableSakuraBackground: Bool; @Binding var sakuraDensity: Double
     @Binding var borderWidth: Double; @Binding var animSpeed: Double
+    
     var body: some View {
         Form {
             Section(header: Text("霓虹邊緣光設定")) {
@@ -1878,6 +1981,7 @@ struct SettingsView: View {
     }
 }
 
+// MARK: - Main ContentView
 struct ContentView: View {
     @StateObject private var vehicleManager = VehicleManager()
     @StateObject private var animClock = AnimationClock()
@@ -1907,8 +2011,8 @@ struct ContentView: View {
     @State private var showSearchOverlay: Bool = false
 
     var customColor: Color {
-        get { Color(rawValue: customColorRaw) ?? Color(red: 1.0, green: 0.3, blue: 0.4) }
-        set { customColorRaw = newValue.rawValue }
+        get { Color(rgbString: customColorRaw) ?? Color(red: 1.0, green: 0.3, blue: 0.4) }
+        set { customColorRaw = newValue.rgbString }
     }
     var effectiveSpeed: Double { simulatedSpeed > 0 ? simulatedSpeed : vehicleManager.speed }
     var selectedTheme: DashboardTheme {
@@ -2108,130 +2212,148 @@ struct ContentView: View {
                                             outerBorderWidth: borderWidth,
                                             animSpeed: animSpeed
                                         )
+
                                         VStack(spacing: 2) {
-                                            Text(String(format: "%.0f", effectiveSpeed))
-                                                .font(.system(size: 68, weight: .black, design: .monospaced))
+                                            Text("\(Int(effectiveSpeed))")
+                                                .font(.system(size: 84, weight: .black, design: .monospaced))
                                                 .foregroundColor(.white)
-                                                .shadow(color: currentPrimaryColor, radius: 12)
+                                                .shadow(color: currentPrimaryColor.opacity(0.8), radius: 12)
+                                                .shadow(color: currentPrimaryColor.opacity(0.4), radius: 25)
+                                            
                                             Text("KM/H")
-                                                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                                .font(.system(size: 14, weight: .black, design: .monospaced))
                                                 .foregroundColor(currentPrimaryColor)
+                                                .kerning(3)
+
+                                            if let cameraAlert = vehicleManager.nearestCameraAlert {
+                                                Text(cameraAlert)
+                                                    .font(.system(size: 10, weight: .bold))
+                                                    .foregroundColor(.yellow)
+                                                    .padding(.horizontal, 8)
+                                                    .padding(.vertical, 3)
+                                                    .background(Color.black.opacity(0.7))
+                                                    .cornerRadius(6)
+                                                    .padding(.top, 4)
+                                            }
                                         }
                                     }
-                                    .scaleEffect(isHudMode ? 1.1 : 1.0)
+                                    .scaleEffect(isHudMode ? -1 : 1)
+                                    .rotation3DEffect(.degrees(isHudMode ? 180 : 0), axis: (x: 0, y: 1, z: 0))
 
-                                    if let alert = vehicleManager.nearestCameraAlert {
-                                        Text(alert)
-                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                            .foregroundColor(.yellow)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(Color.black.opacity(0.7))
-                                            .cornerRadius(10)
-                                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.yellow.opacity(0.6), lineWidth: 1))
-                                    }
-
-                                    HStack(spacing: 8) {
-                                        GlassInfoCard(title: "MAX SPEED", value: String(format: "%.0f km/h", vehicleManager.maxSpeed), valueColor: currentPrimaryColor, icon: "speedometer")
-                                        GlassInfoCard(title: "DISTANCE", value: String(format: "%.2f km", vehicleManager.tripDistance), valueColor: .green, icon: "mappin.and.ellipse")
-                                        GlassInfoCard(title: "0-100", value: String(format: "%.2f s", vehicleManager.zeroToOneHundredTime), valueColor: .orange, icon: "timer", isActive: vehicleManager.isTesting0_100)
-                                        GlassInfoCard(title: "MAX G", value: String(format: "%.2f G", vehicleManager.maxGForce), valueColor: .purple, icon: "gyroscope")
+                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                                        GlassInfoCard(title: "總里程", value: String(format: "%.1f km", vehicleManager.tripDistance), valueColor: currentPrimaryColor, icon: "location.fill")
+                                        GlassInfoCard(title: "最高車速", value: String(format: "%.0f km/h", vehicleManager.maxSpeed), valueColor: .yellow, icon: "gauge.badge.plus")
+                                        GlassInfoCard(title: "最大 G 值", value: String(format: "%.2f G", vehicleManager.maxGForce), valueColor: .orange, icon: "chart.bar.fill")
+                                        GlassInfoCard(title: "0-100 加速", value: String(format: "%.2f s", vehicleManager.zeroToOneHundredTime), valueColor: currentPrimaryColor, icon: "timer")
+                                        GlassInfoCard(title: "急加速/急煞", value: "\(vehicleManager.harshAccelerationCount)/\(vehicleManager.harshBrakingCount)", valueColor: .red, icon: "exclamationmark.triangle.fill")
+                                        GlassInfoCard(title: "方位角", value: String(format: "%.0f°", vehicleManager.heading), valueColor: .cyan, icon: "compass.drawing")
                                     }
                                     .padding(.horizontal, 16)
 
-                                    Spacer()
+                                    HStack(alignment: .center, spacing: 12) {
+                                        MiniMapView(
+                                            coordinate: vehicleManager.currentLocation,
+                                            routePolyline: vehicleManager.routePolyline,
+                                            destinationCoordinate: vehicleManager.destinationCoordinate,
+                                            primaryColor: currentPrimaryColor,
+                                            onTap: { showMap = true }
+                                        )
 
-                                    HStack {
-                                        Button(action: {
-                                            let rec = HistoryRecord(
-                                                id: UUID(),
-                                                date: Date(),
-                                                maxSpeed: vehicleManager.maxSpeed,
-                                                zeroToOneHundredTime: vehicleManager.zeroToOneHundredTime,
-                                                maxGForce: vehicleManager.maxGForce,
-                                                tripDistance: vehicleManager.tripDistance,
-                                                routeCoordinates: vehicleManager.recordedPath.map { CodableCoordinate($0) }
-                                            )
-                                            historyRecords.append(rec)
-                                            vehicleManager.resetData()
-                                        }) {
-                                            Label("封存行程", systemImage: "archivebox.fill")
+                                        VStack(spacing: 8) {
+                                            Button(action: {
+                                                vehicleManager.addCurrentLocationAsCamera(speedLimit: speedLimit, description: "手動回報")
+                                            }) {
+                                                HStack {
+                                                    Image(systemName: "plus.circle.fill")
+                                                    Text("回報測速點")
+                                                }
                                                 .font(.system(size: 12, weight: .bold))
                                                 .foregroundColor(.white)
-                                                .padding(.horizontal, 14)
-                                                .padding(.vertical, 8)
-                                                .background(Color.blue.opacity(0.8))
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 10)
+                                                .background(currentPrimaryColor.opacity(0.25))
                                                 .cornerRadius(10)
-                                        }
-                                        Spacer()
-                                        Button(action: { showMap = true }) {
-                                            HStack(spacing: 6) {
-                                                Image(systemName: "map.fill")
-                                                Text("導航地圖")
+                                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(currentPrimaryColor, lineWidth: 1))
                                             }
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 8)
-                                            .background(currentPrimaryColor.opacity(0.8))
-                                            .cornerRadius(10)
+
+                                            Button(action: {
+                                                vehicleManager.resetData()
+                                            }) {
+                                                HStack {
+                                                    Image(systemName: "arrow.counterclockwise")
+                                                    Text("重置本次行程")
+                                                }
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundColor(.gray)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 10)
+                                                .background(Color.white.opacity(0.08))
+                                                .cornerRadius(10)
+                                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.2), lineWidth: 1))
+                                            }
                                         }
                                     }
-                                    .padding(.horizontal, 20)
-                                    .padding(.bottom, 20)
+                                    .padding(.horizontal, 16)
+                                    .padding(.bottom, 12)
                                 }
                             }
                         }
-                    }
-                }
 
-                if showSearchOverlay {
-                    MapSearchOverlayView(
-                        searchManager: searchManager,
-                        vehicleManager: vehicleManager,
-                        primaryColor: currentPrimaryColor,
-                        onSelectDestination: { coord, name in
-                            vehicleManager.setDestination(coord, name: name)
-                            withAnimation(.easeInOut(duration: 0.22)) { showSearchOverlay = false }
-                        },
-                        onDismiss: {
-                            withAnimation(.easeInOut(duration: 0.22)) { showSearchOverlay = false }
+                        if showSearchOverlay {
+                            MapSearchOverlayView(
+                                searchManager: searchManager,
+                                vehicleManager: vehicleManager,
+                                primaryColor: currentPrimaryColor,
+                                onSelectDestination: { coord, name in
+                                    vehicleManager.setDestination(coord, name: name)
+                                    showSearchOverlay = false
+                                },
+                                onDismiss: { showSearchOverlay = false }
+                            )
+                            .zIndex(100)
+                            .transition(.opacity)
                         }
-                    )
-                    .zIndex(70)
+                    }
                 }
             }
             .navigationBarHidden(true)
-            .sheet(isPresented: $showSettings) {
-                NavigationView {
-                    SettingsView(
-                        vehicleManager: vehicleManager,
-                        selectedTheme: selectedTheme,
-                        speedLimit: $speedLimit,
-                        isHudMode: $isHudMode,
-                        useCustomColor: $useCustomColor,
-                        customColor: customColor,
-                        isNetworkBoostEnabled: $isNetworkBoostEnabled,
-                        simulatedSpeed: $simulatedSpeed,
-                        enableSakuraBackground: enablesSakuraBackground,
-                        sakuraDensity: $sakuraDensity,
-                        borderWidth: $borderWidth,
-                        animSpeed: $animSpeed
-                    )
+            .onChange(of: effectiveSpeed) { newSpeed in
+                if newSpeed > speedLimit {
+                    if !flashWarning {
+                        flashWarning = true
+                        showJapaneseOverspeedAlert = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            flashWarning = false
+                            showJapaneseOverspeedAlert = false
+                        }
+                    }
                 }
             }
-            .sheet(isPresented: $showHistoryRecords) {
-                NavigationView {
-                    HistoryRecordsView(records: $historyRecords)
-                }
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .sheet(isPresented: $showSettings) {
+            NavigationView {
+                SettingsView(
+                    vehicleManager: vehicleManager,
+                    selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }),
+                    speedLimit: $speedLimit,
+                    isHudMode: $isHudMode,
+                    useCustomColor: $useCustomColor,
+                    customColor: Binding(get: { self.customColor }, set: { self.customColor = $0 }),
+                    isNetworkBoostEnabled: $isNetworkBoostEnabled,
+                    simulatedSpeed: $simulatedSpeed,
+                    enableSakuraBackground: $enableSakuraBackground,
+                    sakuraDensity: $sakuraDensity,
+                    borderWidth: $borderWidth,
+                    animSpeed: $animSpeed
+                )
             }
-            .sheet(isPresented: $showPerformanceView) {
-                NavigationView {
-                    PerformanceTestDashboardView(vehicleManager: vehicleManager, primaryColor: currentPrimaryColor)
-                }
-            }
-            .scaleEffect(isHudMode ? -1.0 : 1.0, anchor: .center)
-            .rotationEffect(isHudMode ? .degrees(180) : .degrees(0), anchor: .center)
+        }
+        .sheet(isPresented: $showHistoryRecords) {
+            NavigationView { HistoryRecordsView(records: $historyRecords) }
+        }
+        .sheet(isPresented: $showPerformanceView) {
+            NavigationView { PerformanceTestDashboardView(vehicleManager: vehicleManager, primaryColor: currentPrimaryColor) }
         }
     }
 }
