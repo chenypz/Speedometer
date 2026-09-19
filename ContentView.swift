@@ -2319,4 +2319,19 @@ struct ContentView: View {
         Button(action: action) {
             VStack(spacing: 3) {
                 Image(systemName: icon).font(.system(size: 14))
-                Text
+                Text(label).font(.system(size: 8, weight: .bold, design: .monospaced))
+            }
+            .frame(width: 50, height: 50)
+            .background(bg)
+            .foregroundColor(fg)
+            .cornerRadius(14)
+            .overlay(
+                Group {
+                    if let b = border {
+                        RoundedRectangle(cornerRadius: 14).stroke(b, lineWidth: 1)
+                    }
+                }
+            )
+        }
+    }
+}
