@@ -437,7 +437,7 @@ class SpeechManager: ObservableObject {
     func announceWarning(speedLimit: Int, isOverspeed: Bool) {
         let text: String
         if currentLanguage.starts(with: "zh") {
-            text = isOverspeed ? "注意，您已超速！前方速限 \(speedLimit) 公里" : "前方速限 \(speedLimit) 公里"
+            text = isOverspeed ? "注意,您已超速！前方速限 \(speedLimit) 公里" : "前方速限 \(speedLimit) 公里"
         } else {
             text = isOverspeed ? "Warning! Speed limit \(speedLimit). You are speeding!" : "Speed limit \(speedLimit)."
         }
@@ -2155,89 +2155,83 @@ struct ContentView: View {
                                             historyRecords.append(rec)
                                             vehicleManager.resetData()
                                         }) {
+                                            Label("封存行程", systemImage: "archivebox.fill")
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 14)
+                                                .padding(.vertical, 8)
+                                                .background(Color.blue.opacity(0.8))
+                                                .cornerRadius(10)
+                                        }
+                                        Spacer()
+                                        Button(action: { showMap = true }) {
                                             HStack(spacing: 6) {
-                                                Image(systemName: "arrow.counterclockwise.circle.fill")
-                                                Text("重置紀錄")
+                                                Image(systemName: "map.fill")
+                                                Text("導航地圖")
                                             }
                                             .font(.system(size: 12, weight: .bold))
                                             .foregroundColor(.white)
                                             .padding(.horizontal, 14)
                                             .padding(.vertical, 8)
-                                            .background(Color.red.opacity(0.7))
-                                            .cornerRadius(16)
+                                            .background(currentPrimaryColor.opacity(0.8))
+                                            .cornerRadius(10)
                                         }
-
-                                        Spacer()
-
-                                        MiniMapView(
-                                            coordinate: vehicleManager.currentLocation,
-                                            routePolyline: vehicleManager.routePolyline,
-                                            destinationCoordinate: vehicleManager.destinationCoordinate,
-                                            primaryColor: currentPrimaryColor,
-                                            onTap: { showMap = true }
-                                        )
                                     }
                                     .padding(.horizontal, 20)
-                                    .padding(.bottom, 16)
+                                    .padding(.bottom, 20)
                                 }
                             }
                         }
-                        .scaleEffect(x: isHudMode ? -1 : 1, y: 1)
-
-                        if showSearchOverlay {
-                            MapSearchOverlayView(
-                                searchManager: searchManager,
-                                vehicleManager: vehicleManager,
-                                primaryColor: currentPrimaryColor,
-                                onSelectDestination: { coord, name in
-                                    vehicleManager.setDestination(coord, name: name)
-                                    withAnimation(.easeInOut(duration: 0.22)) { showSearchOverlay = false }
-                                },
-                                onDismiss: {
-                                    withAnimation(.easeInOut(duration: 0.22)) { showSearchOverlay = false }
-                                }
-                            )
-                            .zIndex(100)
-                        }
                     }
+                }
+
+                if showSearchOverlay {
+                    MapSearchOverlayView(
+                        searchManager: searchManager,
+                        vehicleManager: vehicleManager,
+                        primaryColor: currentPrimaryColor,
+                        onSelectDestination: { coord, name in
+                            vehicleManager.setDestination(coord, name: name)
+                            withAnimation(.easeInOut(duration: 0.22)) { showSearchOverlay = false }
+                        },
+                        onDismiss: {
+                            withAnimation(.easeInOut(duration: 0.22)) { showSearchOverlay = false }
+                        }
+                    )
+                    .zIndex(70)
                 }
             }
             .navigationBarHidden(true)
-            .onChange(of: effectiveSpeed) { newSpeed in
-                let isOverspeed = newSpeed > speedLimit
-                flashWarning = isOverspeed
-                showJapaneseOverspeedAlert = isOverspeed
-                if isOverspeed {
-                    let log = OverspeedRecord(id: UUID(), date: Date(), speed: newSpeed, speedLimit: speedLimit)
-                    overspeedLogs.append(log)
+            .sheet(isPresented: $showSettings) {
+                NavigationView {
+                    SettingsView(
+                        vehicleManager: vehicleManager,
+                        selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }),
+                        speedLimit: $speedLimit,
+                        isHudMode: $isHudMode,
+                        useCustomColor: $useCustomColor,
+                        customColor: Binding(get: { self.customColor }, set: { self.customColor = $0 }),
+                        isNetworkBoostEnabled: $isNetworkBoostEnabled,
+                        simulatedSpeed: $simulatedSpeed,
+                        enableSakuraBackground: $enableSakuraBackground,
+                        sakuraDensity: $sakuraDensity,
+                        borderWidth: $borderWidth,
+                        animSpeed: $animSpeed
+                    )
                 }
             }
-            .onChange(of: isNetworkBoostEnabled) { newValue in
-                vehicleManager.updateLocationAccuracy(isNetworkBoostEnabled: newValue)
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView(
-                    vehicleManager: vehicleManager,
-                    selectedTheme: Binding(get: { self.selectedTheme }, set: { self.storedThemeRaw = $0.rawValue }),
-                    speedLimit: $speedLimit,
-                    isHudMode: $isHudMode,
-                    useCustomColor: $useCustomColor,
-                    customColor: Binding(get: { self.customColor }, set: { self.customColor = $0 }),
-                    isNetworkBoostEnabled: $isNetworkBoostEnabled,
-                    simulatedSpeed: $simulatedSpeed,
-                    enableSakuraBackground: $enableSakuraBackground,
-                    sakuraDensity: $sakuraDensity,
-                    borderWidth: $borderWidth,
-                    animSpeed: $animSpeed
-                )
-            }
             .sheet(isPresented: $showHistoryRecords) {
-                HistoryRecordsView(records: $historyRecords)
+                NavigationView {
+                    HistoryRecordsView(records: $historyRecords)
+                }
             }
             .sheet(isPresented: $showPerformanceView) {
-                PerformanceTestDashboardView(vehicleManager: vehicleManager, primaryColor: currentPrimaryColor)
+                NavigationView {
+                    PerformanceTestDashboardView(vehicleManager: vehicleManager, primaryColor: currentPrimaryColor)
+                }
             }
+            .scaleEffect(isHudMode ? -1.0 : 1.0, anchor: .center)
+            .rotationEffect(isHudMode ? .degrees(180) : .degrees(0), anchor: .center)
         }
-        .navigationViewStyle(StackNavigationViewStyle())
     }
 }
