@@ -88,7 +88,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
         switch self {
         case .skull: return .red
         case .cyberpunk: return .safeCyan
-        case .sakura: return Color(red: 1.0, green: 0.6, blue: 0.75)
+        case .sakura: return Color(red: 1.0, green: 0.3, blue: 0.4)
         }
     }
     
@@ -99,7 +99,7 @@ enum DashboardTheme: String, CaseIterable, Identifiable {
         case .cyberpunk:
             return [Color(red: 0.01, green: 0.05, blue: 0.18), Color.black, Color(red: 0.05, green: 0.0, blue: 0.15)]
         case .sakura:
-            return [Color(red: 0.22, green: 0.06, blue: 0.15), Color(red: 0.06, green: 0.02, blue: 0.06), Color(red: 0.03, green: 0.0, blue: 0.04)]
+            return [Color(red: 0.15, green: 0.02, blue: 0.05), Color(red: 0.04, green: 0.01, blue: 0.03), Color.black]
         }
     }
 }
@@ -495,94 +495,112 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// MARK: - 5. 帥氣白狐面部特寫向量繪圖（霸氣靈狐破屏衝刺專用）
+// MARK: - 5. 日式大威嚴神獸白狐向量繪圖（帶有紅色領巾與項圈）
 struct MajesticWhiteFoxFaceView: View {
     var body: some View {
         ZStack {
+            // 背景靈氣微光
+            Circle()
+                .fill(RadialGradient(gradient: Gradient(colors: [Color.red.opacity(0.4), .clear]), center: .center, startRadius: 10, endRadius: 160))
+                .frame(width: 320, height: 320)
+            
             // 左耳外廓
             Path { path in
                 path.move(to: CGPoint(x: 100, y: 150))
-                path.addLine(to: CGPoint(x: 20, y: 10))
+                path.addLine(to: CGPoint(x: 10, y: 10))
                 path.addLine(to: CGPoint(x: 120, y: 80))
                 path.closeSubpath()
             }
             .fill(Color.white)
-            .shadow(color: .safeCyan, radius: 10)
+            .shadow(color: .red, radius: 8)
             
             // 右耳外廓
             Path { path in
                 path.move(to: CGPoint(x: 200, y: 150))
-                path.addLine(to: CGPoint(x: 280, y: 10))
+                path.addLine(to: CGPoint(x: 290, y: 10))
                 path.addLine(to: CGPoint(x: 180, y: 80))
                 path.closeSubpath()
             }
             .fill(Color.white)
-            .shadow(color: .safeCyan, radius: 10)
+            .shadow(color: .red, radius: 8)
             
-            // 左耳內側 (冰藍靈力)
+            // 耳內暗紅紋路
             Path { path in
                 path.move(to: CGPoint(x: 90, y: 120))
-                path.addLine(to: CGPoint(x: 45, y: 35))
+                path.addLine(to: CGPoint(x: 35, y: 35))
                 path.addLine(to: CGPoint(x: 110, y: 85))
                 path.closeSubpath()
             }
-            .fill(Color(red: 0.4, green: 0.85, blue: 1.0))
+            .fill(Color(red: 0.7, green: 0.0, blue: 0.1))
             
-            // 右耳內側 (冰藍靈力)
             Path { path in
                 path.move(to: CGPoint(x: 210, y: 120))
-                path.addLine(to: CGPoint(x: 255, y: 35))
+                path.addLine(to: CGPoint(x: 265, y: 35))
                 path.addLine(to: CGPoint(x: 190, y: 85))
                 path.closeSubpath()
             }
-            .fill(Color(red: 0.4, green: 0.85, blue: 1.0))
+            .fill(Color(red: 0.7, green: 0.0, blue: 0.1))
             
-            // 狐狸面部輪廓
+            // 狐狸面部主輪廓
             Path { path in
-                path.move(to: CGPoint(x: 150, y: 320)) // 下巴
-                path.addLine(to: CGPoint(x: 50, y: 140))  // 左頰
-                path.addLine(to: CGPoint(x: 90, y: 120))  // 左額
-                path.addLine(to: CGPoint(x: 150, y: 160)) // 額頭中心
-                path.addLine(to: CGPoint(x: 210, y: 120)) // 右額
-                path.addLine(to: CGPoint(x: 250, y: 140)) // 右頰
+                path.move(to: CGPoint(x: 150, y: 280)) // 下巴
+                path.addLine(to: CGPoint(x: 40, y: 130))  // 左頰
+                path.addLine(to: CGPoint(x: 90, y: 110))  // 左額
+                path.addLine(to: CGPoint(x: 150, y: 140)) // 額頭中心
+                path.addLine(to: CGPoint(x: 210, y: 110)) // 右額
+                path.addLine(to: CGPoint(x: 260, y: 130)) // 右頰
                 path.closeSubpath()
             }
-            .fill(Color(red: 0.95, green: 0.97, blue: 1.0))
-            .shadow(color: .white, radius: 15)
+            .fill(Color(red: 0.98, green: 0.98, blue: 1.0))
+            .shadow(color: .white, radius: 12)
             
-            // 霸氣冰藍銳眼 (左)
+            // 威嚴紅瞳 (左)
             Ellipse()
-                .fill(Color(red: 0.0, green: 0.95, blue: 0.9))
-                .frame(width: 45, height: 20)
-                .rotationEffect(.degrees(25))
-                .position(x: 105, y: 170)
-                .shadow(color: .safeCyan, radius: 12)
+                .fill(Color(red: 0.9, green: 0.1, blue: 0.2))
+                .frame(width: 42, height: 18)
+                .rotationEffect(.degrees(28))
+                .position(x: 105, y: 165)
+                .shadow(color: .red, radius: 10)
             
-            // 霸氣冰藍銳眼 (右)
+            // 威嚴紅瞳 (右)
             Ellipse()
-                .fill(Color(red: 0.0, green: 0.95, blue: 0.9))
-                .frame(width: 45, height: 20)
-                .rotationEffect(.degrees(-25))
-                .position(x: 195, y: 170)
-                .shadow(color: .safeCyan, radius: 12)
+                .fill(Color(red: 0.9, green: 0.1, blue: 0.2))
+                .frame(width: 42, height: 18)
+                .rotationEffect(.degrees(-28))
+                .position(x: 195, y: 165)
+                .shadow(color: .red, radius: 10)
             
-            // 眼神高光點睛
-            Circle().fill(Color.white).frame(width: 8, height: 8).position(x: 112, y: 166)
-            Circle().fill(Color.white).frame(width: 8, height: 8).position(x: 188, y: 166)
+            // 金黃瞳孔
+            Circle().fill(Color.yellow).frame(width: 6, height: 6).position(x: 108, y: 163)
+            Circle().fill(Color.yellow).frame(width: 6, height: 6).position(x: 192, y: 163)
             
-            // 額頭神速靈纹
+            // 臉頰日式狐狸面具紅色印紋
             Path { path in
-                path.move(to: CGPoint(x: 150, y: 130))
-                path.addLine(to: CGPoint(x: 150, y: 190))
+                path.move(to: CGPoint(x: 65, y: 180))
+                path.addQuadCurve(to: CGPoint(x: 95, y: 200), control: CGPoint(x: 80, y: 170))
+                path.move(to: CGPoint(x: 235, y: 180))
+                path.addQuadCurve(to: CGPoint(x: 205, y: 200), control: CGPoint(x: 220, y: 170))
             }
-            .stroke(Color(red: 0.2, green: 0.6, blue: 1.0), lineWidth: 4)
-            .shadow(color: .safeCyan, radius: 6)
+            .stroke(Color.red, lineWidth: 5)
+            
+            // 脖子傳統紅色繩結與飾帶
+            Path { path in
+                path.move(to: CGPoint(x: 80, y: 250))
+                path.addQuadCurve(to: CGPoint(x: 220, y: 250), control: CGPoint(x: 150, y: 290))
+            }
+            .stroke(Color(red: 0.8, green: 0.0, blue: 0.1), lineWidth: 16)
+            
+            Circle()
+                .fill(Color.yellow)
+                .frame(width: 22, height: 22)
+                .position(x: 150, y: 272)
+                .shadow(color: .orange, radius: 6)
         }
         .frame(width: 300, height: 320)
     }
 }
 
-// MARK: - 6. 三種風格完全獨立的開場動畫（加入帥氣白狐衝屏特效）
+// MARK: - 6. 三種風格獨立開場動畫（日本賽車/電影警示開頭改版）
 struct MultiThemeBootLoadingView: View {
     @Binding var isFinished: Bool
     @Binding var selectedTheme: DashboardTheme
@@ -594,9 +612,8 @@ struct MultiThemeBootLoadingView: View {
     @State private var flashScreen: Bool = false
     @State private var rotateAngle: Double = 0.0
     @State private var warningFlash: Bool = false
-    @State private var screenShake: CGFloat = 0.0
     
-    // Sakura / White Fox specific animation states
+    // Sakura / Japanese Warning specific animation states
     @State private var sakuraPhase: Int = 0 
     @State private var foxScale: CGFloat = 0.05
     @State private var warningGlow: CGFloat = 0.0
@@ -607,7 +624,7 @@ struct MultiThemeBootLoadingView: View {
         switch selectedTheme {
         case .skull: return .red
         case .cyberpunk: return .safeCyan
-        case .sakura: return Color(red: 1.0, green: 0.5, blue: 0.8)
+        case .sakura: return Color(red: 1.0, green: 0.2, blue: 0.3)
         }
     }
     
@@ -633,20 +650,6 @@ struct MultiThemeBootLoadingView: View {
                             .scaleEffect(effectScale * CGFloat(1.0 + Double(i) * 0.25))
                     }
                     if flashScreen { Color.red.opacity(0.85).ignoresSafeArea() }
-                    
-                    ForEach(0..<50, id: \.self) { i in
-                        let rectColor: Color = (i % 2 == 0) ? .red : .white
-                        let randomWidth = CGFloat.random(in: 4...14)
-                        let randomHeight = CGFloat.random(in: 4...14)
-                        let offsetX = particleExplode ? CGFloat(cos(Double(i) * 7.0 * .pi / 180.0) * CGFloat.random(in: 120...550)) : 0
-                        let offsetY = particleExplode ? CGFloat(sin(Double(i) * 7.0 * .pi / 180.0) * CGFloat.random(in: 120...550)) : 0
-                        
-                        Rectangle()
-                            .fill(rectColor)
-                            .frame(width: randomWidth, height: randomHeight)
-                            .offset(x: offsetX, y: offsetY)
-                            .opacity(particleExplode ? 0.0 : 1.0)
-                    }
                 }
             }
             // ─── 2. 賽伯戰爭風 ───
@@ -660,220 +663,167 @@ struct MultiThemeBootLoadingView: View {
                             .scaleEffect(effectScale * 0.8)
                     }
                     if flashScreen { Color.safeCyan.opacity(0.8).ignoresSafeArea() }
-                    
-                    ForEach(0..<60, id: \.self) { i in
-                        let circleColor: Color = (i % 3 == 0) ? .white : .safeCyan
-                        let circleWidth = CGFloat.random(in: 3...8)
-                        let circleHeight = CGFloat.random(in: 3...8)
-                        let offsetX = particleExplode ? CGFloat(sin(Double(i)) * CGFloat.random(in: 50...400)) : 0
-                        let offsetY = particleExplode ? CGFloat(Double(i) * 12.0 - 250.0) : 0
-                        
-                        Circle()
-                            .fill(circleColor)
-                            .frame(width: circleWidth, height: circleHeight)
-                            .offset(x: offsetX, y: offsetY)
-                            .opacity(particleExplode ? 0.0 : 1.0)
-                    }
                 }
             }
-            // ─── 3. 日本櫻花風（帥氣白狐極速破屏衝刺特寫） ───
+            // ─── 3. 日本櫻花風（電影日本超速/極速警告風格 + 流水燈） ───
             else {
                 ZStack {
-                    if flashScreen { Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.85).ignoresSafeArea() }
+                    if flashScreen { Color.red.opacity(0.85).ignoresSafeArea() }
                     
                     if showLightning {
                         ZStack {
-                            Color.white.opacity(0.4).ignoresSafeArea()
+                            Color.white.opacity(0.2).ignoresSafeArea()
                             Path { path in
-                                path.move(to: CGPoint(x: 50, y: 0))
-                                path.addLine(to: CGPoint(x: 180, y: 300))
-                                path.addLine(to: CGPoint(x: 100, y: 350))
-                                path.addLine(to: CGPoint(x: 320, y: 800))
+                                path.move(to: CGPoint(x: 0, y: 150))
+                                path.addLine(to: CGPoint(x: 400, y: 250))
                             }
-                            .stroke(Color.safeCyan, lineWidth: 6)
+                            .stroke(Color.red, lineWidth: 8)
                             .shadow(color: .white, radius: 15)
-                            
-                            Path { path in
-                                path.move(to: CGPoint(x: 300, y: 50))
-                                path.addLine(to: CGPoint(x: 200, y: 400))
-                                path.addLine(to: CGPoint(x: 280, y: 450))
-                                path.addLine(to: CGPoint(x: 80, y: 750))
-                            }
-                            .stroke(Color(red: 1.0, green: 0.3, blue: 0.6), lineWidth: 4)
-                            .shadow(color: .yellow, radius: 12)
                         }
                         .ignoresSafeArea()
                     }
                     
-                    // 階段 0 & 1：櫻花聚集與靈力匯聚
+                    // 階段 0 & 1：日本電影式極速超速警告（黑底黑字 + 紅色旋轉流水燈 border）
                     if sakuraPhase <= 1 {
                         ZStack {
-                            ForEach(0..<6, id: \.self) { i in
-                                Circle()
-                                    .stroke(Color(red: 1.0, green: 0.6, blue: 0.8).opacity(sakuraPhase == 1 ? 0.8 : 0.4), lineWidth: 3)
-                                    .frame(width: CGFloat(80 + i * 65), height: CGFloat(80 + i * 65))
-                                    .scaleEffect(sakuraPhase == 1 ? (1.0 - effectScale * 0.2) : effectScale)
-                            }
-                            
-                            if sakuraPhase == 1 {
-                                Image(systemName: "tree.fill")
-                                    .font(.system(size: 100))
-                                    .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.85))
-                                    .shadow(color: .white, radius: 20)
-                                    .scaleEffect(animVal)
-                                    .transition(.scale.combined(with: .opacity))
-                            }
-                            
-                            ForEach(0..<50, id: \.self) { i in
-                                let ellipseColor: Color = (i % 2 == 0) ? .white : Color(red: 1.0, green: 0.65, blue: 0.85)
-                                let offsetX = sakuraPhase == 1 ? 0 : (particleExplode ? CGFloat(cos(Double(i) * 8.0) * CGFloat.random(in: 60...380)) : 0)
-                                let offsetY = sakuraPhase == 1 ? 0 : (particleExplode ? CGFloat(sin(Double(i) * 5.0) * CGFloat.random(in: 60...400)) : 0)
-                                
-                                Ellipse()
-                                    .fill(ellipseColor)
-                                    .frame(width: 14, height: 9)
-                                    .offset(x: offsetX, y: offsetY)
-                                    .rotationEffect(.degrees(rotateAngle * Double(i)))
-                                    .opacity(sakuraPhase == 1 ? 0.2 : (particleExplode ? 0.0 : 1.0))
+                            VStack(spacing: 20) {
+                                ZStack {
+                                    // 外框動態紅色流水燈
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(
+                                            AngularGradient(
+                                                gradient: Gradient(colors: [.red, .black, .red, .white, .red, .black]),
+                                                center: .center,
+                                                angle: .degrees(rotateAngle * 4)
+                                            ),
+                                            lineWidth: 6
+                                        )
+                                        .shadow(color: .red, radius: 18)
+                                    
+                                    // 黑色底牌
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(Color.black)
+                                        .padding(3)
+                                    
+                                    // 黑色字體搭配高對比紅框 / 告誡文字
+                                    VStack(spacing: 12) {
+                                        HStack {
+                                            Text("⚠️ 警告 WARNING ⚠️")
+                                                .font(.system(size: 16, weight: .black, design: .monospaced))
+                                                .foregroundColor(.red)
+                                            Spacer()
+                                            Text("極速特区")
+                                                .font(.system(size: 12, weight: .black, design: .monospaced))
+                                                .foregroundColor(.gray)
+                                        }
+                                        .padding(.horizontal, 16)
+                                        
+                                        Divider().background(Color.red)
+                                        
+                                        Text("超速走行禁止")
+                                            .font(.system(size: 34, weight: .black, design: .monospaced))
+                                            .foregroundColor(.black)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 4)
+                                            .background(Color.red)
+                                            .cornerRadius(6)
+                                        
+                                        Text("AUTOMATIC SPEED RADAR ACTIVE")
+                                            .font(.system(size: 10, weight: .black, design: .monospaced))
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding(16)
+                                }
+                                .frame(width: 330, height: 180)
+                                .scaleEffect(sakuraPhase == 1 ? 1.05 : 0.95)
                             }
                         }
                     }
                     
-                    // 階段 2：帥氣白狐從正中央極速衝向螢幕（霸氣特寫）
+                    // 階段 2：威嚴神獸白狐衝擊登場
                     if sakuraPhase == 2 {
                         ZStack {
                             VStack(spacing: 16) {
                                 MajesticWhiteFoxFaceView()
                                     .scaleEffect(foxScale)
-                                    .blur(radius: blurAmount) // 殘影速度感動態模糊
-                                    .rotationEffect(.degrees(warningFlash ? 3 : -3))
-                                    .shadow(color: Color(red: 0.0, green: 0.9, blue: 1.0), radius: 35)
+                                    .blur(radius: blurAmount)
+                                    .rotationEffect(.degrees(warningFlash ? 2 : -2))
+                                    .shadow(color: .red, radius: 30)
                                 
-                                Text("霊狐降臨 • 神速起動")
-                                    .font(.system(size: 18, weight: .black, design: .monospaced))
-                                    .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.9))
-                                    .shadow(color: .safeCyan, radius: 10)
+                                Text("白狐靈威 • 極速領域")
+                                    .font(.system(size: 20, weight: .black, design: .monospaced))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .red, radius: 12)
                             }
-                            .transition(.scale.combined(with: .opacity))
                         }
                     }
                     
-                    // 階段 3：黑紅流水發光字警告（結合日系浮世繪與雷紋裝飾框）
+                    // 階段 3：黑色字體配紅色流水燈動態顯現
                     if sakuraPhase >= 3 {
                         ZStack {
                             Color.black.opacity(0.95).ignoresSafeArea()
                             
-                            VStack {
-                                HStack {
-                                    Text("風林火山 卍").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
-                                    Spacer()
-                                    Text("電光石火 ⚡").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
+                            VStack(spacing: 24) {
+                                ZStack {
+                                    // 外圍動態紅色流水燈
+                                    RoundedRectangle(cornerRadius: 18)
+                                        .stroke(
+                                            AngularGradient(
+                                                gradient: Gradient(colors: [.red, .black, .red, .white, .red]),
+                                                center: .center,
+                                                angle: .degrees(rotateAngle * 3)
+                                            ),
+                                            lineWidth: 5
+                                        )
+                                        .shadow(color: .red, radius: 20)
+                                    
+                                    RoundedRectangle(cornerRadius: 18)
+                                        .fill(Color(red: 0.05, green: 0.05, blue: 0.05))
+                                    
+                                    VStack(spacing: 12) {
+                                        Text("速度取締重点路線")
+                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.red)
+                                        
+                                        Text("全系統啟動")
+                                            .font(.system(size: 32, weight: .black, design: .monospaced))
+                                            .foregroundColor(.black)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 6)
+                                            .background(Color.white)
+                                            .cornerRadius(8)
+                                            .shadow(color: .red, radius: 10)
+                                        
+                                        Text("PLEASE DRIVE SAFELY")
+                                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.gray)
+                                    }
+                                    .padding(20)
                                 }
-                                .padding(.horizontal, 30)
-                                .padding(.top, 40)
-                                Spacer()
-                                HStack {
-                                    Text("桜吹雪 ⚠️").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
-                                    Spacer()
-                                    Text("神速領域 ⛩️").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red.opacity(0.7))
-                                }
-                                .padding(.horizontal, 30)
-                                .padding(.bottom, 40)
+                                .frame(width: 320, height: 160)
+                                .scaleEffect(warningGlow)
                             }
-                            .ignoresSafeArea()
-                            
-                            VStack(spacing: 16) {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.black)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(
-                                                AngularGradient(
-                                                    gradient: Gradient(colors: [.red, .black, .red, .white, .red]),
-                                                    center: .center,
-                                                    angle: .degrees(rotateAngle * 2)
-                                                ),
-                                                lineWidth: 4
-                                            )
-                                    )
-                                    .frame(width: 320, height: 110)
-                                    .shadow(color: .red.opacity(0.9), radius: 15)
-                                    .overlay(
-                                        VStack(spacing: 8) {
-                                            HStack(spacing: 6) {
-                                                Image(systemName: "exclamationmark.triangle.fill")
-                                                    .foregroundColor(.yellow)
-                                                    .font(.system(size: 18))
-                                                Text("⚠️ 警戒発動 ⚠️")
-                                                    .font(.system(size: 16, weight: .black, design: .monospaced))
-                                                    .foregroundColor(.white)
-                                            }
-                                            Text("速度超過注意 • レーダー監視")
-                                                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                                .foregroundColor(.red)
-                                        }
-                                    )
-                            }
-                            .scaleEffect(warningGlow)
-                            .transition(.scale.combined(with: .opacity))
                         }
                     }
                     
-                    // 階段 4：最後櫻花炸開進入主畫面
+                    // 階段 4：櫻花瓣與流光炸開
                     if sakuraPhase == 4 {
                         ZStack {
-                            Color(red: 1.0, green: 0.8, blue: 0.9).opacity(0.6).ignoresSafeArea()
-                            ForEach(0..<60, id: \.self) { i in
+                            Color.red.opacity(0.3).ignoresSafeArea()
+                            ForEach(0..<40, id: \.self) { i in
                                 let offsetX = CGFloat(cos(Double(i) * 6.0) * CGFloat.random(in: 100...500))
                                 let offsetY = CGFloat(sin(Double(i) * 6.0) * CGFloat.random(in: 100...500))
-                                let circleWidth = CGFloat.random(in: 6...16)
-                                let circleHeight = CGFloat.random(in: 6...16)
-                                
                                 Circle()
-                                    .fill(Color.white)
-                                    .frame(width: circleWidth, height: circleHeight)
+                                    .fill(Color.red)
+                                    .frame(width: 10, height: 10)
                                     .offset(x: offsetX, y: offsetY)
-                                    .opacity(0.0)
                             }
                         }
                     }
                 }
             }
             
-            if selectedTheme != .sakura {
-                Group {
-                    if bootStep == 0 {
-                        VStack(spacing: 22) {
-                            Image(systemName: selectedTheme == .skull ? "skull.fill" : "cpu")
-                                .font(.system(size: 110))
-                                .foregroundColor(themeColor)
-                                .shadow(color: themeColor, radius: 40)
-                                .scaleEffect(animVal)
-                                .rotationEffect(.degrees(warningFlash ? 10 : -10))
-                            
-                            Text(selectedTheme == .skull ? "⚠️ 速度取締注意 • 警報発動 ⚠️" : "⚡ レーダー探知機 • オンライン ⚡")
-                                .font(.system(size: 16, weight: .black, design: .monospaced))
-                                .foregroundColor(.white)
-                                .kerning(2)
-                                .shadow(color: themeColor, radius: 15)
-                        }
-                        .transition(.opacity.combined(with: .scale(scale: 0.5)))
-                    } else {
-                        VStack(spacing: 20) {
-                            Text(selectedTheme == .skull ? "⚠️ 暴力極限超速模式解禁 ⚠️" : "⚡ 網路核心系統完全同步 ⚡")
-                                .font(.system(size: 18, weight: .black, design: .monospaced))
-                                .foregroundColor(themeColor)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 10)
-                                .background(themeColor.opacity(0.25))
-                                .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(themeColor, lineWidth: 2))
-                        }
-                        .transition(.scale.combined(with: .opacity))
-                    }
-                }
-            }
-            
+            // 跳過按鈕
             VStack {
                 HStack {
                     Spacer()
@@ -884,7 +834,7 @@ struct MultiThemeBootLoadingView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
-                    .background(Color.black.opacity(0.7))
+                    .background(Color.black.opacity(0.8))
                     .cornerRadius(22)
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(themeColor, lineWidth: 2))
                     .padding(.trailing, 24)
@@ -898,35 +848,13 @@ struct MultiThemeBootLoadingView: View {
             switch selectedTheme {
             case .skull:
                 AudioServicesPlaySystemSound(1073)
-                AudioServicesPlaySystemSound(1115)
             case .cyberpunk:
                 AudioServicesPlaySystemSound(1057)
-                AudioServicesPlaySystemSound(1104)
             case .sakura:
                 AudioServicesPlaySystemSound(1022)
             }
             
-            withAnimation(.easeIn(duration: 0.08)) {
-                flashScreen = true
-                screenShake = selectedTheme == .skull ? 18.0 : 6.0
-            }
-            triggerHaptic(style: .heavy)
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    flashScreen = false
-                    screenShake = 0.0
-                }
-            }
-            
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.4)) {
-                animVal = 1.0
-                effectScale = 3.5
-            }
-            withAnimation(Animation.easeOut(duration: 1.6)) {
-                particleExplode = true
-            }
-            withAnimation(Animation.linear(duration: 2.5).repeatForever(autoreverses: false)) {
+            withAnimation(Animation.linear(duration: 2.0).repeatForever(autoreverses: false)) {
                 rotateAngle = 360.0
             }
             withAnimation(Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
@@ -934,60 +862,42 @@ struct MultiThemeBootLoadingView: View {
             }
             
             if selectedTheme == .sakura {
-                // 1. 0.8秒後：櫻花樹聚集
+                // 1. 0.8秒後：電影開頭警示閃爍
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    triggerHaptic(style: .medium)
-                    withAnimation(.easeInOut(duration: 0.5)) { sakuraPhase = 1 }
-                }
-                
-                // 2. 1.6秒後：帥氣白狐從正中央極速衝向螢幕（帶有閃電落雷、居合拔刀音效與殘影模糊）
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-                    AudioServicesPlaySystemSound(1104) // 衝擊音效
-                    AudioServicesPlaySystemSound(1057) // 居合斬拔刀金屬聲
                     triggerHaptic(style: .heavy)
-                    
-                    withAnimation(.easeInOut(duration: 0.1)) {
-                        showLightning = true
-                        blurAmount = 10.0 // 瞬間產生極速殘影模糊
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showLightning = false
-                            blurAmount = 0.0
-                        }
-                    }
-                    
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
+                    withAnimation(.easeInOut(duration: 0.3)) { sakuraPhase = 1 }
+                }
+                
+                // 2. 1.8秒後：神獸白狐破屏特寫
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                    AudioServicesPlaySystemSound(1104)
+                    triggerHaptic(style: .heavy)
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                         sakuraPhase = 2
-                        foxScale = 3.2 // 瞬間極速放大佔滿螢幕
+                        foxScale = 2.8
                     }
                 }
                 
-                // 3. 2.5秒後：黑紅流水發光警告字
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                // 3. 2.8秒後：黑色字體搭配紅色流水燈顯示
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.8) {
                     AudioServicesPlaySystemSound(1005)
                     triggerHaptic(style: .rigid)
                     withAnimation(.easeInOut(duration: 0.3)) {
                         sakuraPhase = 3
-                        warningGlow = 1.1
+                        warningGlow = 1.05
                     }
                 }
                 
-                // 4. 4.0秒後：最終櫻花炸開
+                // 4. 4.0秒後：炸開並進入主畫面
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-                    triggerHaptic(style: .medium)
-                    withAnimation(.easeInOut(duration: 0.4)) { sakuraPhase = 4 }
+                    withAnimation(.easeInOut(duration: 0.3)) { sakuraPhase = 4 }
                 }
                 
-                // 5. 4.6秒後：進入主畫面
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4.6) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
                     withAnimation(.easeOut(duration: 0.3)) { isFinished = true }
                 }
             } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
-                    withAnimation(.easeInOut(duration: 0.3)) { bootStep = 1 }
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                     withAnimation(.easeOut(duration: 0.4)) { isFinished = true }
                 }
             }
@@ -1026,7 +936,7 @@ private struct SakuraFallingContentView: View {
                     context.opacity = 0.75
                     context.fill(
                         Path(ellipseIn: CGRect(x: x, y: y, width: 12 * scale, height: 8 * scale)),
-                        with: .color(Color(red: 1.0, green: 0.7, blue: 0.85))
+                        with: .color(Color(red: 1.0, green: 0.3, blue: 0.4))
                     )
                 }
             }
@@ -1494,7 +1404,7 @@ struct ContentView: View {
     @AppStorage("isHudMode") private var isHudMode: Bool = false
     @AppStorage("showMap") private var showMap: Bool = false
     @AppStorage("useCustomColor") private var useCustomColor: Bool = false
-    @AppStorage("customColorRaw") private var customColorRaw: String = "1.0,0.6,0.75"
+    @AppStorage("customColorRaw") private var customColorRaw: String = "1.0,0.3,0.4"
     @AppStorage("isNetworkBoostEnabled") private var isNetworkBoostEnabled: Bool = false
     
     @AppStorage("enableSakuraBackground") private var enableSakuraBackground: Bool = true
@@ -1517,7 +1427,7 @@ struct ContentView: View {
     @State private var overspeedTimer: Timer? = nil
     
     var customColor: Color {
-        get { Color(rawValue: customColorRaw) ?? Color(red: 1.0, green: 0.6, blue: 0.75) }
+        get { Color(rawValue: customColorRaw) ?? Color(red: 1.0, green: 0.3, blue: 0.4) }
         set { customColorRaw = newValue.rawValue }
     }
     
@@ -1862,7 +1772,7 @@ struct ContentView: View {
                         isHudMode: $isHudMode,
                         useCustomColor: $useCustomColor,
                         customColor: Binding(
-                            get: { Color(rawValue: self.customColorRaw) ?? Color(red: 1.0, green: 0.6, blue: 0.75) },
+                            get: { Color(rawValue: self.customColorRaw) ?? Color(red: 1.0, green: 0.3, blue: 0.4) },
                             set: { self.customColorRaw = $0.rawValue }
                         ),
                         isNetworkBoostEnabled: $isNetworkBoostEnabled,
