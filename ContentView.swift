@@ -663,7 +663,7 @@ struct MultiThemeBootLoadingView: View {
                         .allowsHitTesting(false)
                 }
 
-                // 細緻掃描線，讓整個開場更像儀表/電影 UI，而不是單純 SwiftUI 元件
+                // 細緻掃描線，讓整個開場更像儀表/電影 UI
                 ScanlineOverlay(color: themeColor, offset: scanOffset)
 
                 VStack {
@@ -676,7 +676,7 @@ struct MultiThemeBootLoadingView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 9)
-                        .background(.black.opacity(0.72))
+                        .background(Color.black.opacity(0.72))
                         .clipShape(Capsule())
                         .overlay(Capsule().stroke(themeColor.opacity(0.9), lineWidth: 1.5))
                         .padding(.trailing, 24)
@@ -711,7 +711,7 @@ struct MultiThemeBootLoadingView: View {
                 .shadow(color: .red, radius: 18)
 
             Circle()
-                .stroke(.red.opacity(0.28), lineWidth: 1)
+                .stroke(Color.red.opacity(0.28), lineWidth: 1)
                 .frame(width: 340, height: 340)
                 .rotationEffect(.degrees(-rotateAngle * 0.55))
                 .scaleEffect(panelScale * 0.92)
@@ -740,22 +740,7 @@ struct MultiThemeBootLoadingView: View {
     private var cyberBoot: some View {
         ZStack {
             ForEach(0..<5, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(
-                        AngularGradient(
-                            gradient: [.clear, .safeCyan, .white, .safeCyan, .clear],
-                            center: .center
-                        ),
-                        lineWidth: i == 0 ? 4 : 1.5
-                    )
-                    .frame(
-                        width: CGFloat(150 + i * 62),
-                        height: CGFloat(150 + i * 62)
-                    )
-                    .rotationEffect(.degrees(rotateAngle * (i.isMultiple(of: 2) ? 1 : -0.7)))
-                    .scaleEffect(panelScale)
-                    .opacity(panelOpacity * (1.0 - Double(i) * 0.08))
-                    .shadow(color: .safeCyan.opacity(0.7), radius: i == 0 ? 16 : 5)
+                CyberSquareBorder(index: i, rotateAngle: rotateAngle, panelScale: panelScale, panelOpacity: panelOpacity)
             }
 
             VStack(spacing: 10) {
@@ -769,7 +754,7 @@ struct MultiThemeBootLoadingView: View {
                     .foregroundColor(.safeCyan)
 
                 Rectangle()
-                    .fill(.safeCyan)
+                    .fill(Color.safeCyan)
                     .frame(width: 150, height: 2)
                     .scaleEffect(x: pulse ? 1.0 : 0.25, y: 1)
             }
@@ -786,7 +771,7 @@ struct MultiThemeBootLoadingView: View {
                 Rectangle()
                     .fill(
                         LinearGradient(
-                            colors: [.clear, .red.opacity(0.8), .white, .red.opacity(0.15), .clear],
+                            gradient: Gradient(colors: [.clear, Color.red.opacity(0.8), .white, Color.red.opacity(0.15), .clear]),
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -801,12 +786,12 @@ struct MultiThemeBootLoadingView: View {
                 VStack(spacing: 18) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 18)
-                            .fill(.black.opacity(0.94))
+                            .fill(Color.black.opacity(0.94))
 
                         RoundedRectangle(cornerRadius: 18)
                             .stroke(
                                 AngularGradient(
-                                    gradient: [.red, .black, .red, .white, .red],
+                                    gradient: Gradient(colors: [.red, .black, .red, .white, .red]),
                                     center: .center
                                 ),
                                 lineWidth: 5
@@ -825,7 +810,7 @@ struct MultiThemeBootLoadingView: View {
                             }
 
                             Rectangle()
-                                .fill(.red.opacity(0.8))
+                                .fill(Color.red.opacity(0.8))
                                 .frame(height: 1)
 
                             Text("超速走行禁止")
@@ -833,7 +818,7 @@ struct MultiThemeBootLoadingView: View {
                                 .foregroundColor(.black)
                                 .padding(.horizontal, 13)
                                 .padding(.vertical, 6)
-                                .background(.red)
+                                .background(Color.red)
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
 
                             Text("AUTOMATIC SPEED RADAR ACTIVE")
@@ -859,7 +844,7 @@ struct MultiThemeBootLoadingView: View {
                         .scaleEffect(foxScale)
                         .opacity(foxOpacity)
                         .blur(radius: foxBlur)
-                        .shadow(color: .red.opacity(0.9), radius: 30)
+                        .shadow(color: Color.red.opacity(0.9), radius: 30)
 
                     Text("白狐靈威 • 極速領域")
                         .font(.system(size: 20, weight: .black, design: .monospaced))
@@ -874,12 +859,12 @@ struct MultiThemeBootLoadingView: View {
                 VStack(spacing: 20) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 18)
-                            .fill(.black.opacity(0.96))
+                            .fill(Color.black.opacity(0.96))
 
                         RoundedRectangle(cornerRadius: 18)
                             .stroke(
                                 AngularGradient(
-                                    gradient: [.red, .black, .red, .white, .red],
+                                    gradient: Gradient(colors: [.red, .black, .red, .white, .red]),
                                     center: .center
                                 ),
                                 lineWidth: 5
@@ -896,7 +881,7 @@ struct MultiThemeBootLoadingView: View {
                                 .foregroundColor(.black)
                                 .padding(.horizontal, 15)
                                 .padding(.vertical, 6)
-                                .background(.white)
+                                .background(Color.white)
                                 .clipShape(RoundedRectangle(cornerRadius: 7))
                                 .shadow(color: .red, radius: 10)
 
@@ -922,7 +907,6 @@ struct MultiThemeBootLoadingView: View {
     }
 
     private func startBoot() {
-        // 防止重複 onAppear 時造成多組動畫/計時器疊加
         bootStep = 0
         panelScale = 0.72
         panelOpacity = 0
@@ -1037,6 +1021,33 @@ struct MultiThemeBootLoadingView: View {
     }
 }
 
+// 輔助 Cyber 動畫方形邊框組件 (避開內部複雜多層型態檢查)
+private struct CyberSquareBorder: View {
+    let index: Int
+    let rotateAngle: Double
+    let panelScale: CGFloat
+    let panelOpacity: Double
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 18)
+            .stroke(
+                AngularGradient(
+                    gradient: Gradient(colors: [.clear, .safeCyan, .white, .safeCyan, .clear]),
+                    center: .center
+                ),
+                lineWidth: index == 0 ? 4 : 1.5
+            )
+            .frame(
+                width: CGFloat(150 + index * 62),
+                height: CGFloat(150 + index * 62)
+            )
+            .rotationEffect(.degrees(rotateAngle * (index.isMultiple(of: 2) ? 1 : -0.7)))
+            .scaleEffect(panelScale)
+            .opacity(panelOpacity * (1.0 - Double(index) * 0.08))
+            .shadow(color: Color.safeCyan.opacity(0.7), radius: index == 0 ? 16 : 5)
+    }
+}
+
 // MARK: - 穩定掃描線
 private struct ScanlineOverlay: View {
     let color: Color
@@ -1061,7 +1072,7 @@ private struct ScanlineOverlay: View {
     }
 }
 
-// MARK: - 穩定粒子爆發（不在 body 內使用 random）
+// MARK: - 穩定粒子爆發
 private struct BootParticlesView: View {
     let progress: CGFloat
     let color: Color
@@ -1690,7 +1701,7 @@ struct ContentView: View {
                                 .background(Color.black.opacity(0.92))
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red, lineWidth: 2))
                                 .cornerRadius(12)
-                                .shadow(color: .red.opacity(0.9), radius: 12)
+                                .shadow(color: Color.red.opacity(0.9), radius: 12)
                                 .padding(.bottom, 60)
                             }
                             .zIndex(60)
