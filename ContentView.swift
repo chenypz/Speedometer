@@ -169,16 +169,13 @@ class MapSearchManager: NSObject, ObservableObject, MKLocalSearchCompleterDelega
     }
 }
 
-// MARK: - ★ 地圖搜尋覆蓋層 UI
+// MARK: - ★ 地圖搜尋覆蓋層 UI（iOS 14 相容版）
 struct MapSearchOverlayView: View {
     @ObservedObject var searchManager: MapSearchManager
     @ObservedObject var vehicleManager: VehicleManager
     var primaryColor: Color
     var onSelectDestination: (CLLocationCoordinate2D, String) -> Void
     var onDismiss: () -> Void
-
-    @State private var showCompletions = false
-    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -198,31 +195,29 @@ struct MapSearchOverlayView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(primaryColor)
 
-                    TextField("搜尋目的地、地址、景點", text: Binding(
-                        get: { searchManager.searchText },
-                        set: { searchManager.updateSearch($0) }
-                    ))
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
-                    .focused($isFieldFocused)
-                    .submitLabel(.search)
-                    .onSubmit {
-                        guard !searchManager.searchText.isEmpty else { return }
-                        let region = MKCoordinateRegion(
-                            center: vehicleManager.currentLocation,
-                            latitudinalMeters: 10000, longitudinalMeters: 10000
-                        )
-                        searchManager.searchByText(searchManager.searchText, region: region) { coord in
-                            guard let coord = coord else { return }
-                            onSelectDestination(coord, searchManager.searchText)
+                    // iOS 14 相容：用 UIViewRepresentable 的 TextField
+                    SearchTextField(
+                        text: Binding(
+                            get: { searchManager.searchText },
+                            set: { searchManager.updateSearch($0) }
+                        ),
+                        placeholder: "搜尋目的地、地址、景點",
+                        primaryColor: UIColor(primaryColor),
+                        onSubmit: {
+                            guard !searchManager.searchText.isEmpty else { return }
+                            let region = MKCoordinateRegion(
+                                center: vehicleManager.currentLocation,
+                                latitudinalMeters: 10000, longitudinalMeters: 10000)
+                            searchManager.searchByText(searchManager.searchText, region: region) { coord in
+                                guard let coord = coord else { return }
+                                onSelectDestination(coord, searchManager.searchText)
+                            }
                         }
-                    }
+                    )
+                    .frame(height: 36)
 
                     if !searchManager.searchText.isEmpty {
-                        Button(action: {
-                            searchManager.updateSearch("")
-                            isFieldFocused = false
-                        }) {
+                        Button(action: { searchManager.updateSearch("") }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(.gray)
@@ -230,12 +225,9 @@ struct MapSearchOverlayView: View {
                     }
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
                 .background(Color.white.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(primaryColor.opacity(0.5), lineWidth: 1)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(primaryColor.opacity(0.5), lineWidth: 1))
                 .cornerRadius(12)
             }
             .padding(.horizontal, 16)
@@ -248,7 +240,6 @@ struct MapSearchOverlayView: View {
                     VStack(spacing: 0) {
                         ForEach(searchManager.completions, id: \.self) { item in
                             Button(action: {
-                                isFieldFocused = false
                                 searchManager.searchFor(item) { coord in
                                     guard let coord = coord else { return }
                                     onSelectDestination(coord, item.title)
@@ -259,7 +250,6 @@ struct MapSearchOverlayView: View {
                                         .font(.system(size: 18))
                                         .foregroundColor(primaryColor)
                                         .frame(width: 28)
-
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.title)
                                             .font(.system(size: 13, weight: .semibold))
@@ -281,7 +271,9 @@ struct MapSearchOverlayView: View {
                                 .padding(.vertical, 10)
                             }
                             if item != searchManager.completions.last {
-                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 56)
+                                Divider()
+                                    .background(Color.white.opacity(0.1))
+                                    .padding(.leading, 56)
                             }
                         }
                     }
@@ -297,17 +289,65 @@ struct MapSearchOverlayView: View {
             Spacer()
         }
         .background(
-            // 搜尋列背景模糊
             VStack {
-                Color.black.opacity(0.5).frame(height: searchManager.completions.isEmpty ? 80 : 400)
-                    .blur(radius: 0)
+                Color.black.opacity(0.5)
+                    .frame(height: searchManager.completions.isEmpty ? 90 : 400)
                 Spacer()
             }
             .ignoresSafeArea()
         )
-        .onAppear { isFieldFocused = true }
     }
 }
+
+// MARK: - iOS 14 相容搜尋輸入框（UIViewRepresentable）
+struct SearchTextField: UIViewRepresentable {
+    @Binding var text: String
+    var placeholder: String
+    var primaryColor: UIColor
+    var onSubmit: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> UITextField {
+        let tf = UITextField()
+        tf.placeholder = placeholder
+        tf.attributedPlaceholder = NSAttributedString(
+            string: placeholder,
+            attributes: [.foregroundColor: UIColor.white.withAlphaComponent(0.4)]
+        )
+        tf.textColor = .white
+        tf.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        tf.returnKeyType = .search
+        tf.backgroundColor = .clear
+        tf.delegate = context.coordinator
+        // 自動彈出鍵盤
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            tf.becomeFirstResponder()
+        }
+        return tf
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        if uiView.text != text { uiView.text = text }
+    }
+
+    class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: SearchTextField
+        init(_ p: SearchTextField) { self.parent = p }
+
+        func textFieldDidChangeSelection(_ textField: UITextField) {
+            let newText = textField.text ?? ""
+            if parent.text != newText { parent.text = newText }
+        }
+
+        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            textField.resignFirstResponder()
+            parent.onSubmit()
+            return true
+        }
+    }
+}
+
 
 // MARK: - 骷髏主題：血色霧氣
 struct SkullBloodFogView: View {
