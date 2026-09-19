@@ -2324,7 +2324,10 @@ struct ContentView: View {
                         speedLimit: $speedLimit,
                         isHudMode: $isHudMode,
                         useCustomColor: $useCustomColor,
-                        customColor: Binding(get: { self.customColor }, set: { self.customColor = $0 }),
+                        customColor: Binding(
+                            get: { Color(rgbString: self.customColorRaw) ?? Color(red: 1.0, green: 0.3, blue: 0.4) },
+                            set: { self.customColorRaw = $0.rgbString }
+                        )
                         isNetworkBoostEnabled: $isNetworkBoostEnabled,
                         simulatedSpeed: $simulatedSpeed,
                         enableSakuraBackground: $enableSakuraBackground,
