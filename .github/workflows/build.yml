@@ -27,6 +27,8 @@ jobs:
             SpeedCameraServices.swift
 
           cp Info.plist Payload/Speedometer.app/Info.plist
+          cp speed_cameras.csv Payload/Speedometer.app/speed_cameras.csv
+
           plutil -convert xml1 Payload/Speedometer.app/Info.plist
           echo -n "APPL????" > Payload/Speedometer.app/PkgInfo
 
