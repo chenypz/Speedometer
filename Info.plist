@@ -37,6 +37,10 @@
     <string>需要定位權限以測量即時車速、導航及提醒測速照相。</string>
 
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <key>UIBackgroundModes</key>
+    <array>
+    <string>location</string>
+    </array>
     <string>導航期間需要定位權限以提供測速提醒。</string>
 
     <key>UIRequiredDeviceCapabilities</key>
