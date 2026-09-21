@@ -20,10 +20,12 @@ jobs:
         
         # 2. 直接編譯為 iOS arm64 可執行檔 Speedometer
         swiftc -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
-               -target arm64-apple-ios14.0 \
-               -emit-executable \
-               -o Payload/Speedometer.app/Speedometer \
-               SpeedometerApp.swift ContentView.swift
+       -target arm64-apple-ios14.0 \
+       -emit-executable \
+       -o Payload/Speedometer.app/Speedometer \
+       SpeedometerApp.swift \
+       ContentView.swift \
+       SpeedCameraServices.swift
 
         # 3. 複製並規範化 Info.plist 檔案
         cp Info.plist Payload/Speedometer.app/Info.plist
