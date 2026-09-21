@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-"https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
@@ -37,11 +37,12 @@
     <string>需要定位權限以測量即時車速、導航及提醒測速照相。</string>
 
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>導航期間需要定位權限以提供測速提醒。</string>
+
     <key>UIBackgroundModes</key>
     <array>
-    <string>location</string>
+        <string>location</string>
     </array>
-    <string>導航期間需要定位權限以提供測速提醒。</string>
 
     <key>UIRequiredDeviceCapabilities</key>
     <array>
