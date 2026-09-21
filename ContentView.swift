@@ -40,12 +40,13 @@ struct SpeedCamera: Identifiable, Codable {
     var id: UUID = UUID()
     let latitude: Double; let longitude: Double
     let speedLimit: Double; let description: String
+    var direction: String = "雙向"
     var isTemporary: Bool = false
     var expiresAt: Date? = nil
-    enum CodingKeys: String, CodingKey { case latitude, longitude, speedLimit, description, isTemporary, expiresAt }
-    init(latitude: Double, longitude: Double, speedLimit: Double, description: String, isTemporary: Bool = false, expiresAt: Date? = nil) {
+    enum CodingKeys: String, CodingKey { case latitude, longitude, speedLimit, description, direction, isTemporary, expiresAt }
+    init(latitude: Double, longitude: Double, speedLimit: Double, description: String, direction: String = "雙向", isTemporary: Bool = false, expiresAt: Date? = nil) {
         self.latitude = latitude; self.longitude = longitude
-        self.speedLimit = speedLimit; self.description = description; self.isTemporary = isTemporary
+        self.speedLimit = speedLimit; self.description = description; self.direction = direction; self.isTemporary = isTemporary
         self.expiresAt = expiresAt
     }
     var coordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
@@ -901,13 +902,14 @@ func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
             let dist = currentLoc.distance(from: camLoc)
             if directionFilteringEnabled && heading >= 0 {
                 let bearing = currentLoc.course >= 0 ? currentLoc.course : heading
+                if !cameraDirectionMatches(cam.direction, bearing: bearing) { continue }
                 let target = bearingTo(currentLoc.coordinate, cam.coordinate)
                 let delta = abs(((target - bearing + 540).truncatingRemainder(dividingBy: 360)) - 180)
                 if delta > 75 { continue }
             }
             if dist <= cameraAlertDistance {
                 nearestCameraAlert = "\(cam.description) 剩 \(Int(dist))m (速限 \(Int(cam.speedLimit))km)"
-                if dist <= 300, lastSpokenCameraId != cam.id {
+                if dist <= min(300, cameraAlertDistance * 0.75), lastSpokenCameraId != cam.id {
                     lastSpokenCameraId = cam.id
                     speechManager.announceWarning(speedLimit: Int(cam.speedLimit), isOverspeed: currentSpeed > cam.speedLimit)
                     if currentSpeed > cam.speedLimit { AudioServicesPlaySystemSound(1007) }
@@ -923,6 +925,15 @@ func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
         if nearestCameraAlert?.contains("已成功") == false && nearestCameraAlert?.contains("已移除") == false {
             nearestCameraAlert = nil
         }
+    }
+    private func cameraDirectionMatches(_ text: String, bearing: Double) -> Bool {
+        let value = text.lowercased()
+        if value.contains("雙向") || value.contains("雙") || value.contains("both") { return true }
+        let isNorthSouth = value.contains("南") || value.contains("北") || value.contains("north") || value.contains("south")
+        let isEastWest = value.contains("東") || value.contains("西") || value.contains("east") || value.contains("west")
+        if isNorthSouth { return bearing <= 45 || bearing >= 135 && bearing <= 225 || bearing >= 315 }
+        if isEastWest { return bearing > 45 && bearing < 135 || bearing > 225 && bearing < 315 }
+        return true
     }
     private func bearingTo(_ from: CLLocationCoordinate2D, _ to: CLLocationCoordinate2D) -> Double {
         let p1 = from.latitude * .pi / 180, p2 = to.latitude * .pi / 180
@@ -1869,8 +1880,8 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
             map.removeAnnotations(cameraAnnotations); cameraAnnotations.removeAll()
             for camera in cameras {
                 let a = MKPointAnnotation(); a.coordinate = camera.coordinate
-                a.title = camera.isTemporary ? "臨時測速 (Int(camera.speedLimit))" : "固定測速 (Int(camera.speedLimit))"
-                a.subtitle = camera.description; cameraAnnotations.append(a)
+                a.title = camera.isTemporary ? "臨時測速 \(Int(camera.speedLimit))" : "固定測速 \(Int(camera.speedLimit))"
+                a.subtitle = "\(camera.description) · \(camera.direction)"; cameraAnnotations.append(a)
             }
             map.addAnnotations(cameraAnnotations)
         }
