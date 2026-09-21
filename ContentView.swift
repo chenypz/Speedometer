@@ -754,16 +754,20 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         harshAccelerationCount = 0; harshBrakingCount = 0
         overspeedDurationSeconds = 0; lastRecordedSpeed = 0
     }
-    func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
-        let cam = SpeedCamera(latitude: currentLocation.latitude, longitude: currentLocation.longitude,
-            speedLimit: speedLimit, description: description.isEmpty ? "⚠️ 手動回報測速點" : description, isTemporary: true)
-        speedCameras.append(cam); nearestCameraAlert = "已成功加入目前測速點！"
-        CloudKitCameraReports.shared.submit(coordinate: currentLocation, speedLimit: speedLimit,
-                                            note: description.isEmpty ? "手動回報測速點" : description) { [weak self] result in
-            if case .failure = result { self?.nearestCameraAlert = "已加入本機；雲端同步失敗" }
-        }
-        AudioServicesPlaySystemSound(1016); speechManager.speak("已成功加入目前測速點")
-    }
+func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
+    let cam = SpeedCamera(
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        speedLimit: speedLimit,
+        description: description.isEmpty ? "手動回報測速點" : description,
+        isTemporary: true
+    )
+
+    speedCameras.append(cam)
+    nearestCameraAlert = "已成功加入目前測速點！"
+    AudioServicesPlaySystemSound(1016)
+    speechManager.speak("已成功加入目前測速點")
+}
     func removeNearestCamera() {
         guard let loc = lastLocation else { speechManager.speak("目前沒有定位資訊"); return }
         if let idx = speedCameras.firstIndex(where: {
@@ -854,13 +858,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             if d >= 1.0 && d <= 1_000 { tripDistance += d/1000.0 }
         }
         lastLocation = loc
-        if Date().timeIntervalSince(lastCloudFetch) > 60 {
-            lastCloudFetch = Date()
-            CloudKitCameraReports.shared.fetch(near: loc.coordinate) { [weak self] cameras in
-                guard let self, !cameras.isEmpty else { return }
-                self.speedCameras.append(contentsOf: cameras)
-            }
-        }
+
         if kmh < 5 && !isTesting0_100 && !hasReached100 {
             isTesting0_100 = true; accelStartTime = Date(); zeroToOneHundredTime = 0
         } else if isTesting0_100, let t = accelStartTime {
