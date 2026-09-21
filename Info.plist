@@ -1,42 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+"https://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleExecutable</key>
-	<string>Speedometer</string>
-	<key>CFBundleIdentifier</key>
-	<string>com.chenypz.speedometer</string>
-	<key>CFBundleName</key>
-	<string>Speedometer</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	
-	<!-- 關鍵設定 1：全螢幕 Launch Screen 宣告（解決上下黑邊） -->
-	<key>UILaunchScreen</key>
-	<dict/>
+    <key>CFBundleExecutable</key>
+    <string>Speedometer</string>
 
-	<!-- 關鍵設定 2：隱藏頂部時間/電池狀態列 -->
-	<key>UIStatusBarHidden</key>
-	<true/>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
+    <key>CFBundleIdentifier</key>
+    <string>com.chenypz.speedometer</string>
 
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>需要定位權限以測量即時車速</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>arm64</string>
-	</array>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-	</array>
+    <key>CFBundleName</key>
+    <string>Speedometer</string>
+
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+
+    <key>CFBundleVersion</key>
+    <string>1</string>
+
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+
+    <key>UILaunchScreen</key>
+    <dict/>
+
+    <key>UIStatusBarHidden</key>
+    <true/>
+
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
+
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>需要定位權限以測量即時車速、導航及提醒測速照相。</string>
+
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>導航期間需要定位權限以提供測速提醒。</string>
+
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+    </array>
+
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+    </array>
 </dict>
 </plist>
