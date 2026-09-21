@@ -10,15 +10,17 @@ final class OfficialCameraStore {
     private let sourceURL = URL(string: "https://data.gov.tw/dataset/7320")!
 
     func load(completion: @escaping ([SpeedCamera]) -> Void) {
+        let bundled = Self.loadBundledCSV()
         if let data = UserDefaults.standard.data(forKey: cacheKey),
            let cached = try? JSONDecoder().decode([SpeedCamera].self, from: data) {
-            completion(cached)
+            completion(Self.merge(cached, bundled))
 
             if let date = UserDefaults.standard.object(forKey: cacheDateKey) as? Date,
                Date().timeIntervalSince(date) < 6 * 60 * 60 {
                 return
             }
         }
+        if !bundled.isEmpty { completion(bundled) }
 
         var request = URLRequest(url: sourceURL)
         request.timeoutInterval = 20
@@ -40,6 +42,26 @@ final class OfficialCameraStore {
         }.resume()
     }
 
+    private static func loadBundledCSV() -> [SpeedCamera] {
+        for name in ["speed_cameras (1)", "speed_cameras"] {
+            if let url = Bundle.main.url(forResource: name, withExtension: "csv"),
+               let data = try? Data(contentsOf: url) {
+                let result = parse(data)
+                if !result.isEmpty { return result }
+            }
+        }
+        return []
+    }
+
+    private static func merge(_ lhs: [SpeedCamera], _ rhs: [SpeedCamera]) -> [SpeedCamera] {
+        var result = lhs
+        for camera in rhs where !result.contains(where: {
+            abs($0.latitude - camera.latitude) < 0.00005 &&
+            abs($0.longitude - camera.longitude) < 0.00005
+        }) { result.append(camera) }
+        return result
+    }
+
     private static func parse(_ data: Data) -> [SpeedCamera] {
         guard let text = String(data: data, encoding: .utf8) else {
             return []
@@ -52,33 +74,22 @@ final class OfficialCameraStore {
         guard rows.count > 1 else { return [] }
 
         return rows.dropFirst().compactMap { row in
-            let fields: [String] = row
-                .split(separator: ",", omittingEmptySubsequences: false)
-                .map {
-                    $0.trimmingCharacters(in: .whitespacesAndNewlines)
-                }
-
-            guard fields.count >= 3,
-                  let lat = Double(fields.first {
-                      $0.contains("25.") || $0.contains("24.")
-                  } ?? ""),
-                  let lon = Array(fields.dropFirst())
-                      .compactMap({ Double($0) })
-                      .first,
+            let fields = row.split(separator: ",", omittingEmptySubsequences: false).map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            }
+            guard fields.count >= 9, let lon = Double(fields[5]), let lat = Double(fields[6]),
                   (-90...90).contains(lat),
                   (-180...180).contains(lon) else {
                 return nil
             }
-
-            let limit = fields
-                .compactMap(Double.init)
-                .first(where: { (10...140).contains($0) }) ?? 50
+            let limit = Double(fields[8]) ?? 50
 
             return SpeedCamera(
                 latitude: lat,
                 longitude: lon,
                 speedLimit: limit,
-                description: "警政署測速點"
+                description: fields[2].isEmpty ? "全台固定測速" : fields[2],
+                direction: fields[7].isEmpty ? "雙向" : fields[7]
             )
         }
     }
