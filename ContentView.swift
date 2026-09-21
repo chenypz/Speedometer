@@ -41,10 +41,12 @@ struct SpeedCamera: Identifiable, Codable {
     let latitude: Double; let longitude: Double
     let speedLimit: Double; let description: String
     var isTemporary: Bool = false
-    enum CodingKeys: String, CodingKey { case latitude, longitude, speedLimit, description, isTemporary }
-    init(latitude: Double, longitude: Double, speedLimit: Double, description: String, isTemporary: Bool = false) {
+    var expiresAt: Date? = nil
+    enum CodingKeys: String, CodingKey { case latitude, longitude, speedLimit, description, isTemporary, expiresAt }
+    init(latitude: Double, longitude: Double, speedLimit: Double, description: String, isTemporary: Bool = false, expiresAt: Date? = nil) {
         self.latitude = latitude; self.longitude = longitude
         self.speedLimit = speedLimit; self.description = description; self.isTemporary = isTemporary
+        self.expiresAt = expiresAt
     }
     var coordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
 }
@@ -710,9 +712,11 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var destinationCoordinate: CLLocationCoordinate2D? = nil
     @Published var destinationName: String = ""
     @Published var nearestCameraAlert: String? = nil
+    @Published var cameraAlertDistance: Double = UserDefaults.standard.object(forKey: "cameraAlertDistance") as? Double ?? 400
+    @Published var directionFilteringEnabled: Bool = UserDefaults.standard.object(forKey: "directionFilteringEnabled") as? Bool ?? true
     @Published var transportMode: TransportMode = TransportMode(rawValue: UserDefaults.standard.string(forKey: "transportMode") ?? "汽車") ?? .car
     private(set) var recordedPath: [CLLocationCoordinate2D] = []
-    private(set) var speedCameras: [SpeedCamera] = [
+    @Published private(set) var speedCameras: [SpeedCamera] = [
         SpeedCamera(latitude: 25.0330, longitude: 121.5654, speedLimit: 50, description: "台北信義路固定測速"),
         SpeedCamera(latitude: 25.0400, longitude: 121.5700, speedLimit: 60, description: "台北忠孝東路固定測速")
     ]
@@ -731,14 +735,26 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
         startMotionUpdates()
+        loadTemporaryCameras()
         OfficialCameraStore.shared.load { [weak self] cameras in
             guard let self, !cameras.isEmpty else { return }
-            self.speedCameras = cameras
+            self.speedCameras = cameras + self.speedCameras.filter { $0.isTemporary && ($0.expiresAt ?? .distantFuture) > Date() }
+            self.persistTemporaryCameras()
         }
     }
     func setTransportMode(_ mode: TransportMode) {
         transportMode = mode
         UserDefaults.standard.set(mode.rawValue, forKey: "transportMode")
+    }
+    func setCameraAlertDistance(_ distance: Double) { cameraAlertDistance = distance; UserDefaults.standard.set(distance, forKey: "cameraAlertDistance") }
+    func setDirectionFiltering(_ enabled: Bool) { directionFilteringEnabled = enabled; UserDefaults.standard.set(enabled, forKey: "directionFilteringEnabled") }
+    private func loadTemporaryCameras() {
+        guard let data = UserDefaults.standard.data(forKey: "temporary-speed-cameras-v2"), let saved = try? JSONDecoder().decode([SpeedCamera].self, from: data) else { return }
+        speedCameras.append(contentsOf: saved.filter { $0.isTemporary && ($0.expiresAt ?? .distantFuture) > Date() })
+    }
+    private func persistTemporaryCameras() {
+        let active = speedCameras.filter { $0.isTemporary && ($0.expiresAt ?? .distantFuture) > Date() }
+        if let data = try? JSONEncoder().encode(active) { UserDefaults.standard.set(data, forKey: "temporary-speed-cameras-v2") }
     }
     func updateLocationAccuracy(isNetworkBoostEnabled: Bool) {
         locationManager.desiredAccuracy = isNetworkBoostEnabled ? kCLLocationAccuracyBestForNavigation : kCLLocationAccuracyBest
@@ -755,15 +771,16 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         overspeedDurationSeconds = 0; lastRecordedSpeed = 0
     }
 func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
-    let cam = SpeedCamera(
+        let cam = SpeedCamera(
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
         speedLimit: speedLimit,
         description: description.isEmpty ? "手動回報測速點" : description,
-        isTemporary: true
+            isTemporary: true, expiresAt: Date().addingTimeInterval(3 * 60 * 60)
     )
 
-    speedCameras.append(cam)
+        speedCameras.append(cam)
+        persistTemporaryCameras()
     nearestCameraAlert = "已成功加入目前測速點！"
     AudioServicesPlaySystemSound(1016)
     speechManager.speak("已成功加入目前測速點")
@@ -774,6 +791,7 @@ func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
             loc.distance(from: CLLocation(latitude: $0.latitude, longitude: $0.longitude)) <= 150
         }) {
             let removed = speedCameras.remove(at: idx)
+            persistTemporaryCameras()
             nearestCameraAlert = "已移除最近測速點：\(removed.description)"
             AudioServicesPlaySystemSound(1016); speechManager.speak("已移除最近測速點")
         } else {
@@ -875,11 +893,19 @@ func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
         }
     }
     private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
+        speedCameras.removeAll { $0.isTemporary && ($0.expiresAt ?? .distantPast) <= Date() }
+        persistTemporaryCameras()
         for cam in speedCameras {
             if transportMode == .bicycle && cam.speedLimit > 60 { continue }
             let camLoc = CLLocation(latitude: cam.latitude, longitude: cam.longitude)
             let dist = currentLoc.distance(from: camLoc)
-            if dist <= 400 {
+            if directionFilteringEnabled && heading >= 0 {
+                let bearing = currentLoc.course >= 0 ? currentLoc.course : heading
+                let target = bearingTo(currentLoc.coordinate, cam.coordinate)
+                let delta = abs(((target - bearing + 540).truncatingRemainder(dividingBy: 360)) - 180)
+                if delta > 75 { continue }
+            }
+            if dist <= cameraAlertDistance {
                 nearestCameraAlert = "\(cam.description) 剩 \(Int(dist))m (速限 \(Int(cam.speedLimit))km)"
                 if dist <= 300, lastSpokenCameraId != cam.id {
                     lastSpokenCameraId = cam.id
@@ -897,6 +923,11 @@ func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
         if nearestCameraAlert?.contains("已成功") == false && nearestCameraAlert?.contains("已移除") == false {
             nearestCameraAlert = nil
         }
+    }
+    private func bearingTo(_ from: CLLocationCoordinate2D, _ to: CLLocationCoordinate2D) -> Double {
+        let p1 = from.latitude * .pi / 180, p2 = to.latitude * .pi / 180
+        let dl = (to.longitude - from.longitude) * .pi / 180
+        return (atan2(sin(dl) * cos(p2), cos(p1) * sin(p2) - sin(p1) * cos(p2) * cos(dl)) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
     }
     func locationManager(_ manager: CLLocationManager, didUpdateHeading h: CLHeading) {
         heading = h.trueHeading >= 0 ? h.trueHeading : h.magneticHeading
@@ -1733,6 +1764,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
     var routePolyline: MKPolyline?
     var destinationCoordinate: CLLocationCoordinate2D?
     var historyPath: [CLLocationCoordinate2D]?
+    var cameraPoints: [SpeedCamera] = []
     var isInteractive: Bool = true
     var onMapTap: (CLLocationCoordinate2D) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -1760,6 +1792,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         context.coordinator.updateRoute(routePolyline, on: uiView)
         context.coordinator.updateHistory(historyPath, on: uiView)
         context.coordinator.updateDestination(destinationCoordinate, on: uiView)
+        context.coordinator.updateCameras(cameraPoints, on: uiView)
     }
     class Coordinator: NSObject, MKMapViewDelegate {
         var parent: InteractiveNavigationMapView
@@ -1770,6 +1803,7 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         private var historyEnd: CLLocationCoordinate2D?
         private var destinationAnnotation: MKPointAnnotation?
         private var centeredCoordinate: CLLocationCoordinate2D?
+        private var cameraAnnotations: [MKPointAnnotation] = []
         init(_ p: InteractiveNavigationMapView) { self.parent = p }
 
         func updateCenter(_ coordinate: CLLocationCoordinate2D, on map: MKMapView) {
@@ -1830,6 +1864,22 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
                 destinationAnnotation = annotation
                 map.addAnnotation(annotation)
             }
+        }
+        func updateCameras(_ cameras: [SpeedCamera], on map: MKMapView) {
+            map.removeAnnotations(cameraAnnotations); cameraAnnotations.removeAll()
+            for camera in cameras {
+                let a = MKPointAnnotation(); a.coordinate = camera.coordinate
+                a.title = camera.isTemporary ? "臨時測速 (Int(camera.speedLimit))" : "固定測速 (Int(camera.speedLimit))"
+                a.subtitle = camera.description; cameraAnnotations.append(a)
+            }
+            map.addAnnotations(cameraAnnotations)
+        }
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            guard !(annotation is MKUserLocation) else { return nil }
+            let v = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: "camera")
+            v.markerTintColor = ((annotation.title ?? "").contains("臨時")) ? .systemOrange : .systemRed
+            v.glyphImage = UIImage(systemName: "camera.fill")
+            return v
         }
 
         private func sameCoordinate(_ lhs: CLLocationCoordinate2D?, _ rhs: CLLocationCoordinate2D?) -> Bool {
@@ -2129,6 +2179,11 @@ struct SettingsView: View {
                 Button("測試語音播報") { vehicleManager.speechManager.announceWarning(speedLimit:60,isOverspeed:true) }.foregroundColor(.blue)
             }
             Section(header:Text("測速點位管理")) {
+                VStack(alignment:.leading) {
+                    Text("提醒距離: \(Int(vehicleManager.cameraAlertDistance)) 公尺")
+                    Slider(value: Binding(get:{ vehicleManager.cameraAlertDistance }, set:{ vehicleManager.setCameraAlertDistance($0) }), in:100...1000, step:50)
+                }
+                Toggle("依行進方向過濾", isOn: Binding(get:{ vehicleManager.directionFilteringEnabled }, set:{ vehicleManager.setDirectionFiltering($0) }))
                 Button("新增目前位置為測速點") { vehicleManager.addCurrentLocationAsCamera(speedLimit:speedLimit,description:"手動回報") }
                 Button("移除最近測速點 (150m內)") { vehicleManager.removeNearestCamera() }.foregroundColor(.red)
             }
@@ -2273,6 +2328,7 @@ struct ContentView: View {
                                         coordinate:vehicleManager.currentLocation,
                                         routePolyline:vehicleManager.routePolyline,
                                         destinationCoordinate:vehicleManager.destinationCoordinate,
+                                        cameraPoints: vehicleManager.speedCameras,
                                         isInteractive:true,
                                                                                 onMapTap: { coord in
                                             if !showSearchOverlay {
