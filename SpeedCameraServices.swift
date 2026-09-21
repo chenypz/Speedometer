@@ -87,7 +87,9 @@ final class OfficialCameraStore {
 final class CloudKitCameraReports {
     static let shared = CloudKitCameraReports()
 
-    private let database = CKContainer.default().publicCloudDatabase
+    private lazy var database: CKDatabase = {
+    CKContainer.default().publicCloudDatabase
+}()
 
     func fetch(
         near coordinate: CLLocationCoordinate2D,
