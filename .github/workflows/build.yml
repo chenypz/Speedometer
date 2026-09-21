@@ -2,7 +2,7 @@ name: Build iOS IPA
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   workflow_dispatch:
 
 jobs:
@@ -10,37 +10,32 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Build App Executable & Structure
-      run: |
-        # 1. 建立標準 Payload/Speedometer.app 目錄
-        mkdir -p Payload/Speedometer.app
-        
-        # 2. 直接編譯為 iOS arm64 可執行檔 Speedometer
-        swiftc -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
-       -target arm64-apple-ios14.0 \
-       -emit-executable \
-       -o Payload/Speedometer.app/Speedometer \
-       SpeedometerApp.swift \
-       ContentView.swift \
-       SpeedCameraServices.swift
+      - name: Build App Executable & Structure
+        run: |
+          mkdir -p Payload/Speedometer.app
 
-        # 3. 複製並規範化 Info.plist 檔案
-        cp Info.plist Payload/Speedometer.app/Info.plist
-        plutil -convert xml1 Payload/Speedometer.app/Info.plist
-        
-        # 4. 寫入 PkgInfo
-        echo -n "APPL????" > Payload/Speedometer.app/PkgInfo
+          swiftc \
+            -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+            -target arm64-apple-ios14.0 \
+            -emit-executable \
+            -o Payload/Speedometer.app/Speedometer \
+            SpeedometerApp.swift \
+            ContentView.swift \
+            SpeedCameraServices.swift
 
-    - name: Package IPA
-      run: |
-        # 壓縮 Payload 資料夾成為 .ipa
-        zip -r Speedometer.ipa Payload
+          cp Info.plist Payload/Speedometer.app/Info.plist
+          plutil -convert xml1 Payload/Speedometer.app/Info.plist
+          echo -n "APPL????" > Payload/Speedometer.app/PkgInfo
 
-    - name: Upload IPA Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Speedometer-IPA
-        path: Speedometer.ipa
+      - name: Package IPA
+        run: |
+          zip -r Speedometer.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Speedometer-IPA
+          path: Speedometer.ipa
