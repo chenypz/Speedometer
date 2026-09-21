@@ -128,7 +128,8 @@ final class CloudKitCameraReports {
                     longitude: value.coordinate.longitude,
                     speedLimit: limitNumber.doubleValue,
                     description: (record["note"] as? String) ?? "使用者回報",
-                    isTemporary: true
+                    isTemporary: true,
+                    expiresAt: (record["expiresAt"] as? Date) ?? Date().addingTimeInterval(3 * 60 * 60)
                 )
             }
 
