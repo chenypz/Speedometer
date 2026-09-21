@@ -1877,7 +1877,8 @@ struct InteractiveNavigationMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             guard !(annotation is MKUserLocation) else { return nil }
             let v = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: "camera")
-            v.markerTintColor = ((annotation.title ?? "").contains("臨時")) ? .systemOrange : .systemRed
+            let title = (annotation.title ?? "") ?? ""
+            v.markerTintColor = title.contains("臨時") ? .systemOrange : .systemRed
             v.glyphImage = UIImage(systemName: "camera.fill")
             return v
         }
