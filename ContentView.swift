@@ -48,6 +48,16 @@ struct SpeedCamera: Identifiable, Codable {
     }
     var coordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
 }
+
+enum TransportMode: String, CaseIterable, Identifiable {
+    case car = "汽車"
+    case motorcycle = "機車"
+    case bicycle = "腳踏車"
+    var id: String { rawValue }
+    var defaultSpeedLimit: Double {
+        switch self { case .car: return 50; case .motorcycle: return 50; case .bicycle: return 25 }
+    }
+}
 struct MapSearchResult: Identifiable {
     let id = UUID(); let title: String; let subtitle: String; let coordinate: CLLocationCoordinate2D
 }
@@ -700,6 +710,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var destinationCoordinate: CLLocationCoordinate2D? = nil
     @Published var destinationName: String = ""
     @Published var nearestCameraAlert: String? = nil
+    @Published var transportMode: TransportMode = TransportMode(rawValue: UserDefaults.standard.string(forKey: "transportMode") ?? "汽車") ?? .car
     private(set) var recordedPath: [CLLocationCoordinate2D] = []
     private(set) var speedCameras: [SpeedCamera] = [
         SpeedCamera(latitude: 25.0330, longitude: 121.5654, speedLimit: 50, description: "台北信義路固定測速"),
@@ -710,6 +721,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var lastLocation: CLLocation? = nil
     private var lastRecordedPathLocation: CLLocation? = nil
     private var activeDirections: MKDirections?
+    private var lastCloudFetch: Date = .distantPast
     override init() {
         super.init()
         locationManager.delegate = self
@@ -719,6 +731,14 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
         startMotionUpdates()
+        OfficialCameraStore.shared.load { [weak self] cameras in
+            guard let self, !cameras.isEmpty else { return }
+            self.speedCameras = cameras
+        }
+    }
+    func setTransportMode(_ mode: TransportMode) {
+        transportMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: "transportMode")
     }
     func updateLocationAccuracy(isNetworkBoostEnabled: Bool) {
         locationManager.desiredAccuracy = isNetworkBoostEnabled ? kCLLocationAccuracyBestForNavigation : kCLLocationAccuracyBest
@@ -738,6 +758,10 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let cam = SpeedCamera(latitude: currentLocation.latitude, longitude: currentLocation.longitude,
             speedLimit: speedLimit, description: description.isEmpty ? "⚠️ 手動回報測速點" : description, isTemporary: true)
         speedCameras.append(cam); nearestCameraAlert = "已成功加入目前測速點！"
+        CloudKitCameraReports.shared.submit(coordinate: currentLocation, speedLimit: speedLimit,
+                                            note: description.isEmpty ? "手動回報測速點" : description) { [weak self] result in
+            if case .failure = result { self?.nearestCameraAlert = "已加入本機；雲端同步失敗" }
+        }
         AudioServicesPlaySystemSound(1016); speechManager.speak("已成功加入目前測速點")
     }
     func removeNearestCamera() {
@@ -830,6 +854,13 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             if d >= 1.0 && d <= 1_000 { tripDistance += d/1000.0 }
         }
         lastLocation = loc
+        if Date().timeIntervalSince(lastCloudFetch) > 60 {
+            lastCloudFetch = Date()
+            CloudKitCameraReports.shared.fetch(near: loc.coordinate) { [weak self] cameras in
+                guard let self, !cameras.isEmpty else { return }
+                self.speedCameras.append(contentsOf: cameras)
+            }
+        }
         if kmh < 5 && !isTesting0_100 && !hasReached100 {
             isTesting0_100 = true; accelStartTime = Date(); zeroToOneHundredTime = 0
         } else if isTesting0_100, let t = accelStartTime {
@@ -847,6 +878,7 @@ class VehicleManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     private func checkSpeedCameras(currentLoc: CLLocation, currentSpeed: Double) {
         for cam in speedCameras {
+            if transportMode == .bicycle && cam.speedLimit > 60 { continue }
             let camLoc = CLLocation(latitude: cam.latitude, longitude: cam.longitude)
             let dist = currentLoc.distance(from: camLoc)
             if dist <= 400 {
@@ -2073,6 +2105,15 @@ struct SettingsView: View {
     @Binding var borderWidth: Double; @Binding var animSpeed: Double
     var body: some View {
         Form {
+            Section(header: Text("使用車種")) {
+                Picker("車種", selection: Binding(get: { vehicleManager.transportMode }, set: { vehicleManager.setTransportMode($0) })) {
+                    ForEach(TransportMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                Text("腳踏車模式會忽略高速公路等不適用的高限速測速點。")
+                    .font(.footnote).foregroundColor(.secondary)
+            }
             Section(header:Text("霓虹邊緣光設定")) {
                 VStack(alignment:.leading,spacing:8) {
                     Text("光暈強度: \(Int(borderWidth)) 級").font(.system(size:14,weight:.bold,design:.monospaced))
