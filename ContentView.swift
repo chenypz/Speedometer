@@ -832,6 +832,26 @@ func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
         destinationName = ""; currentInstruction = "搜尋目的地開始導航"; distanceToNextStep = 0
         speechManager.speak("導航已結束")
     }
+    /// 移除使用者已經通過的路段，讓地圖上的導航藍線只保留前方路線。
+    /// GPS 偶爾漂移時，只有在距離路線足夠近才裁切，避免藍線突然消失。
+    private func trimCompletedRoute(from location: CLLocation) {
+        guard isNavigating, let polyline = routePolyline, polyline.pointCount > 1 else { return }
+        let points = polyline.points()
+        var closestIndex = 0
+        var closestDistance = CLLocationDistance.greatestFiniteMagnitude
+        for index in 0..<polyline.pointCount {
+            let coordinate = points[index].coordinate
+            let distance = location.distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
+            if distance < closestDistance {
+                closestDistance = distance
+                closestIndex = index
+            }
+        }
+        guard closestDistance <= 100, closestIndex > 0 else { return }
+        let remainingCount = polyline.pointCount - closestIndex
+        guard remainingCount > 1 else { return }
+        routePolyline = MKPolyline(points: points + closestIndex, count: remainingCount)
+    }
     private func startMotionUpdates() {
         guard motionManager.isAccelerometerAvailable, !motionManager.isAccelerometerActive else { return }
         motionManager.accelerometerUpdateInterval = 0.2
@@ -855,6 +875,7 @@ func addCurrentLocationAsCamera(speedLimit: Double, description: String) {
         if displayedLocation.distance(from: loc) >= 1.0 {
             currentLocation = loc.coordinate
         }
+        trimCompletedRoute(from: loc)
         if lastRecordedPathLocation == nil || loc.distance(from: lastRecordedPathLocation!) >= 3.0 {
             if recordedPath.count >= 20_000 {
                 recordedPath = recordedPath.enumerated().compactMap { index, coordinate in
